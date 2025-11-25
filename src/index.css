@@ -173,3 +173,15 @@ footer { background-color: #1f1f1f; border-top: 1px solid #333; padding: 40px 20
 .social-input-group { display: flex; align-items: center; gap: 10px; background: #252525; padding: 10px; border-radius: 5px; border: 1px solid #333; margin-bottom: 10px; }
 .social-input-group i { width: 24px; text-align: center; }
 .social-input-group input { margin: 0 !important; border: none; background: transparent; }
+/* --- Carrossel de Recomendações --- */
+.rr-carousel-track::-webkit-scrollbar {
+    display: none; /* Esconde scrollbar no Chrome/Safari */
+}
+.rr-carousel-track {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+.carousel-btn:hover {
+    background: #d9a404 !important;
+    color: black !important;
+}

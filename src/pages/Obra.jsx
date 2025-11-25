@@ -22,6 +22,7 @@ import {
   MdBookmarkAdded, 
   MdBookmarkBorder 
 } from 'react-icons/md';
+import Recomendacoes from '../components/Recomendacoes'; // <--- Importação do componente de Recomendações
 
 export default function Obra() {
   const { id } = useParams(); // Pega o ID da URL
@@ -105,7 +106,7 @@ export default function Obra() {
 
   // 3. FUNÇÃO PARA ADICIONAR/REMOVER DA BIBLIOTECA
   async function toggleBiblioteca() {
-      if(!user) return alert("Faça login para adicionar à biblioteca.");
+      if(!user) return alert("Login to add to library.");
 
       if(estaNaBiblioteca) {
           // Remover
@@ -208,7 +209,7 @@ export default function Obra() {
                     {/* Botão Ler Agora (Vai para o primeiro capítulo) */}
                     {capitulos.length > 0 && (
                         <Link to={`/ler/${capitulos[0].id}`} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}>
-                            <MdMenuBook /> Ler
+                            <MdMenuBook /> Read
                         </Link>
                     )}
 
@@ -226,7 +227,7 @@ export default function Obra() {
                             fontWeight: 'bold'
                         }}
                     >
-                        {estaNaBiblioteca ? <><MdBookmarkAdded /> Na Biblioteca</> : <><MdBookmarkBorder /> Adicionar</>}
+                        {estaNaBiblioteca ? <><MdBookmarkAdded /> In Library</> : <><MdBookmarkBorder /> Add to Library</>}
                     </button>
                 </div>
             </div>
@@ -254,6 +255,15 @@ export default function Obra() {
                 ))
             )}
         </div>
+
+        {/* --- RECOMENDAÇÕES --- */}
+        {obra.categorias && (
+            <Recomendacoes 
+                tags={obra.categorias} 
+                currentId={id} 
+                title="Similar Stories" 
+            />
+        )}
 
     </div>
   );

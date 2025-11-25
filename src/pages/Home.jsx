@@ -1,15 +1,55 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { MdSearch, MdTune } from 'react-icons/md';
 import StoryCard from '../components/StoryCard';
+import Recomendacoes from '../components/Recomendacoes'; // <--- Importamos o carrossel
 
 export default function Home() {
+  const { user } = useContext(AuthContext);
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
+  
+  // Estado para recomendação personalizada
+  const [lastTags, setLastTags] = useState([]);
 
+  // 1. Busca o histórico do usuário para recomendação
+  useEffect(() => {
+    async function fetchUserHistory() {
+      if (!user?.uid) return;
+      try {
+        // Pega o último item lido
+        const q = query(
+            collection(db, "historico"),
+            where("userId", "==", user.uid),
+            orderBy("accessedAt", "desc"),
+            limit(1)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            // Precisamos pegar as categorias desse livro original
+            // O histórico talvez não tenha salvo as categorias, então buscamos a obra original
+            const obraId = snap.docs[0].data().obraId;
+            // Pequena busca para pegar as tags da obra lida
+            const obraRef = collection(db, "obras");
+            const qObra = query(obraRef, where("__name__", "==", obraId)); // Busca pelo ID do documento
+            const snapObra = await getDocs(qObra);
+            
+            if(!snapObra.empty) {
+                setLastTags(snapObra.docs[0].data().categorias || []);
+            }
+        }
+      } catch (err) {
+          console.log("Erro ao buscar histórico para recomendação:", err);
+      }
+    }
+    fetchUserHistory();
+  }, [user]);
+
+  // 2. Carrega o Feed Principal
   useEffect(() => {
     async function loadBooks() {
       setLoading(true);
@@ -56,10 +96,17 @@ export default function Home() {
             </div>
         </div>
       </div>
+
+      {/* --- ÁREA DE RECOMENDAÇÃO (Só aparece se tiver histórico) --- */}
+      {lastTags.length > 0 && (
+          <Recomendacoes tags={lastTags} title="Based on what you read" />
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333', paddingBottom: '10px', marginBottom: '20px' }}>
         <h2 style={{ margin: 0, color: 'white' }}>New Releases</h2>
         <span style={{ fontSize: '0.8rem', color: '#777' }}>Latest Updates</span>
       </div>
+
       {loading ? ( <div className="loading-spinner"></div> ) : (
         <>
             {stories.length === 0 ? ( <p style={{ color: '#aaa' }}>No stories found.</p> ) : (
