@@ -1,7 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../contexts/AuthContext'; // <--- Importante: Contexto do Usuário
 import { db } from '../services/firebaseConnection';
-import { doc, getDoc, updateDoc, increment, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { 
+  doc, getDoc, updateDoc, increment, collection, query, where, orderBy, limit, getDocs, 
+  setDoc, serverTimestamp // <--- Novos imports
+} from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { MdArrowBack, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
 import Comentarios from '../components/Comentarios';
@@ -9,6 +13,7 @@ import Comentarios from '../components/Comentarios';
 export default function Ler() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext); // <--- Pegamos o usuário logado
 
   const [capitulo, setCapitulo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,13 +37,26 @@ export default function Ler() {
         const dados = docSnap.data();
         setCapitulo({ id: docSnap.id, ...dados });
 
-        // Registra visualização
+        // 1. Registra visualização (+1 view)
         updateDoc(docRef, { views: increment(1) });
         if(dados.obraId) {
             updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
         }
 
-        // Navegação
+        // 2. SALVA NO HISTÓRICO DO USUÁRIO (Se estiver logado)
+        if (user?.uid && dados.obraId) {
+            const historyRef = doc(db, "historico", `${user.uid}_${dados.obraId}`);
+            await setDoc(historyRef, {
+                userId: user.uid,
+                obraId: dados.obraId,
+                bookTitle: dados.nomeObra || "Unknown Book",
+                lastChapterId: docSnap.id,
+                lastChapterTitle: dados.titulo,
+                accessedAt: serverTimestamp()
+            }, { merge: true });
+        }
+
+        // 3. Configura Navegação
         const qAnt = query(
             collection(db, "capitulos"), 
             where("obraId", "==", dados.obraId), 
@@ -66,7 +84,7 @@ export default function Ler() {
       }
     }
     loadCapitulo();
-  }, [id, navigate]);
+  }, [id, navigate, user]); // Adicionado 'user' na dependência
 
   if (loading) return <div className="loading-spinner"></div>;
 
@@ -114,12 +132,10 @@ export default function Ler() {
             )}
         </div>
 
-        {/* ÁREA DE COMENTÁRIOS */}
         <div style={{ marginTop: '60px' }}>
             <Comentarios 
                 targetId={id} 
                 targetType="capitulo"
-                // Aqui passamos os dados para a notificação saber quem é o dono do post
                 targetAuthorId={capitulo.autorId} 
                 targetTitle={capitulo.titulo} 
             />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { db } from '../services/firebaseConnection';
 import { 
   doc, 
@@ -29,22 +29,35 @@ export default function PerfilPublico() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. Author Data
-        const userDoc = await getDoc(doc(db, "usuarios", id));
-        if (userDoc.exists()) {
-           setAutor(userDoc.data());
-        } else {
-           setAutor({ nome: "Unknown User", foto: "https://via.placeholder.com/150" });
-        }
+        let dadosAutor = { nome: "Unknown User", foto: "https://via.placeholder.com/150" };
 
-        // 2. Author Works (Public only)
+        // 1. Tenta buscar dados do Usuário na coleção 'usuarios'
+        const userDoc = await getDoc(doc(db, "usuarios", id));
+        
+        if (userDoc.exists()) {
+           dadosAutor = userDoc.data();
+        } 
+
+        // 2. Busca Obras do Autor (Isso ajuda a recuperar o nome se o perfil falhar)
         const q = query(collection(db, "obras"), where("autorId", "==", id), where("status", "==", "public"));
         const snap = await getDocs(q);
-        let lista = [];
-        snap.forEach(d => lista.push({id: d.id, ...d.data()}));
-        setObras(lista);
+        let listaObras = [];
+        
+        snap.forEach(d => {
+            const data = d.data();
+            listaObras.push({id: d.id, ...data});
+            
+            // FALLBACK: Se o perfil do usuário não existia, usa o nome/foto salvo na obra
+            if (!userDoc.exists() && data.autor) {
+                dadosAutor.nome = data.autor;
+                // Se a obra tiver foto do autor salva, usamos ela (opcional, depende da sua estrutura)
+            }
+        });
 
-        // 3. Check if following
+        setAutor(dadosAutor);
+        setObras(listaObras);
+
+        // 3. Verifica se já segue
         if (user?.uid) {
             const followId = `${user.uid}_${id}`;
             const followDoc = await getDoc(doc(db, "seguidores", followId));
@@ -52,7 +65,7 @@ export default function PerfilPublico() {
         }
 
       } catch (err) {
-        console.log(err);
+        console.log("Erro ao carregar perfil:", err);
       } finally {
         setLoading(false);
       }
@@ -68,20 +81,17 @@ export default function PerfilPublico() {
 
       try {
         if(seguindo) {
-            // UNFOLLOW
             await deleteDoc(docRef);
             setSeguindo(false);
         } else {
-            // FOLLOW
             await setDoc(docRef, {
                 seguidorId: user.uid,
                 seguidorNome: user.name,
                 seguidoId: id,
-                seguidoNome: autor.nome,
+                seguidoNome: autor.nome, // Usa o nome recuperado
                 data: new Date()
             });
 
-            // NOTIFICATION
             await addDoc(collection(db, "notificacoes"), {
                 paraId: id,
                 mensagem: `<strong>${user.name}</strong> started following you.`,
@@ -105,13 +115,17 @@ export default function PerfilPublico() {
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: 20 }}>
        
        <div style={{ textAlign: 'center', background: '#1f1f1f', padding: 40, borderRadius: 10, borderBottom: '4px solid #4a90e2', marginBottom: 40 }}>
-            <img src={autor.foto || "https://via.placeholder.com/150"} alt={autor.nome} style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid #4a90e2', marginBottom: 15 }} />
+            <img 
+                src={autor?.foto || "https://via.placeholder.com/150"} 
+                alt={autor?.nome} 
+                style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid #4a90e2', marginBottom: 15, backgroundColor: '#333' }} 
+                onError={(e) => { e.target.src = "https://via.placeholder.com/150"; }} // Fallback se a imagem quebrar
+            />
             
-            <h2 style={{ color: 'white', margin: 0 }}>{autor.nome}</h2>
+            <h2 style={{ color: 'white', margin: 0 }}>{autor?.nome}</h2>
             <p style={{ color: '#777' }}>Author</p>
 
-            {/* Social Links */}
-            {autor.social && (
+            {autor?.social && (
                 <div style={{ display: 'flex', justifyContent: 'center', gap: 15, marginTop: 15, flexWrap: 'wrap' }}>
                     {autor.social.patreon && <a href={autor.social.patreon} target="_blank" className="btn-social" style={{background:'#f96854', color:'white', padding:'8px 12px', borderRadius:20, textDecoration:'none', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:5}}><FaPatreon /> Patreon</a>}
                     {autor.social.kofi && <a href={autor.social.kofi} target="_blank" className="btn-social" style={{background:'#13C3FF', color:'white', padding:'8px 12px', borderRadius:20, textDecoration:'none', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:5}}><FaCoffee /> Ko-fi</a>}
@@ -120,7 +134,6 @@ export default function PerfilPublico() {
                 </div>
             )}
 
-            {/* Follow Button */}
             {user?.uid !== id && (
                 <button 
                     onClick={handleFollow}
