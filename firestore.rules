@@ -1,0 +1,91 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- FUNÇÕES AUXILIARES ---
+    function estaLogado() {
+      return request.auth != null;
+    }
+
+    function eDono(campoId) {
+      return estaLogado() && request.auth.uid == resource.data[campoId];
+    }
+
+    function vaiSerDono(campoId) {
+      return estaLogado() && request.auth.uid == request.resource.data[campoId];
+    }
+
+    // --- REGRAS ---
+
+    // 1. USUÁRIOS (Perfil)
+    match /usuarios/{userId} {
+      allow read: if true; 
+      allow write: if estaLogado() && request.auth.uid == userId;
+    }
+    
+    // 2. STATUS USUÁRIO
+    match /status_usuario/{userId} {
+      allow read, write: if estaLogado() && request.auth.uid == userId;
+    }
+
+    // 3. OBRAS (Livros)
+    match /obras/{obraId} {
+      allow read: if resource.data.status == 'public' || eDono('autorId');
+      allow create: if vaiSerDono('autorId');
+      allow update, delete: if eDono('autorId');
+    }
+
+    // 4. CAPÍTULOS
+    match /capitulos/{capId} {
+      allow read: if true;
+      allow create: if vaiSerDono('autorId');
+      allow update, delete: if eDono('autorId');
+    }
+
+    // 5. COMENTÁRIOS
+    match /comentarios/{comId} {
+      allow read: if true;
+      allow create: if vaiSerDono('autorId');
+      allow delete: if eDono('autorId');
+      // Permite atualizar apenas os likes
+      allow update: if estaLogado() 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
+    }
+
+    // 6. BIBLIOTECA (CORRIGIDO)
+    match /biblioteca/{docId} {
+      // Só pode ler se o documento tiver o userId igual ao seu
+      allow read: if estaLogado() && resource.data.userId == request.auth.uid;
+      // Só pode criar se você gravar o seu próprio userId
+      allow create: if estaLogado() && request.resource.data.userId == request.auth.uid;
+      // Só pode atualizar/deletar se for seu
+      allow update, delete: if estaLogado() && resource.data.userId == request.auth.uid;
+    }
+    
+    // 7. HISTÓRICO (CORRIGIDO)
+    match /historico/{docId} {
+      allow read: if estaLogado() && resource.data.userId == request.auth.uid;
+      allow create: if estaLogado() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if estaLogado() && resource.data.userId == request.auth.uid;
+    }
+
+    // 8. SEGUIDORES
+    match /seguidores/{docId} {
+      allow read: if true;
+      allow create: if estaLogado() && request.resource.data.seguidorId == request.auth.uid;
+      allow delete: if estaLogado() && resource.data.seguidorId == request.auth.uid;
+    }
+
+    // 9. NOTIFICAÇÕES
+    match /notificacoes/{notifId} {
+      // Leitura: Apenas o dono da notificação (paraId)
+      allow read: if estaLogado() && resource.data.paraId == request.auth.uid;
+      
+      // Escrita: Qualquer um logado pode criar (para avisar alguém)
+      allow create: if estaLogado();
+      
+      // Atualizar (marcar como lida): Apenas o dono
+      allow update: if estaLogado() && resource.data.paraId == request.auth.uid;
+    }
+  }
+}

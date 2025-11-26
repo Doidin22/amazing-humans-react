@@ -4,7 +4,7 @@ import { db } from '../services/firebaseConnection';
 import { doc, getDoc, updateDoc, increment, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { MdArrowBack, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
-import Comentarios from '../components/Comentarios'; // Componente de comentários
+import Comentarios from '../components/Comentarios';
 
 export default function Ler() {
   const { id } = useParams();
@@ -24,7 +24,7 @@ export default function Ler() {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
-          alert("Capítulo não encontrado.");
+          alert("Chapter not found.");
           navigate("/");
           return;
         }
@@ -32,10 +32,13 @@ export default function Ler() {
         const dados = docSnap.data();
         setCapitulo({ id: docSnap.id, ...dados });
 
+        // Registra visualização
         updateDoc(docRef, { views: increment(1) });
-        updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
+        if(dados.obraId) {
+            updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
+        }
 
-        // Navegação Anterior
+        // Navegação
         const qAnt = query(
             collection(db, "capitulos"), 
             where("obraId", "==", dados.obraId), 
@@ -46,7 +49,6 @@ export default function Ler() {
         const snapAnt = await getDocs(qAnt);
         setPrevId(!snapAnt.empty ? snapAnt.docs[0].id : null);
 
-        // Navegação Próximo
         const qProx = query(
             collection(db, "capitulos"), 
             where("obraId", "==", dados.obraId), 
@@ -58,7 +60,7 @@ export default function Ler() {
         setNextId(!snapProx.empty ? snapProx.docs[0].id : null);
 
       } catch (error) {
-        console.log("Erro:", error);
+        console.log("Error:", error);
       } finally {
         setLoading(false);
       }
@@ -75,7 +77,7 @@ export default function Ler() {
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px 20px 100px 20px', minHeight: '100vh' }}>
         
         <Link to={`/obra/${capitulo.obraId}`} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 20, textDecoration: 'none' }}>
-            <MdArrowBack /> Voltar para o Livro
+            <MdArrowBack /> Back to Book
         </Link>
 
         <h1 style={{ color: '#4a90e2', textAlign: 'center', borderBottom: '1px solid #444', paddingBottom: '20px' }}>
@@ -94,7 +96,6 @@ export default function Ler() {
             </div>
         )}
 
-        {/* --- CORREÇÃO DOS BOTÕES DE NAVEGAÇÃO --- */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '60px', borderTop: '1px solid #444', paddingTop: '30px', gap: '20px' }}>
             {prevId ? (
                 <Link to={`/ler/${prevId}`} style={{ background: '#333', color: 'white', padding: '12px 25px', textDecoration: 'none', borderRadius: '5px', display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
@@ -115,7 +116,13 @@ export default function Ler() {
 
         {/* ÁREA DE COMENTÁRIOS */}
         <div style={{ marginTop: '60px' }}>
-            <Comentarios targetId={id} targetType="capitulo" />
+            <Comentarios 
+                targetId={id} 
+                targetType="capitulo"
+                // Aqui passamos os dados para a notificação saber quem é o dono do post
+                targetAuthorId={capitulo.autorId} 
+                targetTitle={capitulo.titulo} 
+            />
         </div>
 
     </div>

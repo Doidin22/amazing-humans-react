@@ -119,6 +119,8 @@ export default function Header() {
 
          <div className="logo">
            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#4a90e2', fontWeight: 'bold', fontSize: '1.3rem' }}>
+              {/* ADICIONAMOS A IMAGEM DA LOGO AQUI */}
+              <img src="/logo-ah.png" alt="Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
               AMAZING HUMANS
            </Link>
          </div>

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
+import Footer from './components/Footer'; // <--- IMPORTAÇÃO DO FOOTER
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -12,13 +13,17 @@ import Perfil from './pages/Perfil';
 import PerfilPublico from './pages/PerfilPublico';
 import Biblioteca from './pages/Biblioteca';
 import Historico from './pages/Historico';
-import Notificacoes from './pages/Notificacoes'; // <--- IMPORTANTE
+import Notificacoes from './pages/Notificacoes';
+import EditarObra from './pages/EditarObra';
+import EditarCapitulo from './pages/EditarCapitulo';
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Header />
+        
+        {/* O main cresce para ocupar o espaço e empurrar o footer */}
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -31,9 +36,16 @@ function App() {
             <Route path="/usuario/:id" element={<PerfilPublico />} />
             <Route path="/biblioteca" element={<Biblioteca />} />
             <Route path="/historico" element={<Historico />} />
-            <Route path="/notificacoes" element={<Notificacoes />} /> {/* <--- NOVA ROTA */}
+            <Route path="/notificacoes" element={<Notificacoes />} />
+            
+            {/* Rotas de Edição */}
+            <Route path="/editar-obra/:id" element={<EditarObra />} />
+            <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
           </Routes>
         </main>
+
+        <Footer /> {/* <--- ADICIONADO NO FINAL */}
+        
       </BrowserRouter>
     </AuthProvider>
   );

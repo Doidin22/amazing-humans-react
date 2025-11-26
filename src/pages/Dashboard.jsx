@@ -3,7 +3,7 @@ import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
-import { MdAdd, MdEdit, MdVisibility, MdLibraryBooks } from 'react-icons/md';
+import { MdAdd } from 'react-icons/md';
 
 export default function Dashboard() {
   const { user } = useContext(AuthContext);
@@ -32,7 +32,7 @@ export default function Dashboard() {
   if (loading) return <div className="loading-spinner"></div>;
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '20px' }}>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, borderBottom: '3px solid #4a90e2', paddingBottom: 15 }}>
         <h2 style={{ color: 'white', margin: 0 }}>Author Dashboard</h2>
@@ -74,10 +74,14 @@ export default function Dashboard() {
                     <Link to={`/obra/${obra.id}`} style={{ flex: 1, background: '#333', color: '#ccc', padding: 8, borderRadius: 4, textAlign: 'center', textDecoration: 'none', fontSize: '0.8rem' }}>
                        View
                     </Link>
-                    {/* Futuro: Editar Metadados */}
-                    <button style={{ flex: 1, background: '#d9a404', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }} onClick={() => alert("Em breve: Editar Obra")}>
+                    
+                    {/* AQUI ESTAVA O ERRO: Trocamos o botão com alert pelo Link correto */}
+                    <Link 
+                        to={`/editar-obra/${obra.id}`} 
+                        style={{ flex: 1, background: '#d9a404', color: '#000', padding: 8, borderRadius: 4, textAlign: 'center', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 'bold' }}
+                    >
                        Edit
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>
