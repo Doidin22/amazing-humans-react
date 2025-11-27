@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore'; // <--- writeBatch adicionado
 import { useNavigate } from 'react-router-dom';
-import { MdNotifications, MdPersonAdd, MdComment, MdMenuBook } from 'react-icons/md';
+import { MdNotifications, MdPersonAdd, MdComment, MdMenuBook, MdDeleteForever } from 'react-icons/md'; // <--- Ícone novo
 import DOMPurify from 'dompurify';
 
 export default function Notificacoes() {
@@ -49,6 +49,25 @@ export default function Notificacoes() {
       navigate(destino);
   }
 
+  // --- NOVA FUNÇÃO: LIMPAR TUDO ---
+  async function limparNotificacoes() {
+      if(!window.confirm("Clear all notifications?")) return;
+
+      try {
+        const batch = writeBatch(db);
+        notificacoes.forEach(notif => {
+            const docRef = doc(db, "notificacoes", notif.id);
+            batch.delete(docRef);
+        });
+
+        await batch.commit();
+        // Não precisa atualizar o estado manual, o onSnapshot fará isso
+      } catch(error) {
+          console.error("Error clearing notifications:", error);
+          alert("Error clearing notifications.");
+      }
+  }
+
   const getIcon = (tipo) => {
       switch(tipo) {
           case 'follow': return <MdPersonAdd size={24} />;
@@ -62,9 +81,18 @@ export default function Notificacoes() {
 
   return (
     <div style={{ maxWidth: '600px', margin: '0 auto', padding: 20 }}>
-      <h2 style={{ borderBottom: '3px solid #4a90e2', paddingBottom: 10, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <MdNotifications /> Notifications
-      </h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #4a90e2', paddingBottom: 10, marginBottom: 20 }}>
+          <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <MdNotifications /> Notifications
+          </h2>
+          
+          {/* BOTÃO DE LIMPAR */}
+          {notificacoes.length > 0 && (
+            <button onClick={limparNotificacoes} className="btn-danger" style={{ padding: '5px 15px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <MdDeleteForever /> Clear All
+            </button>
+          )}
+      </div>
 
       <div className="notif-list">
         {notificacoes.length === 0 ? (

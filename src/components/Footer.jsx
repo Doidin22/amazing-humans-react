@@ -3,12 +3,17 @@ import { Link } from 'react-router-dom';
 import { FaHeart, FaTwitter, FaGithub, FaInstagram, FaCoffee } from 'react-icons/fa';
 
 export default function Footer() {
+  // Função para rolar para o topo sempre que clicar num link
+  const handleScrollTop = () => {
+    window.scrollTo(0, 0);
+  };
+
   return (
     <footer style={{ 
         backgroundColor: '#1f1f1f', 
         borderTop: '1px solid #333', 
         padding: '40px 20px', 
-        marginTop: 'auto', // Garante que fique no fundo
+        marginTop: 'auto', 
         color: '#ccc',
         fontSize: '0.9rem'
     }}>
@@ -25,14 +30,17 @@ export default function Footer() {
             </p>
         </div>
 
-        {/* COLUNA 2: LINKS ÚTEIS */}
+        {/* COLUNA 2: LINKS ÚTEIS (Com Scroll Top) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <h4 style={{ color: 'white', margin: '0 0 10px 0' }}>Platform</h4>
-            <Link to="/" style={{ color: '#aaa', textDecoration: 'none' }}>Home</Link>
-            <Link to="/biblioteca" style={{ color: '#aaa', textDecoration: 'none' }}>My Library</Link>
-            <Link to="/escrever" style={{ color: '#aaa', textDecoration: 'none' }}>Start Writing</Link>
-            <Link to="#" style={{ color: '#aaa', textDecoration: 'none' }}>Terms of Service</Link>
-            <Link to="#" style={{ color: '#aaa', textDecoration: 'none' }}>Privacy Policy</Link>
+            
+            <Link to="/" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Home</Link>
+            <Link to="/biblioteca" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>My Library</Link>
+            <Link to="/escrever" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Start Writing</Link>
+            
+            {/* Links corrigidos para Termos e Privacidade */}
+            <Link to="/terms" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Terms of Service</Link>
+            <Link to="/privacy" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Privacy Policy</Link>
         </div>
 
         {/* COLUNA 3: COMUNIDADE E SUPORTE */}
@@ -46,7 +54,7 @@ export default function Footer() {
                 <a href="#" style={{ color: '#ccc', fontSize: '1.2rem' }}><FaGithub /></a>
             </div>
 
-            {/* Botão Donate (Resgatado do seu original) */}
+            {/* Botão Donate */}
             <a 
                 href="https://buymeacoffee.com/rlokin222" 
                 target="_blank" 

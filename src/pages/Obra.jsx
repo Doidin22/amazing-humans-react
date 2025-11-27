@@ -10,6 +10,7 @@ import {
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import RatingWidget from '../components/RatingWidget';
+import DOMPurify from 'dompurify'; // <--- IMPORTANTE
 
 export default function Obra() {
   const { id } = useParams();
@@ -22,7 +23,6 @@ export default function Obra() {
   const [estaNaBiblioteca, setEstaNaBiblioteca] = useState(false);
   const [idBiblioteca, setIdBiblioteca] = useState(null);
   
-  // Estado para controle de avaliação
   const [podeAvaliar, setPodeAvaliar] = useState(false);
 
   useEffect(() => {
@@ -37,7 +37,19 @@ export default function Obra() {
           return;
         }
 
-        setObra({ id: snapshot.id, ...snapshot.data() });
+        // Tenta pegar nome atualizado do autor
+        const dadosObra = { id: snapshot.id, ...snapshot.data() };
+        try {
+            if (dadosObra.autorId) {
+                const userDocRef = doc(db, "usuarios", dadosObra.autorId);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    dadosObra.autor = userDocSnap.data().nome; 
+                }
+            }
+        } catch (err) { console.log(err); }
+
+        setObra(dadosObra);
 
         const q = query(collection(db, "capitulos"), where("obraId", "==", id), orderBy("data", "asc"));
         const capsSnapshot = await getDocs(q);
@@ -69,11 +81,24 @@ export default function Obra() {
         setIdBiblioteca(null);
       }
 
-      // 2. CHECA HISTÓRICO (Para permitir avaliação)
-      const docHist = doc(db, "historico", `${user.uid}_${id}`);
-      const snapHist = await getDoc(docHist);
-      if (snapHist.exists()) {
-          setPodeAvaliar(true);
+      // 2. CHECA HISTÓRICO (CORRIGIDO: Usa Query em vez de getDoc)
+      // Isso evita o erro de permissão quando o documento não existe
+      try {
+        const qHist = query(
+            collection(db, "historico"),
+            where("userId", "==", user.uid),
+            where("obraId", "==", id)
+        );
+        const snapHist = await getDocs(qHist);
+        
+        if (!snapHist.empty) {
+            console.log("History found! Enabling rating.");
+            setPodeAvaliar(true);
+        } else {
+            setPodeAvaliar(false);
+        }
+      } catch (err) {
+          console.log("Error checking history:", err);
       }
     }
     checkLibraryAndHistory();
@@ -150,7 +175,11 @@ export default function Obra() {
 
                 <div style={{ background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '3px solid #666', marginBottom: '20px' }}>
                     <h4 style={{ color: '#ddd', margin: '0 0 5px 0' }}>Synopsis</h4>
-                    <p style={{ color: '#bbb', fontStyle: 'italic', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{obra.sinopse || "No synopsis."}</p>
+                    {/* CORREÇÃO DA SINOPSE (Renderiza HTML) */}
+                    <div 
+                        style={{ color: '#bbb', fontStyle: 'italic', lineHeight: '1.6' }} 
+                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse || "No synopsis.") }}
+                    />
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, marginTop: 20, flexDirection: 'column' }}>
@@ -163,7 +192,7 @@ export default function Obra() {
                         </button>
                     </div>
 
-                    {/* --- LÓGICA DE EXIBIÇÃO DA AVALIAÇÃO --- */}
+                    {/* WIDGET DE AVALIAÇÃO */}
                     {user ? (
                         podeAvaliar ? (
                             <RatingWidget obraId={id} onRatingUpdate={handleRatingUpdate} />

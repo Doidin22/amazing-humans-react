@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../contexts/AuthContext'; // <--- Importante: Contexto do Usuário
+import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
   doc, getDoc, updateDoc, increment, collection, query, where, orderBy, limit, getDocs, 
-  setDoc, serverTimestamp // <--- Novos imports
+  setDoc, serverTimestamp 
 } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { MdArrowBack, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
@@ -13,7 +13,7 @@ import Comentarios from '../components/Comentarios';
 export default function Ler() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext); // <--- Pegamos o usuário logado
+  const { user } = useContext(AuthContext);
 
   const [capitulo, setCapitulo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,13 +37,45 @@ export default function Ler() {
         const dados = docSnap.data();
         setCapitulo({ id: docSnap.id, ...dados });
 
-        // 1. Registra visualização (+1 view)
-        updateDoc(docRef, { views: increment(1) });
-        if(dados.obraId) {
-            updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
+        // --- LÓGICA DE CONTAGEM ÚNICA ---
+        if (user?.uid) {
+            // 1. SE LOGADO: Verifica no Banco de Dados
+            const viewId = `${user.uid}_${id}`;
+            const viewRef = doc(db, "visualizacoes_capitulos", viewId);
+            const viewSnap = await getDoc(viewRef);
+
+            if (!viewSnap.exists()) {
+                // Nunca leu -> Conta e Salva
+                await setDoc(viewRef, {
+                    userId: user.uid,
+                    chapterId: id,
+                    obraId: dados.obraId,
+                    data: serverTimestamp()
+                });
+                
+                // Incrementa View
+                updateDoc(docRef, { views: increment(1) });
+                if(dados.obraId) {
+                    updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
+                }
+            }
+        } else {
+            // 2. SE VISITANTE: Verifica no LocalStorage (Navegador)
+            const viewsLocais = JSON.parse(localStorage.getItem('read_chapters') || '[]');
+            
+            if (!viewsLocais.includes(id)) {
+                // Nunca leu neste navegador -> Conta e Salva Localmente
+                updateDoc(docRef, { views: increment(1) });
+                if(dados.obraId) {
+                    updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
+                }
+                
+                // Salva no navegador
+                localStorage.setItem('read_chapters', JSON.stringify([...viewsLocais, id]));
+            }
         }
 
-        // 2. SALVA NO HISTÓRICO DO USUÁRIO (Se estiver logado)
+        // --- ATUALIZAÇÃO DO HISTÓRICO (Continua igual, para o "Continue Lendo") ---
         if (user?.uid && dados.obraId) {
             const historyRef = doc(db, "historico", `${user.uid}_${dados.obraId}`);
             await setDoc(historyRef, {
@@ -56,7 +88,7 @@ export default function Ler() {
             }, { merge: true });
         }
 
-        // 3. Configura Navegação
+        // Configura Navegação
         const qAnt = query(
             collection(db, "capitulos"), 
             where("obraId", "==", dados.obraId), 
@@ -84,7 +116,7 @@ export default function Ler() {
       }
     }
     loadCapitulo();
-  }, [id, navigate, user]); // Adicionado 'user' na dependência
+  }, [id, navigate, user]);
 
   if (loading) return <div className="loading-spinner"></div>;
 

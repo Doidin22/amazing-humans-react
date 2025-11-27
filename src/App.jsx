@@ -16,6 +16,8 @@ import Historico from './pages/Historico';
 import Notificacoes from './pages/Notificacoes';
 import EditarObra from './pages/EditarObra';
 import EditarCapitulo from './pages/EditarCapitulo';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
 
 function App() {
   return (
@@ -41,6 +43,9 @@ function App() {
             {/* Rotas de Edição */}
             <Route path="/editar-obra/:id" element={<EditarObra />} />
             <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
+            {/* Páginas Legais */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
           </Routes>
         </main>
 
