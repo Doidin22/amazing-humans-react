@@ -6,24 +6,30 @@ import {
 } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
-  MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, MdInfoOutline 
+  MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
+  MdInfoOutline, MdChevronLeft, MdChevronRight, MdFirstPage, MdLastPage 
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import RatingWidget from '../components/RatingWidget';
-import DOMPurify from 'dompurify'; // <--- IMPORTANTE
+import SkeletonObra from '../components/SkeletonObra'; // <--- IMPORTAÇÃO DO SKELETON
+import DOMPurify from 'dompurify';
+import toast from 'react-hot-toast';
 
 export default function Obra() {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
 
   const [obra, setObra] = useState(null);
-  const [capitulos, setCapitulos] = useState([]);
+  const [capitulos, setCapitulos] = useState([]); 
   const [loading, setLoading] = useState(true);
 
   const [estaNaBiblioteca, setEstaNaBiblioteca] = useState(false);
   const [idBiblioteca, setIdBiblioteca] = useState(null);
-  
   const [podeAvaliar, setPodeAvaliar] = useState(false);
+
+  // Paginação
+  const [paginaAtual, setPaginaAtual] = useState(1);
+  const capitulosPorPagina = 10;
 
   useEffect(() => {
     async function loadObra() {
@@ -37,7 +43,6 @@ export default function Obra() {
           return;
         }
 
-        // Tenta pegar nome atualizado do autor
         const dadosObra = { id: snapshot.id, ...snapshot.data() };
         try {
             if (dadosObra.autorId) {
@@ -55,7 +60,9 @@ export default function Obra() {
         const capsSnapshot = await getDocs(q);
         let listaCaps = [];
         capsSnapshot.forEach((doc) => listaCaps.push({ id: doc.id, ...doc.data() }));
+        
         setCapitulos(listaCaps);
+        setPaginaAtual(1);
 
       } catch (error) {
         console.log("Error loading book:", error);
@@ -70,7 +77,6 @@ export default function Obra() {
     async function checkLibraryAndHistory() {
       if (!user?.uid || !id) return;
       
-      // 1. Checa Biblioteca
       const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid), where("obraId", "==", id));
       const snapLib = await getDocs(qLib);
       if (!snapLib.empty) {
@@ -81,8 +87,6 @@ export default function Obra() {
         setIdBiblioteca(null);
       }
 
-      // 2. CHECA HISTÓRICO (CORRIGIDO: Usa Query em vez de getDoc)
-      // Isso evita o erro de permissão quando o documento não existe
       try {
         const qHist = query(
             collection(db, "historico"),
@@ -90,44 +94,53 @@ export default function Obra() {
             where("obraId", "==", id)
         );
         const snapHist = await getDocs(qHist);
-        
-        if (!snapHist.empty) {
-            console.log("History found! Enabling rating.");
-            setPodeAvaliar(true);
-        } else {
-            setPodeAvaliar(false);
-        }
-      } catch (err) {
-          console.log("Error checking history:", err);
-      }
+        if (!snapHist.empty) setPodeAvaliar(true);
+        else setPodeAvaliar(false);
+      } catch (err) { console.log(err); }
     }
     checkLibraryAndHistory();
   }, [id, user]);
 
   async function toggleBiblioteca() {
-      if(!user) return alert("Login to add to library.");
-      if(estaNaBiblioteca) {
-          await deleteDoc(doc(db, "biblioteca", idBiblioteca));
-          setEstaNaBiblioteca(false);
-          setIdBiblioteca(null);
-      } else {
-          const docRef = await addDoc(collection(db, "biblioteca"), {
-              userId: user.uid, obraId: id, tituloObra: obra.titulo, status: 'reading', dataAdicao: serverTimestamp()
-          });
-          setEstaNaBiblioteca(true);
-          setIdBiblioteca(docRef.id);
-      }
-  }
+    if(!user) return toast.error("Login to add to library.");
+
+    const loadingToast = toast.loading("Updating library...");
+
+    try {
+        if(estaNaBiblioteca) {
+            await deleteDoc(doc(db, "biblioteca", idBiblioteca));
+            setEstaNaBiblioteca(false);
+            setIdBiblioteca(null);
+            toast.success("Removed from library", { id: loadingToast });
+        } else {
+            const docRef = await addDoc(collection(db, "biblioteca"), {
+                userId: user.uid, obraId: id, tituloObra: obra.titulo, status: 'reading', dataAdicao: serverTimestamp()
+            });
+            setEstaNaBiblioteca(true);
+            setIdBiblioteca(docRef.id);
+            toast.success("Added to library!", { id: loadingToast });
+        }
+    } catch (error) {
+        toast.error("Error updating library", { id: loadingToast });
+    }
+}
 
   const handleRatingUpdate = (newRating, newVotes) => {
-      setObra(prev => ({
-          ...prev,
-          rating: newRating,
-          votes: newVotes
-      }));
+      setObra(prev => ({ ...prev, rating: newRating, votes: newVotes }));
   };
 
-  if (loading) return <div className="loading-spinner"></div>;
+  const indexUltimoCapitulo = paginaAtual * capitulosPorPagina;
+  const indexPrimeiroCapitulo = indexUltimoCapitulo - capitulosPorPagina;
+  const capitulosAtuais = capitulos.slice(indexPrimeiroCapitulo, indexUltimoCapitulo);
+  const totalPaginas = Math.ceil(capitulos.length / capitulosPorPagina);
+
+  const irParaProxima = () => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas));
+  const irParaAnterior = () => setPaginaAtual(prev => Math.max(prev - 1, 1));
+  const irParaInicio = () => setPaginaAtual(1);
+  const irParaFim = () => setPaginaAtual(totalPaginas);
+
+  // --- AQUI ESTÁ A MUDANÇA ---
+  if (loading) return <SkeletonObra />;
 
   if (obra.status === 'private' && user?.uid !== obra.autorId) {
      return (
@@ -175,7 +188,6 @@ export default function Obra() {
 
                 <div style={{ background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '3px solid #666', marginBottom: '20px' }}>
                     <h4 style={{ color: '#ddd', margin: '0 0 5px 0' }}>Synopsis</h4>
-                    {/* CORREÇÃO DA SINOPSE (Renderiza HTML) */}
                     <div 
                         style={{ color: '#bbb', fontStyle: 'italic', lineHeight: '1.6' }} 
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse || "No synopsis.") }}
@@ -185,14 +197,13 @@ export default function Obra() {
                 <div style={{ display: 'flex', gap: 10, marginTop: 20, flexDirection: 'column' }}>
                     <div style={{ display: 'flex', gap: 10 }}>
                         {capitulos.length > 0 && (
-                            <Link to={`/ler/${capitulos[0].id}`} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}><MdMenuBook /> Read</Link>
+                            <Link to={`/ler/${capitulos[0].id}`} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}><MdMenuBook /> Read First</Link>
                         )}
                         <button onClick={toggleBiblioteca} style={{ background: estaNaBiblioteca ? '#d9534f' : 'transparent', border: estaNaBiblioteca ? 'none' : '2px solid #4a90e2', color: estaNaBiblioteca ? 'white' : '#4a90e2', padding: '8px 20px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 'bold' }}>
                             {estaNaBiblioteca ? <><MdBookmarkAdded /> In Library</> : <><MdBookmarkBorder /> Add to Library</>}
                         </button>
                     </div>
 
-                    {/* WIDGET DE AVALIAÇÃO */}
                     {user ? (
                         podeAvaliar ? (
                             <RatingWidget obraId={id} onRatingUpdate={handleRatingUpdate} />
@@ -206,11 +217,22 @@ export default function Obra() {
             </div>
         </div>
 
-        <h3 style={{ borderBottom: '1px solid #444', paddingBottom: '10px', color: 'white' }}>Chapters</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '15px' }}>
+             <h3 style={{ margin: 0, color: 'white' }}>Chapters ({capitulos.length})</h3>
+             
+             {capitulos.length > capitulosPorPagina && (
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                     <span style={{ color: '#777', fontSize: '0.8rem', marginRight: 10 }}>
+                         Page {paginaAtual} of {totalPaginas}
+                     </span>
+                 </div>
+             )}
+        </div>
+        
         <div className="stories-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {capitulos.length === 0 ? ( <p style={{ color: '#777' }}>No chapters yet.</p> ) : (
-                capitulos.map(cap => (
-                    <Link to={`/ler/${cap.id}`} key={cap.id} style={{ textDecoration: 'none', display: 'block', background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '4px solid #4a90e2', marginBottom: '10px' }}>
+                capitulosAtuais.map(cap => (
+                    <Link to={`/ler/${cap.id}`} key={cap.id} style={{ textDecoration: 'none', display: 'block', background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '4px solid #4a90e2', marginBottom: '5px' }}>
                         <h4 style={{ color: 'white', margin: '0 0 5px 0' }}>{cap.titulo}</h4>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#777' }}>
                             <span>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Date unknown'}</span>
@@ -220,6 +242,16 @@ export default function Obra() {
                 ))
             )}
         </div>
+
+        {capitulos.length > capitulosPorPagina && (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 15, marginTop: 30, padding: 20, background: '#1f1f1f', borderRadius: 8, border: '1px solid #333' }}>
+                <button onClick={irParaInicio} disabled={paginaAtual === 1} style={{ background: 'none', border: 'none', color: paginaAtual === 1 ? '#444' : '#4a90e2', cursor: paginaAtual === 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }} title="First Page"><MdFirstPage size={28} /></button>
+                <button onClick={irParaAnterior} disabled={paginaAtual === 1} style={{ background: '#333', border: 'none', color: paginaAtual === 1 ? '#555' : 'white', padding: '8px 15px', borderRadius: 5, cursor: paginaAtual === 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}><MdChevronLeft size={24} /> Prev</button>
+                <span style={{ color: 'white', fontWeight: 'bold' }}>{paginaAtual} / {totalPaginas}</span>
+                <button onClick={irParaProxima} disabled={paginaAtual === totalPaginas} style={{ background: '#333', border: 'none', color: paginaAtual === totalPaginas ? '#555' : 'white', padding: '8px 15px', borderRadius: 5, cursor: paginaAtual === totalPaginas ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}>Next <MdChevronRight size={24} /></button>
+                <button onClick={irParaFim} disabled={paginaAtual === totalPaginas} style={{ background: 'none', border: 'none', color: paginaAtual === totalPaginas ? '#444' : '#4a90e2', cursor: paginaAtual === totalPaginas ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }} title="Last Page"><MdLastPage size={28} /></button>
+            </div>
+        )}
 
         {obra.categorias && <Recomendacoes tags={obra.categorias} currentId={id} title="Similar Stories" />}
     </div>

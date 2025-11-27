@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast'; // <--- IMPORTANTE
 
 export default function Escrever() {
   const { user } = useContext(AuthContext);
@@ -86,18 +87,28 @@ export default function Escrever() {
   }
 
   async function handlePublicar() {
-    if (!user) return alert("You must be logged in!");
-    if (modo === 'nova') { if(!tituloObra || !sinopse) return alert("Please fill in Book Title and Synopsis."); } else { if(!obraSelecionada) return alert("Select a book."); }
-    if(!tituloCapitulo || !conteudo) return alert("Please fill in Chapter Title and Content.");
+    if (!user) return toast.error("You must be logged in!"); // Toast
+    
+    if (modo === 'nova') { 
+        if(!tituloObra || !sinopse) return toast.error("Please fill in Book Title and Synopsis."); 
+    } else { 
+        if(!obraSelecionada) return toast.error("Select a book."); 
+    }
+    
+    if(!tituloCapitulo || !conteudo) return toast.error("Please fill in Chapter Title and Content.");
+    
     const totalPalavras = contarPalavras(conteudo);
-    if (totalPalavras < 500) return alert(`Chapter too short! Minimum 500 words. (Current: ${totalPalavras})`);
-    if (totalPalavras > 15000) return alert(`Chapter too long! Maximum 15,000 words. (Current: ${totalPalavras})`);
+    if (totalPalavras < 500) return toast.error(`Chapter too short! Minimum 500 words. (Current: ${totalPalavras})`);
+    if (totalPalavras > 15000) return toast.error(`Chapter too long! Maximum 15,000 words. (Current: ${totalPalavras})`);
 
     setLoadingPost(true);
+    const toastId = toast.loading("Publishing..."); // Loading Toast
+
     try {
         const { statusRef, novoContador, hoje } = await verificarLimiteDiario();
         let idFinalObra = obraSelecionada;
         let nomeFinalObra = "";
+        
         if (modo === 'nova') {
             const docRef = await addDoc(collection(db, "obras"), {
                 titulo: tituloObra, capa: capa, sinopse: sinopse, categorias: categorias, autor: user.name, autorId: user.uid, dataCriacao: serverTimestamp(), tituloBusca: tituloObra.toLowerCase(), views: 0, rating: 0, votes: 0, status: 'public'
@@ -107,14 +118,23 @@ export default function Escrever() {
             const obraObj = minhasObras.find(o => o.id === obraSelecionada);
             nomeFinalObra = obraObj ? obraObj.titulo : "Unknown";
         }
+        
         const capRef = await addDoc(collection(db, "capitulos"), {
             obraId: idFinalObra, nomeObra: nomeFinalObra, titulo: tituloCapitulo, conteudo: conteudo, authorNote: notaAutor, autor: user.name, autorId: user.uid, data: serverTimestamp(), views: 0
         });
+        
         await setDoc(statusRef, { postsHoje: novoContador, dataUltimoPost: hoje }, { merge: true });
         await enviarNotificacoes(nomeFinalObra, tituloCapitulo, capRef.id);
-        alert(`Success! Chapter published. (${totalPalavras} words).`);
+        
+        toast.success(`Success! Published (${totalPalavras} words).`, { id: toastId }); // Atualiza o toast de loading
         navigate(`/obra/${idFinalObra}`);
-    } catch (error) { console.error(error); alert("Error: " + error.message); } finally { setLoadingPost(false); }
+
+    } catch (error) { 
+        console.error(error); 
+        toast.error("Error: " + error.message, { id: toastId }); 
+    } finally { 
+        setLoadingPost(false); 
+    }
   }
 
   const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
@@ -123,6 +143,7 @@ export default function Escrever() {
   return (
     <div className="form-container" style={{ maxWidth: '900px', margin: '0 auto', padding: '30px' }}>
         <h2 style={{ borderBottom: '1px solid #444', paddingBottom: 10, marginBottom: 20, color: 'white' }}>Editor Studio</h2>
+        {/* ... (O resto do JSX permanece igual) ... */}
         <div style={{ marginBottom: 20, paddingBottom: 15, borderBottom: '1px solid #444' }}>
             <label style={{ marginRight: 20, cursor: 'pointer', color: modo==='nova'?'#4a90e2':'#aaa' }}>
                 <input type="radio" checked={modo === 'nova'} onChange={() => setModo('nova')} /> Create New Book

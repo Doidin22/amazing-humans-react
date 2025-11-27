@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { Toaster } from 'react-hot-toast'; // <--- IMPORTAR O TOASTER
+
 import Header from './components/Header';
-import Footer from './components/Footer'; // <--- IMPORTAÇÃO DO FOOTER
+import Footer from './components/Footer';
 
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -25,7 +27,24 @@ function App() {
       <BrowserRouter>
         <Header />
         
-        {/* O main cresce para ocupar o espaço e empurrar o footer */}
+        {/* CONFIGURAÇÃO VISUAL DAS NOTIFICAÇÕES */}
+        <Toaster 
+          position="top-center" 
+          toastOptions={{
+            style: {
+              background: '#333',
+              color: '#fff',
+              border: '1px solid #4a90e2',
+            },
+            success: {
+              iconTheme: {
+                primary: '#4a90e2',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -40,16 +59,15 @@ function App() {
             <Route path="/historico" element={<Historico />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
             
-            {/* Rotas de Edição */}
             <Route path="/editar-obra/:id" element={<EditarObra />} />
             <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
-            {/* Páginas Legais */}
+            
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
           </Routes>
         </main>
 
-        <Footer /> {/* <--- ADICIONADO NO FINAL */}
+        <Footer />
         
       </BrowserRouter>
     </AuthProvider>

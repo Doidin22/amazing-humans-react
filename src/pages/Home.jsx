@@ -4,7 +4,8 @@ import { db } from '../services/firebaseConnection';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { MdSearch, MdTune } from 'react-icons/md';
 import StoryCard from '../components/StoryCard';
-import Recomendacoes from '../components/Recomendacoes'; // <--- Importamos o carrossel
+import SkeletonCard from '../components/SkeletonCard'; // <--- IMPORTANTE
+import Recomendacoes from '../components/Recomendacoes';
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -13,15 +14,12 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState('');
   
-  // Estado para recomendação personalizada
   const [lastTags, setLastTags] = useState([]);
 
-  // 1. Busca o histórico do usuário para recomendação
   useEffect(() => {
     async function fetchUserHistory() {
       if (!user?.uid) return;
       try {
-        // Pega o último item lido
         const q = query(
             collection(db, "historico"),
             where("userId", "==", user.uid),
@@ -30,12 +28,9 @@ export default function Home() {
         );
         const snap = await getDocs(q);
         if (!snap.empty) {
-            // Precisamos pegar as categorias desse livro original
-            // O histórico talvez não tenha salvo as categorias, então buscamos a obra original
             const obraId = snap.docs[0].data().obraId;
-            // Pequena busca para pegar as tags da obra lida
             const obraRef = collection(db, "obras");
-            const qObra = query(obraRef, where("__name__", "==", obraId)); // Busca pelo ID do documento
+            const qObra = query(obraRef, where("__name__", "==", obraId)); 
             const snapObra = await getDocs(qObra);
             
             if(!snapObra.empty) {
@@ -43,13 +38,12 @@ export default function Home() {
             }
         }
       } catch (err) {
-          console.log("Erro ao buscar histórico para recomendação:", err);
+          console.log("Erro histórico:", err);
       }
     }
     fetchUserHistory();
   }, [user]);
 
-  // 2. Carrega o Feed Principal
   useEffect(() => {
     async function loadBooks() {
       setLoading(true);
@@ -65,8 +59,10 @@ export default function Home() {
             const matchCat = category ? (item.categorias && item.categorias.includes(category)) : true;
             return matchNome && matchCat;
         });
+        // Pequeno delay artificial só para você ver o efeito (pode remover depois)
+        // await new Promise(resolve => setTimeout(resolve, 800)); 
         setStories(listaFiltrada);
-      } catch (error) { console.log("Error loading books:", error); } finally { setLoading(false); }
+      } catch (error) { console.log("Error loading:", error); } finally { setLoading(false); }
     }
     loadBooks();
   }, [searchTerm, category]);
@@ -97,7 +93,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* --- ÁREA DE RECOMENDAÇÃO (Só aparece se tiver histórico) --- */}
       {lastTags.length > 0 && (
           <Recomendacoes tags={lastTags} title="Based on what you read" />
       )}
@@ -107,15 +102,23 @@ export default function Home() {
         <span style={{ fontSize: '0.8rem', color: '#777' }}>Latest Updates</span>
       </div>
 
-      {loading ? ( <div className="loading-spinner"></div> ) : (
-        <>
-            {stories.length === 0 ? ( <p style={{ color: '#aaa' }}>No stories found.</p> ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '20px' }}>
-                    {stories.map(livro => <StoryCard key={livro.id} data={livro} />)}
-                </div>
-            )}
-        </>
-      )}
+      {/* --- LÓGICA DE LOADING COM SKELETON --- */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '20px' }}>
+        {loading ? (
+            // Mostra 8 cartões falsos pulsando enquanto carrega
+            Array.from({ length: 8 }).map((_, index) => (
+                <SkeletonCard key={index} />
+            ))
+        ) : (
+            // Quando termina, mostra o conteúdo real
+            stories.length === 0 ? ( 
+                <p style={{ color: '#aaa', gridColumn: '1/-1', textAlign:'center' }}>No stories found.</p> 
+            ) : (
+                stories.map(livro => <StoryCard key={livro.id} data={livro} />)
+            )
+        )}
+      </div>
+
     </div>
   );
 }

@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- FUNÇÕES AUXILIARES ---
+    // --- HELPER FUNCTIONS ---
     function estaLogado() {
       return request.auth != null;
     }
@@ -17,44 +17,43 @@ service cloud.firestore {
 
     // --- REGRAS ---
 
+    // 1. USUÁRIOS (Permite deletar o próprio perfil)
     match /usuarios/{userId} {
       allow read: if true; 
-      allow write: if estaLogado() && request.auth.uid == userId;
+      allow write, delete: if estaLogado() && request.auth.uid == userId;
     }
     
+    // 2. STATUS USUÁRIO (Permite deletar)
     match /status_usuario/{userId} {
-      allow read, write: if estaLogado() && request.auth.uid == userId;
+      allow read, write, delete: if estaLogado() && request.auth.uid == userId;
     }
 
-    // OBRAS: Visitantes podem ler e incrementar views
+    // 3. OBRAS (NÃO mudamos o delete aqui para proteger a obra, 
+    // mas como o usuário vai ser deletado, ele perde o acesso de edição futura)
     match /obras/{obraId} {
       allow read: if resource.data.status == 'public' || eDono('autorId');
       allow create: if vaiSerDono('autorId');
       allow delete: if eDono('autorId');
-      
       allow update: if eDono('autorId') || 
-                    // Removemos 'estaLogado()' daqui para permitir views de visitantes
-                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'rating', 'votes']));
+                    (estaLogado() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'rating', 'votes']));
     }
 
-    // CAPÍTULOS: Visitantes podem ler e incrementar views
+    // 4. CAPÍTULOS
     match /capitulos/{capId} {
       allow read: if true;
       allow create: if vaiSerDono('autorId');
       allow delete: if eDono('autorId');
-      
       allow update: if eDono('autorId') || 
-                    // Removemos 'estaLogado()' daqui para permitir views de visitantes
                     (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']));
     }
 
-    // VISUALIZAÇÕES ÚNICAS (Correção do Erro)
+    // 5. VISUALIZAÇÕES
     match /visualizacoes_capitulos/{docId} {
-       // Permite ler se for seu OU se o documento não existir (para verificar criação)
        allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
-       allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
+       allow write, delete: if estaLogado() && request.resource.data.userId == request.auth.uid;
     }
 
+    // 6. COMENTÁRIOS
     match /comentarios/{comId} {
       allow read: if true;
       allow create: if vaiSerDono('autorId');
@@ -63,31 +62,34 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
     }
 
+    // 7. AVALIAÇÕES
     match /avaliacoes/{docId} {
       allow read: if true;
-      allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
+      allow write, delete: if estaLogado() && request.resource.data.userId == request.auth.uid;
     }
 
+    // 8. BIBLIOTECA (Permite deletar tudo seu)
     match /biblioteca/{docId} {
-      // Permite leitura se não existir (null) ou se for dono
       allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
       allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
       allow delete: if estaLogado() && resource.data.userId == request.auth.uid;
     }
     
-    // HISTÓRICO (Correção do Erro)
+    // 9. HISTÓRICO (Permite deletar tudo seu)
     match /historico/{docId} {
-      // Permite leitura se não existir (null) ou se for dono
       allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
       allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
       allow delete: if estaLogado() && resource.data.userId == request.auth.uid;
     }
 
+    // 10. SEGUIDORES (Permite deletar se for o seguidor ou o seguido)
     match /seguidores/{docId} {
       allow read: if true;
-      allow create, delete: if estaLogado() && (request.resource.data.seguidorId == request.auth.uid || resource.data.seguidorId == request.auth.uid);
+      allow create, update: if estaLogado() && request.resource.data.seguidorId == request.auth.uid;
+      allow delete: if estaLogado() && (resource.data.seguidorId == request.auth.uid || resource.data.seguidoId == request.auth.uid);
     }
 
+    // 11. NOTIFICAÇÕES
     match /notificacoes/{notifId} {
       allow read: if estaLogado() && resource.data.paraId == request.auth.uid;
       allow create: if estaLogado();

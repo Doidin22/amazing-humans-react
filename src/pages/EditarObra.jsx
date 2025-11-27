@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
 import { MdSave, MdDelete, MdEdit, MdArrowBack, MdVisibility, MdAdd } from 'react-icons/md';
+import toast from 'react-hot-toast'; // <--- IMPORTANTE
 
 export default function EditarObra() {
   const { id } = useParams();
@@ -39,13 +40,13 @@ export default function EditarObra() {
         const snapshot = await getDoc(docRef);
 
         if (!snapshot.exists()) {
-          alert("Book not found.");
+          toast.error("Book not found.");
           return navigate("/dashboard");
         }
 
         const dados = snapshot.data();
         if (dados.autorId !== user?.uid) {
-          alert("You do not have permission to edit this book.");
+          toast.error("You do not have permission to edit this book.");
           return navigate("/dashboard");
         }
 
@@ -76,31 +77,43 @@ export default function EditarObra() {
 
   async function handleSave() {
     setSaving(true);
+    const toastId = toast.loading("Saving...");
     try {
       await updateDoc(doc(db, "obras", id), { titulo, capa, sinopse, status });
-      alert("Book updated successfully!");
-    } catch (error) { alert("Error saving."); } finally { setSaving(false); }
+      toast.success("Book updated successfully!", { id: toastId });
+    } catch (error) { 
+      toast.error("Error saving.", { id: toastId }); 
+    } finally { setSaving(false); }
   }
 
   async function handleDeleteBook() {
     const confirmacao = window.prompt("To delete this book and ALL chapters, type 'DELETE':");
     if (confirmacao !== "DELETE") return;
+    
+    const toastId = toast.loading("Deleting book...");
     try {
       await deleteDoc(doc(db, "obras", id));
       const q = query(collection(db, "capitulos"), where("obraId", "==", id));
       const snap = await getDocs(q);
       await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-      alert("Book deleted.");
+      
+      toast.success("Book deleted.", { id: toastId });
       navigate("/dashboard");
-    } catch (error) { alert("Error deleting: " + error.message); }
+    } catch (error) { 
+      toast.error("Error deleting: " + error.message, { id: toastId }); 
+    }
   }
 
   async function handleDeleteChapter(idCap, tituloCap) {
     if(!window.confirm(`Are you sure you want to delete the chapter "${tituloCap}"?`)) return;
+    const toastId = toast.loading("Deleting chapter...");
     try {
       await deleteDoc(doc(db, "capitulos", idCap));
       setCapitulos(capitulos.filter(c => c.id !== idCap));
-    } catch (error) { alert("Error deleting chapter."); }
+      toast.success("Chapter deleted", { id: toastId });
+    } catch (error) { 
+      toast.error("Error deleting chapter.", { id: toastId }); 
+    }
   }
 
   if (loading) return <div className="loading-spinner"></div>;
@@ -132,51 +145,29 @@ export default function EditarObra() {
             
             <div style={{ marginBottom: 20 }}>
                 <label style={{ color: '#ffd700', display:'block', marginBottom:8, fontWeight: 'bold', fontSize: '0.9rem' }}>VISIBILITY</label>
-                <select 
-                    value={status} 
-                    onChange={(e) => setStatus(e.target.value)}
-                    style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem', outline: 'none' }}
-                >
+                <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem', outline: 'none' }}>
                     <option value="public">🌎 Public (Visible to everyone)</option>
                     <option value="private">🔒 Private (Only you can see)</option>
                 </select>
             </div>
-
             <div style={{ marginBottom: 20 }}>
                 <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>TITLE</label>
                 <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem' }} />
             </div>
-
             <div style={{ marginBottom: 20 }}>
                 <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>COVER IMAGE (URL)</label>
                 <input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem' }} />
             </div>
-
             <div style={{ marginBottom: 25 }}>
                 <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>SYNOPSIS</label>
-                <Editor
-                    tinymceScriptSrc={OPEN_SOURCE_TINY}
-                    init={editorConfig}
-                    value={sinopse}
-                    onEditorChange={(content) => setSinopse(content)}
-                />
+                <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={editorConfig} value={sinopse} onEditorChange={(content) => setSinopse(content)} />
             </div>
 
-            <button 
-                onClick={handleSave} 
-                disabled={saving}
-                className="btn-primary"
-                style={{ width: '100%', padding: '12px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontWeight: 'bold' }}
-            >
+            <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
                 <MdSave size={20} /> {saving ? "Saving..." : "Save Changes"}
             </button>
-
             <div style={{ marginTop: 30, borderTop: '1px solid #333', paddingTop: 20 }}>
-                <button 
-                    onClick={handleDeleteBook}
-                    className="btn-danger"
-                    style={{ width: '100%', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, background: '#d9534f', border: 'none', color: 'white', borderRadius: 5, cursor: 'pointer' }}
-                >
+                <button onClick={handleDeleteBook} className="btn-danger" style={{ width: '100%', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, background: '#d9534f', border: 'none', color: 'white', borderRadius: 5, cursor: 'pointer' }}>
                     <MdDelete size={20} /> Delete Book
                 </button>
             </div>
@@ -186,15 +177,10 @@ export default function EditarObra() {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ color: 'white', margin: 0 }}>Chapters ({capitulos.length})</h3>
-                <Link 
-                    to={`/escrever?obraId=${id}`} 
-                    className="btn-primary" 
-                    style={{ textDecoration: 'none', padding: '8px 15px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 5 }}
-                >
+                <Link to={`/escrever?obraId=${id}`} className="btn-primary" style={{ textDecoration: 'none', padding: '8px 15px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 5 }}>
                     <MdAdd /> Add New
                 </Link>
             </div>
-
             <div style={{ background: '#1f1f1f', border: '1px solid #333', borderRadius: 8, flex: 1, minHeight: '400px', maxHeight: '800px', overflowY: 'auto' }}>
                 {capitulos.length === 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 20, color: '#777' }}>
@@ -203,48 +189,20 @@ export default function EditarObra() {
                     </div>
                 ) : (
                     capitulos.map((cap, index) => (
-                        <div 
-                            key={cap.id} 
-                            style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center', 
-                                padding: '15px 20px', 
-                                borderBottom: '1px solid #333',
-                                background: index % 2 === 0 ? '#252525' : '#1f1f1f' // Alternar cores para facilitar leitura
-                            }}
-                        >
+                        <div key={cap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #333', background: index % 2 === 0 ? '#252525' : '#1f1f1f' }}>
                             <div style={{ overflow: 'hidden', marginRight: 15 }}>
-                                <strong style={{ color: '#e0e0e0', display: 'block', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {cap.titulo}
-                                </strong>
-                                <span style={{ fontSize: '0.8rem', color: '#666' }}>
-                                    {cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Draft'} • 👁️ {cap.views || 0}
-                                </span>
+                                <strong style={{ color: '#e0e0e0', display: 'block', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.titulo}</strong>
+                                <span style={{ fontSize: '0.8rem', color: '#666' }}>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Draft'} • 👁️ {cap.views || 0}</span>
                             </div>
-                            
                             <div style={{ display: 'flex', gap: 8 }}>
-                                <Link 
-                                    to={`/editar-capitulo/${cap.id}`} 
-                                    title="Edit Chapter"
-                                    style={{ background: '#d9a404', color: '#000', width: 35, height: 35, borderRadius: 5, display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s' }}
-                                >
-                                    <MdEdit size={18} />
-                                </Link>
-                                <button 
-                                    onClick={() => handleDeleteChapter(cap.id, cap.titulo)}
-                                    title="Delete Chapter"
-                                    style={{ background: '#d9534f', color: 'white', border: 'none', width: 35, height: 35, borderRadius: 5, cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}
-                                >
-                                    <MdDelete size={18} />
-                                </button>
+                                <Link to={`/editar-capitulo/${cap.id}`} title="Edit Chapter" style={{ background: '#d9a404', color: '#000', width: 35, height: 35, borderRadius: 5, display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s' }}><MdEdit size={18} /></Link>
+                                <button onClick={() => handleDeleteChapter(cap.id, cap.titulo)} title="Delete Chapter" style={{ background: '#d9534f', color: 'white', border: 'none', width: 35, height: 35, borderRadius: 5, cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><MdDelete size={18} /></button>
                             </div>
                         </div>
                     ))
                 )}
             </div>
         </div>
-
       </div>
     </div>
   );

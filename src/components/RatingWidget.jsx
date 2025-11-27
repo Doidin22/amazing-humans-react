@@ -5,6 +5,7 @@ import {
     doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs 
 } from 'firebase/firestore';
 import { MdStar, MdStarBorder } from 'react-icons/md';
+import toast from 'react-hot-toast';
 
 export default function RatingWidget({ obraId, onRatingUpdate }) {
   const { user } = useContext(AuthContext);
@@ -30,7 +31,7 @@ export default function RatingWidget({ obraId, onRatingUpdate }) {
 
   // 2. Função para salvar o voto
   async function handleRate(nota) {
-    if (!user) return alert("Please login to rate.");
+   if (!user) return toast.error("Please login to rate.");
     setLoading(true);
 
     try {
@@ -67,11 +68,11 @@ export default function RatingWidget({ obraId, onRatingUpdate }) {
       // D. Atualiza a tela pai (Obra.jsx) se necessário
       if(onRatingUpdate) onRatingUpdate(novaMedia, totalVotos);
 
-      alert("Rating saved!");
+      toast.success("Rating saved!");
 
     } catch (error) {
       console.error("Erro ao avaliar:", error);
-      alert("Error saving rating.");
+      toast.error("Error saving rating.");
     } finally {
       setLoading(false);
     }
