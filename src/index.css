@@ -232,3 +232,14 @@ footer { background-color: #1f1f1f; border-top: 1px solid #333; padding: 40px 20
     display: flex;
     flex-direction: column;
 }
+
+/* Ajuste do Botão da Sui Wallet */
+.sui-wallet-wrapper button {
+    width: 100% !important;
+    justify-content: center !important;
+    background-color: #3da6f5 !important; /* Azul Sui */
+    color: white !important;
+    font-weight: bold !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+}
