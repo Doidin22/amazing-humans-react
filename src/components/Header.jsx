@@ -6,11 +6,11 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdHistory, MdLogout, MdArrowDropDown,
-  MdHome, MdClose 
+  MdHome, MdClose, MdLogin // Importei o ícone MdLogin
 } from 'react-icons/md';
 
 export default function Header() {
-  const { signed, user, signInGoogle, logout } = useContext(AuthContext);
+  const { signed, user, logout } = useContext(AuthContext);
   
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
@@ -93,13 +93,15 @@ export default function Header() {
                 <Link to="/" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
                     <MdHome size={24} /> Home
                 </Link>
-                <button 
-                    onClick={() => { signInGoogle(); setShowDrawer(false); }} 
-                    className="btn-google" 
-                    style={{ marginTop: 20, width: '100%' }}
+                
+                {/* BOTÃO MOBILE COM NOVO ESTILO */}
+                <Link 
+                    to="/login" 
+                    onClick={() => setShowDrawer(false)} 
+                    className="btn-header-login" 
                 >
-                    Login
-                </button>
+                    <MdLogin size={20} /> Login / Sign Up
+                </Link>
             </>
           )}
       </div>
@@ -119,7 +121,6 @@ export default function Header() {
 
          <div className="logo">
            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#4a90e2', fontWeight: 'bold', fontSize: '1.3rem' }}>
-              {/* ADICIONAMOS A IMAGEM DA LOGO AQUI */}
               <img src="/logo-ah.png" alt="Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
               AMAZING HUMANS
            </Link>
@@ -127,7 +128,10 @@ export default function Header() {
 
          <div className="user-area">
            {!signed ? (
-             <button onClick={signInGoogle} className="btn-google">Login</button>
+             // BOTÃO DESKTOP COM NOVO ESTILO E ÍCONE
+             <Link to="/login" className="btn-header-login">
+                <MdLogin size={18} /> Login
+             </Link>
            ) : (
              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                

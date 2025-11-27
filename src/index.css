@@ -234,12 +234,114 @@ footer { background-color: #1f1f1f; border-top: 1px solid #333; padding: 40px 20
 }
 
 /* Ajuste do Botão da Sui Wallet */
+.sui-wallet-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* =========================================
+   ESTILIZAÇÃO DO BOTÃO SUI WALLET (MODERNO)
+   ========================================= */
+
+/* Container que envolve o botão */
+.sui-wallet-wrapper {
+    width: 100%;
+    margin-top: 20px; /* Espaço extra para separar do botão do Google */
+    display: flex;
+    justify-content: center;
+}
+
+/* Estilizando o botão 'cru' gerado pela biblioteca */
+/* Usamos !important em algumas propriedades para garantir que 
+   nossos estilos vençam os estilos padrão da biblioteca da Sui */
 .sui-wallet-wrapper button {
-    width: 100% !important;
-    justify-content: center !important;
-    background-color: #3da6f5 !important; /* Azul Sui */
+    background: linear-gradient(135deg, #3da6f5 0%, #2b8ad8 100%) !important; /* Gradiente Azul */
     color: white !important;
-    font-weight: bold !important;
-    padding: 12px !important;
-    border-radius: 8px !important;
+    border: none !important;
+    border-radius: 12px !important; /* Bordas bem arredondadas */
+    padding: 14px 24px !important; /* Botão mais alto e robusto */
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    width: 100%; /* Ocupar a largura total do container */
+    max-width: 320px; /* Mas não ficar exageradamente largo em telas grandes */
+    
+    /* Sombras para dar profundidade */
+    box-shadow: 0 4px 15px rgba(61, 166, 245, 0.3) !important;
+    transition: all 0.3s ease;
+
+    /* Garantir alinhamento interno */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px; /* Espaço se a lib decidir colocar um ícone depois */
+}
+
+/* Adicionando um ícone de "carteira" via CSS antes do texto */
+.sui-wallet-wrapper button::before {
+    content: "🝚"; /* Símbolo unicode que lembra uma carteira/bloco */
+    font-size: 1.2rem;
+    margin-right: 8px;
+}
+
+/* Efeito Hover (quando passa o mouse) */
+.sui-wallet-wrapper button:hover {
+    background: linear-gradient(135deg, #4db3ff 0%, #3da6f5 100%) !important; /* Azul mais claro */
+    transform: translateY(-3px); /* O botão "sobe" ligeiramente */
+    box-shadow: 0 8px 25px rgba(61, 166, 245, 0.5) !important; /* Sombra mais forte */
+}
+
+/* Efeito Active (quando clica) */
+.sui-wallet-wrapper button:active {
+    transform: translateY(-1px); /* O botão desce um pouco */
+    box-shadow: 0 4px 10px rgba(61, 166, 245, 0.3) !important;
+}
+
+/* =========================================
+   ESTILO DO BOTÃO DE LOGIN NO CABEÇALHO
+   ========================================= */
+
+.btn-header-login {
+    background: linear-gradient(135deg, #3da6f5 0%, #2b8ad8 100%);
+    color: white !important; /* Força texto branco */
+    padding: 8px 24px;
+    border-radius: 50px; /* Formato de pílula, mais elegante para menus */
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.5px;
+    border: none;
+    box-shadow: 0 4px 10px rgba(61, 166, 245, 0.3);
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+/* Efeito ao passar o mouse */
+.btn-header-login:hover {
+    background: linear-gradient(135deg, #4db3ff 0%, #3da6f5 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(61, 166, 245, 0.5);
+    color: white;
+}
+
+/* Efeito ao clicar */
+.btn-header-login:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(61, 166, 245, 0.3);
+}
+
+/* Ajuste específico para o botão no menu Mobile */
+.mobile-nav-drawer .btn-header-login {
+    width: 100%;
+    margin-top: 20px;
+    border-radius: 8px; /* No mobile fica melhor menos arredondado */
+    padding: 12px;
+    font-size: 1rem;
 }
