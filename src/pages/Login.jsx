@@ -1,8 +1,6 @@
 import React, { useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { ConnectButton } from '@mysten/dapp-kit'; // Botão Sui
 import { Navigate } from 'react-router-dom';
-import { MdEmail } from 'react-icons/md';
 
 export default function Login() {
   const { signed, signInGoogle } = useContext(AuthContext);
@@ -18,10 +16,9 @@ export default function Login() {
         <div style={{ marginBottom: 30 }}>
              <img src="/logo-ah.png" alt="Logo" style={{ width: 80, marginBottom: 10 }} />
              <h1 style={{ color: 'white', fontSize: '1.5rem', margin: 0 }}>Welcome Back</h1>
-             <p style={{ color: '#777', fontSize: '0.9rem' }}>Choose your login method</p>
+             <p style={{ color: '#777', fontSize: '0.9rem' }}>Access your account</p>
         </div>
 
-        {/* Opção 1: Google */}
         <button 
             onClick={signInGoogle} 
             style={{ 
@@ -33,24 +30,6 @@ export default function Login() {
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style={{width: 20}}/>
             Sign in with Google
         </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '20px 0', color: '#555' }}>
-            <div style={{ flex: 1, height: 1, background: '#333' }}></div>
-            <span style={{ fontSize: '0.8rem', textTransform: 'uppercase' }}>or web3</span>
-            <div style={{ flex: 1, height: 1, background: '#333' }}></div>
-        </div>
-
-        {/* Opção 2: Sui Wallet */}
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-             {/* O ConnectButton da Sui não aceita width 100% direto fácil via style inline, mas vamos tentar customizar */}
-             <div className="sui-wallet-wrapper" style={{ width: '100%' }}>
-                <ConnectButton connectText="Connect Sui Wallet" />
-             </div>
-        </div>
-        
-        <p style={{ marginTop: '25px', fontSize: '0.8rem', color: '#666' }}>
-            Don't have a wallet? <a href="https://suiet.app/" target="_blank" style={{ color: '#4a90e2' }}>Get Suiet</a>
-        </p>
 
       </div>
     </div>

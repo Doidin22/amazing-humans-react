@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
-    doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs 
+    doc, getDoc, setDoc, collection, query, where, getDocs 
 } from 'firebase/firestore';
 import { MdStar, MdStarBorder } from 'react-icons/md';
 import toast from 'react-hot-toast';
@@ -10,18 +10,16 @@ import toast from 'react-hot-toast';
 export default function RatingWidget({ obraId, onRatingUpdate }) {
   const { user } = useContext(AuthContext);
   
-  const [userRating, setUserRating] = useState(0); // Nota que o usuário deu
-  const [hoverRating, setHoverRating] = useState(0); // Efeito visual ao passar o mouse
+  const [userRating, setUserRating] = useState(0); 
+  const [hoverRating, setHoverRating] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // 1. Verifica se o usuário já votou nesta obra
+  // 1. Check existing rating
   useEffect(() => {
     async function checkUserRating() {
       if (!user?.uid || !obraId) return;
-
       const docRef = doc(db, "avaliacoes", `${obraId}_${user.uid}`);
       const docSnap = await getDoc(docRef);
-
       if (docSnap.exists()) {
         setUserRating(docSnap.data().rating);
       }
@@ -29,49 +27,31 @@ export default function RatingWidget({ obraId, onRatingUpdate }) {
     checkUserRating();
   }, [obraId, user]);
 
-  // 2. Função para salvar o voto
-  async function handleRate(nota) {
-   if (!user) return toast.error("Please login to rate.");
+  // 2. Save rating
+  async function handleRate(rate) {
+   if (!user) return toast.error("Login to rate.");
     setLoading(true);
 
     try {
-      // A. Salva/Atualiza o voto individual
-      // Usamos um ID composto (obraId_userId) para garantir 1 voto por pessoa por livro
+      // Just save the user rating.
+      // Cloud Functions will detect this and update the book average automatically.
       await setDoc(doc(db, "avaliacoes", `${obraId}_${user.uid}`), {
         obraId: obraId,
         userId: user.uid,
-        rating: nota,
+        rating: rate,
         updatedAt: new Date()
       });
 
-      setUserRating(nota);
-
-      // B. Recalcula a Média Geral do Livro
-      // (Lê todos os votos deste livro para fazer a média exata)
-      const q = query(collection(db, "avaliacoes"), where("obraId", "==", obraId));
-      const snapshot = await getDocs(q);
-      
-      let soma = 0;
-      snapshot.forEach(doc => {
-        soma += doc.data().rating;
-      });
-
-      const novaMedia = soma / snapshot.size;
-      const totalVotos = snapshot.size;
-
-      // C. Atualiza o documento do Livro com a nova média
-      await updateDoc(doc(db, "obras", obraId), {
-        rating: novaMedia,
-        votes: totalVotos
-      });
-
-      // D. Atualiza a tela pai (Obra.jsx) se necessário
-      if(onRatingUpdate) onRatingUpdate(novaMedia, totalVotos);
-
+      setUserRating(rate);
       toast.success("Rating saved!");
+      
+      // Optional: Optimistic visual update
+      if(onRatingUpdate) {
+          onRatingUpdate(rate, 999); 
+      }
 
     } catch (error) {
-      console.error("Erro ao avaliar:", error);
+      console.error("Error saving rating:", error);
       toast.error("Error saving rating.");
     } finally {
       setLoading(false);
@@ -92,7 +72,6 @@ export default function RatingWidget({ obraId, onRatingUpdate }) {
             onMouseEnter={() => !loading && setHoverRating(star)}
             style={{ transition: '0.2s', transform: (hoverRating >= star || (!hoverRating && userRating >= star)) ? 'scale(1.1)' : 'scale(1)' }}
           >
-            {/* Lógica: Mostra estrela cheia se (mouse em cima >= star) OU (sem mouse e nota salva >= star) */}
             {(hoverRating >= star || (!hoverRating && userRating >= star)) ? (
               <MdStar size={32} color="#ffd700" />
             ) : (

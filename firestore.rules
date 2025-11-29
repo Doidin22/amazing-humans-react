@@ -3,98 +3,99 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- HELPER FUNCTIONS ---
-    function estaLogado() {
+    function isLoggedIn() {
       return request.auth != null;
     }
 
-    function eDono(campoId) {
-      return estaLogado() && request.auth.uid == resource.data[campoId];
+    function isOwner(fieldId) {
+      return isLoggedIn() && request.auth.uid == resource.data[fieldId];
     }
 
-    function vaiSerDono(campoId) {
-      return estaLogado() && request.auth.uid == request.resource.data[campoId];
+    function willBeOwner(fieldId) {
+      return isLoggedIn() && request.auth.uid == request.resource.data[fieldId];
     }
 
-    // --- REGRAS ---
+    // --- RULES ---
 
-    // 1. USUÁRIOS (Permite deletar o próprio perfil)
+    // 1. USERS (Allow profile edits, but BLOCK balance/read count updates from client)
     match /usuarios/{userId} {
-      allow read: if true; 
-      allow write, delete: if estaLogado() && request.auth.uid == userId;
+      allow read: if true;
+      allow update: if isLoggedIn() && request.auth.uid == userId 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['saldoInterno', 'contador_leituras']);
+      allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
-    // 2. STATUS USUÁRIO (Permite deletar)
+    // 2. USER STATUS
     match /status_usuario/{userId} {
-      allow read, write, delete: if estaLogado() && request.auth.uid == userId;
+      allow read, write, delete: if isLoggedIn() && request.auth.uid == userId;
     }
 
-    // 3. OBRAS (NÃO mudamos o delete aqui para proteger a obra, 
-    // mas como o usuário vai ser deletado, ele perde o acesso de edição futura)
+    // 3. BOOKS (Block view/rating updates from client, must be server-side)
     match /obras/{obraId} {
-      allow read: if resource.data.status == 'public' || eDono('autorId');
-      allow create: if vaiSerDono('autorId');
-      allow delete: if eDono('autorId');
-      allow update: if eDono('autorId') || 
-                    (estaLogado() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'rating', 'votes']));
+      allow read: if resource.data.status == 'public' || isOwner('autorId');
+      allow create: if willBeOwner('autorId');
+      allow delete: if isOwner('autorId');
+      allow update: if isOwner('autorId') 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'rating', 'votes']);
     }
 
-    // 4. CAPÍTULOS
+    // 4. CHAPTERS
     match /capitulos/{capId} {
       allow read: if true;
-      allow create: if vaiSerDono('autorId');
-      allow delete: if eDono('autorId');
-      allow update: if eDono('autorId') || 
-                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views']));
+      allow create: if willBeOwner('autorId');
+      allow delete: if isOwner('autorId');
+      allow update: if isOwner('autorId') 
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views']);
     }
 
-    // 5. VISUALIZAÇÕES
+    // 5. VIEWS (Block WRITE from client entirely, only Cloud Functions can write here)
     match /visualizacoes_capitulos/{docId} {
-       allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
-       allow write, delete: if estaLogado() && request.resource.data.userId == request.auth.uid;
+       allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
+       allow write: if false; 
     }
 
-    // 6. COMENTÁRIOS
+    // 6. COMMENTS
     match /comentarios/{comId} {
       allow read: if true;
-      allow create: if vaiSerDono('autorId');
-      allow delete: if eDono('autorId');
-      allow update: if estaLogado() 
+      allow create: if willBeOwner('autorId');
+      allow delete: if isOwner('autorId');
+      allow update: if isLoggedIn() 
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
     }
 
-    // 7. AVALIAÇÕES
+    // 7. RATINGS
     match /avaliacoes/{docId} {
       allow read: if true;
-      allow write, delete: if estaLogado() && request.resource.data.userId == request.auth.uid;
+      allow write, delete: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
     }
 
-    // 8. BIBLIOTECA (Permite deletar tudo seu)
+    // 8. LIBRARY
     match /biblioteca/{docId} {
-      allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
-      allow delete: if estaLogado() && resource.data.userId == request.auth.uid;
+      allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
     }
     
-    // 9. HISTÓRICO (Permite deletar tudo seu)
+    // 9. HISTORY
     match /historico/{docId} {
-      allow read: if estaLogado() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if estaLogado() && request.resource.data.userId == request.auth.uid;
-      allow delete: if estaLogado() && resource.data.userId == request.auth.uid;
+      allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // 10. SEGUIDORES (Permite deletar se for o seguidor ou o seguido)
+    // 10. FOLLOWERS
     match /seguidores/{docId} {
       allow read: if true;
-      allow create, update: if estaLogado() && request.resource.data.seguidorId == request.auth.uid;
-      allow delete: if estaLogado() && (resource.data.seguidorId == request.auth.uid || resource.data.seguidoId == request.auth.uid);
+      allow create, update: if isLoggedIn() && request.resource.data.seguidorId == request.auth.uid;
+      allow delete: if isLoggedIn() && (resource.data.seguidorId == request.auth.uid || resource.data.seguidoId == request.auth.uid);
     }
 
-    // 11. NOTIFICAÇÕES
+    // 11. NOTIFICATIONS
     match /notificacoes/{notifId} {
-      allow read: if estaLogado() && resource.data.paraId == request.auth.uid;
-      allow create: if estaLogado();
-      allow update: if estaLogado() && resource.data.paraId == request.auth.uid;
-      allow delete: if estaLogado() && resource.data.paraId == request.auth.uid;
+      allow read: if isLoggedIn() && resource.data.paraId == request.auth.uid;
+      allow create: if isLoggedIn();
+      allow update: if isLoggedIn() && resource.data.paraId == request.auth.uid;
+      allow delete: if isLoggedIn() && resource.data.paraId == request.auth.uid;
     }
   }
 }

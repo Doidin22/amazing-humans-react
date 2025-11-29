@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdHistory, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdLogin // Importei o ícone MdLogin
+  MdHome, MdClose, MdLogin, MdDiamond
 } from 'react-icons/md';
 
 export default function Header() {
@@ -38,7 +38,6 @@ export default function Header() {
 
   return (
     <>
-      {/* --- MOBILE DRAWER --- */}
       <div 
         className={`drawer-overlay ${showDrawer ? 'open' : ''}`} 
         onClick={() => setShowDrawer(false)}
@@ -70,6 +69,10 @@ export default function Header() {
                     Notifications {notifCount > 0 && <span style={{ background: 'red', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem', marginLeft: 'auto' }}>{notifCount}</span>}
                 </Link>
 
+                <Link to="/assinatura" onClick={() => setShowDrawer(false)} style={{ color: '#00d2ff', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 'bold' }}>
+                    <MdDiamond size={24} /> Go Premium
+                </Link>
+
                 <Link to="/perfil" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
                     <MdPerson size={24} /> My Profile
                 </Link>
@@ -93,26 +96,15 @@ export default function Header() {
                 <Link to="/" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
                     <MdHome size={24} /> Home
                 </Link>
-                
-                {/* BOTÃO MOBILE COM NOVO ESTILO */}
-                <Link 
-                    to="/login" 
-                    onClick={() => setShowDrawer(false)} 
-                    className="btn-header-login" 
-                >
+                <Link to="/login" onClick={() => setShowDrawer(false)} className="btn-header-login">
                     <MdLogin size={20} /> Login / Sign Up
                 </Link>
             </>
           )}
       </div>
 
-      {/* --- DESKTOP HEADER --- */}
       <header>
-         <button 
-            id="menuToggleBtn" 
-            onClick={toggleDrawer} 
-            style={{background:'none', border:'none', color:'white', cursor:'pointer'}}
-         >
+         <button id="menuToggleBtn" onClick={toggleDrawer} style={{background:'none', border:'none', color:'white', cursor:'pointer'}}>
            <div style={{ position: 'relative' }}>
              <MdMenu size={32} />
              {notifCount > 0 && <span style={{ position: 'absolute', top: 0, right: 0, background: 'red', width: 10, height: 10, borderRadius: '50%', border: '2px solid #1f1f1f' }}></span>}
@@ -128,7 +120,6 @@ export default function Header() {
 
          <div className="user-area">
            {!signed ? (
-             // BOTÃO DESKTOP COM NOVO ESTILO E ÍCONE
              <Link to="/login" className="btn-header-login">
                 <MdLogin size={18} /> Login
              </Link>
@@ -138,17 +129,7 @@ export default function Header() {
                <Link to="/notificacoes" style={{ color: '#ccc', display: 'flex', alignItems: 'center', position: 'relative' }}>
                  <MdNotifications size={24} />
                  {notifCount > 0 && (
-                     <span style={{ 
-                         position: 'absolute', 
-                         top: -5, 
-                         right: -5, 
-                         background: 'red', 
-                         color: 'white', 
-                         fontSize: '0.6rem', 
-                         padding: '2px 5px', 
-                         borderRadius: '50%',
-                         fontWeight: 'bold'
-                     }}>
+                     <span style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '50%', fontWeight: 'bold' }}>
                          {notifCount > 20 ? '20+' : notifCount}
                      </span>
                  )}
@@ -164,6 +145,11 @@ export default function Header() {
                   <div style={{ padding: '10px 20px', borderBottom: '1px solid #333', marginBottom: '5px' }}>
                       <strong style={{ color: 'white' }}>{user.name}</strong>
                   </div>
+                  
+                  <Link to="/assinatura" className="dropdown-item" style={{ color: '#00d2ff' }}>
+                      <MdDiamond /> Go Premium
+                  </Link>
+
                   <Link to="/perfil" className="dropdown-item"><MdPerson /> My Profile</Link>
                   <Link to="/dashboard" className="dropdown-item"><MdEditNote /> Dashboard</Link>
                   <div className="dropdown-divider"></div>

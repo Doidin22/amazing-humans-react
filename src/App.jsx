@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { Toaster } from 'react-hot-toast'; // <--- IMPORTAR O TOASTER
+import { Toaster } from 'react-hot-toast';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
 
+// Páginas Principais
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Obra from './pages/Obra';
@@ -16,8 +17,15 @@ import PerfilPublico from './pages/PerfilPublico';
 import Biblioteca from './pages/Biblioteca';
 import Historico from './pages/Historico';
 import Notificacoes from './pages/Notificacoes';
+
+// Páginas de Edição
 import EditarObra from './pages/EditarObra';
 import EditarCapitulo from './pages/EditarCapitulo';
+
+// Assinatura (Mantida para migrar para dinheiro real)
+import Assinatura from './pages/Assinatura';
+
+// Páginas Legais
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
@@ -27,7 +35,6 @@ function App() {
       <BrowserRouter>
         <Header />
         
-        {/* CONFIGURAÇÃO VISUAL DAS NOTIFICAÇÕES */}
         <Toaster 
           position="top-center" 
           toastOptions={{
@@ -58,6 +65,9 @@ function App() {
             <Route path="/biblioteca" element={<Biblioteca />} />
             <Route path="/historico" element={<Historico />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
+            
+            {/* Rota de Assinatura */}
+            <Route path="/assinatura" element={<Assinatura />} />
             
             <Route path="/editar-obra/:id" element={<EditarObra />} />
             <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />

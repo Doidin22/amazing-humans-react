@@ -1,111 +1,103 @@
 import { createContext, useState, useEffect } from 'react';
 import { auth, provider, db } from '../services/firebaseConnection';
-import { signInWithPopup, signOut, onAuthStateChanged, signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit'; // Sui Hooks
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore'; 
+import toast from 'react-hot-toast';
 
 export const AuthContext = createContext({});
+
+function generateAvatar(seed) {
+    const safeSeed = encodeURIComponent(seed || 'default');
+    return `https://api.dicebear.com/9.x/notionists/svg?seed=${safeSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Hooks da Sui
-  const currentAccount = useCurrentAccount();
-  const { mutate: disconnectWallet } = useDisconnectWallet();
-
-  // 1. Monitor Geral de Auth (Firebase)
+  // 1. Monitor Geral de Auth (Firebase + Perfil em Tempo Real)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Se o usuário está logado no Firebase, montamos o objeto
         const uid = firebaseUser.uid;
-        let dataUser = {
-          uid: uid,
-          name: firebaseUser.displayName || "Anon",
-          avatar: firebaseUser.photoURL || "https://via.placeholder.com/150",
-          email: firebaseUser.email,
-          type: firebaseUser.isAnonymous ? 'crypto' : 'google'
-        };
+        
+        const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), (docSnap) => {
+            if (docSnap.exists()) {
+                const dados = docSnap.data();
+                const avatarFinal = dados.foto || firebaseUser.photoURL || generateAvatar(uid);
 
-        // Se for login via Cripto, tentamos pegar dados reais do Firestore
-        if (firebaseUser.isAnonymous) {
-             try {
-                const docRef = doc(db, "usuarios", uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const savedData = docSnap.data();
-                    dataUser.name = savedData.nome || `User ${savedData.wallet?.slice(0,4)}...`;
-                    dataUser.avatar = savedData.foto || "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c4/Sui_Network_Logo.svg/1200px-Sui_Network_Logo.svg.png";
-                    dataUser.wallet = savedData.wallet;
-                }
-             } catch(e) { console.log("Erro ao carregar perfil cripto", e); }
-        }
+                setUser({
+                    uid: uid,
+                    name: dados.nome || firebaseUser.displayName,
+                    avatar: avatarFinal,
+                    email: firebaseUser.email,
+                    type: 'google',
+                    assinatura: dados.assinatura || null
+                });
+            } else {
+                setUser({
+                    uid: uid,
+                    name: firebaseUser.displayName || "Loading...",
+                    avatar: firebaseUser.photoURL || generateAvatar(uid),
+                    email: firebaseUser.email,
+                    type: 'google',
+                    assinatura: null
+                });
+            }
+            setLoadingAuth(false);
+        });
 
-        setUser(dataUser);
+        return () => unsubscribeFirestore();
+
       } else {
         setUser(null);
+        setLoadingAuth(false);
       }
-      setLoadingAuth(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
-  // 2. Monitor de Carteira Sui (A Ponte)
-  useEffect(() => {
-    async function handleWalletBridge() {
-        // Se conectou carteira MAS não está logado no Firebase
-        if (currentAccount && !auth.currentUser) {
-            try {
-                // Faz login anônimo no Firebase para ganhar um UID válido
-                const userCred = await signInAnonymously(auth);
-                const uid = userCred.user.uid;
-                const walletAddress = currentAccount.address;
-
-                // Salva/Atualiza o perfil no Firestore com o endereço da carteira
-                const userRef = doc(db, "usuarios", uid);
-                // Usamos set com merge para não apagar dados se já existirem
-                await setDoc(userRef, {
-                    uid: uid,
-                    wallet: walletAddress,
-                    tipo: 'crypto',
-                    // Só define nome/foto se ainda não tiver
-                }, { merge: true });
-                
-            } catch (error) {
-                console.error("Erro na ponte Wallet-Firebase:", error);
-                disconnectWallet(); // Desconecta se der erro no Firebase
-            }
-        }
-    }
-    handleWalletBridge();
-  }, [currentAccount]);
-
-  // Login Google
   async function signInGoogle() {
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      if(result.user) {
+          const uid = result.user.uid;
+          const userRef = doc(db, "usuarios", uid);
+          
+          await setDoc(userRef, {
+              uid: uid,
+              nome: result.user.displayName,
+              foto: result.user.photoURL, 
+              email: result.user.email
+          }, { merge: true });
+      }
     } catch (error) {
-      console.error("Erro ao logar Google", error);
+      console.error("Google Login Error", error);
+      toast.error("Error logging in with Google");
     }
   }
 
-  // Logout Híbrido
   async function logout() {
     try {
-        if (currentAccount) {
-            disconnectWallet(); // Desconecta Sui
-        }
-        await signOut(auth); // Desconecta Firebase
+        await signOut(auth); 
         setUser(null);
     } catch(e) {
-        console.error("Erro logout", e);
+        console.error("Logout Error", e);
     }
+  }
+
+  function isVip() {
+    if (!user || !user.assinatura || !user.assinatura.expiraEm) return false;
+    const now = new Date();
+    const expirationDate = user.assinatura.expiraEm.toDate 
+        ? user.assinatura.expiraEm.toDate() 
+        : new Date(user.assinatura.expiraEm);
+    return now < expirationDate;
   }
 
   return (
-    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth }}>
+    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isVip }}>
       {children}
     </AuthContext.Provider>
   );

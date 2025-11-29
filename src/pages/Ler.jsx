@@ -3,12 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
-  doc, getDoc, updateDoc, increment, collection, query, where, orderBy, limit, getDocs, 
+  doc, getDoc, collection, query, where, orderBy, limit, getDocs, 
   setDoc, serverTimestamp 
 } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { MdArrowBack, MdNavigateBefore, MdNavigateNext } from 'react-icons/md';
 import Comentarios from '../components/Comentarios';
+import toast from 'react-hot-toast';
 
 export default function Ler() {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function Ler() {
   const [prevId, setPrevId] = useState(null);
   const [nextId, setNextId] = useState(null);
 
+  // 1. CARREGAR DADOS
   useEffect(() => {
     async function loadCapitulo() {
       setLoading(true);
@@ -29,88 +31,38 @@ export default function Ler() {
         const docSnap = await getDoc(docRef);
 
         if (!docSnap.exists()) {
-          alert("Chapter not found.");
+          toast.error("Chapter not found.");
           navigate("/");
           return;
         }
 
-        const dados = docSnap.data();
-        setCapitulo({ id: docSnap.id, ...dados });
+        const data = docSnap.data();
+        setCapitulo({ id: docSnap.id, ...data });
 
-        // --- LÓGICA DE CONTAGEM ÚNICA ---
-        if (user?.uid) {
-            // 1. SE LOGADO: Verifica no Banco de Dados
-            const viewId = `${user.uid}_${id}`;
-            const viewRef = doc(db, "visualizacoes_capitulos", viewId);
-            const viewSnap = await getDoc(viewRef);
-
-            if (!viewSnap.exists()) {
-                // Nunca leu -> Conta e Salva
-                await setDoc(viewRef, {
-                    userId: user.uid,
-                    chapterId: id,
-                    obraId: dados.obraId,
-                    data: serverTimestamp()
-                });
-                
-                // Incrementa View
-                updateDoc(docRef, { views: increment(1) });
-                if(dados.obraId) {
-                    updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
-                }
-            }
-        } else {
-            // 2. SE VISITANTE: Verifica no LocalStorage (Navegador)
-            const viewsLocais = JSON.parse(localStorage.getItem('read_chapters') || '[]');
-            
-            if (!viewsLocais.includes(id)) {
-                // Nunca leu neste navegador -> Conta e Salva Localmente
-                updateDoc(docRef, { views: increment(1) });
-                if(dados.obraId) {
-                    updateDoc(doc(db, "obras", dados.obraId), { views: increment(1) });
-                }
-                
-                // Salva no navegador
-                localStorage.setItem('read_chapters', JSON.stringify([...viewsLocais, id]));
-            }
-        }
-
-        // --- ATUALIZAÇÃO DO HISTÓRICO (Continua igual, para o "Continue Lendo") ---
-        if (user?.uid && dados.obraId) {
-            const historyRef = doc(db, "historico", `${user.uid}_${dados.obraId}`);
+        // Histórico no Firebase (apenas para UX, "continuar lendo")
+        if (user?.uid && data.obraId) {
+            const historyRef = doc(db, "historico", `${user.uid}_${data.obraId}`);
             await setDoc(historyRef, {
                 userId: user.uid,
-                obraId: dados.obraId,
-                bookTitle: dados.nomeObra || "Unknown Book",
+                obraId: data.obraId,
+                bookTitle: data.nomeObra || "Unknown Book",
                 lastChapterId: docSnap.id,
-                lastChapterTitle: dados.titulo,
+                lastChapterTitle: data.titulo,
                 accessedAt: serverTimestamp()
             }, { merge: true });
         }
 
-        // Configura Navegação
-        const qAnt = query(
-            collection(db, "capitulos"), 
-            where("obraId", "==", dados.obraId), 
-            where("data", "<", dados.data), 
-            orderBy("data", "desc"), 
-            limit(1)
-        );
+        // Navegação Prev/Next
+        const qAnt = query(collection(db, "capitulos"), where("obraId", "==", data.obraId), where("data", "<", data.data), orderBy("data", "desc"), limit(1));
         const snapAnt = await getDocs(qAnt);
         setPrevId(!snapAnt.empty ? snapAnt.docs[0].id : null);
 
-        const qProx = query(
-            collection(db, "capitulos"), 
-            where("obraId", "==", dados.obraId), 
-            where("data", ">", dados.data), 
-            orderBy("data", "asc"), 
-            limit(1)
-        );
+        const qProx = query(collection(db, "capitulos"), where("obraId", "==", data.obraId), where("data", ">", data.data), orderBy("data", "asc"), limit(1));
         const snapProx = await getDocs(qProx);
         setNextId(!snapProx.empty ? snapProx.docs[0].id : null);
 
       } catch (error) {
-        console.log("Error:", error);
+        console.log("Error loading chapter:", error);
       } finally {
         setLoading(false);
       }
