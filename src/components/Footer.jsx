@@ -32,6 +32,7 @@ export default function Footer() {
                 <li><Link to="/escrever" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Start Writing</Link></li>
                 <li><Link to="/terms" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Terms of Service</Link></li>
                 <li><Link to="/privacy" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Privacy Policy</Link></li>
+                <li><Link to="/how-it-works" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">How it Works</Link></li>
             </ul>
         </div>
 

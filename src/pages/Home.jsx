@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
@@ -19,7 +19,7 @@ export default function Home() {
   
   const [lastTags, setLastTags] = useState([]);
 
-  // Lista de categorias para o menu (FanFic adicionado)
+  // Lista de categorias para o menu
   const categoriesList = [
       "All", "Fantasy", "Sci-Fi", "Romance", "Horror", 
       "Adventure", "RPG", "Mystery", "Action", "Isekai", "FanFic"
@@ -44,7 +44,7 @@ export default function Home() {
     fetchUserHistory();
   }, [user]);
 
-  // 2. Busca Livros
+  // 2. Busca Livros (COM LÓGICA DE TAGS ATUALIZADA)
   useEffect(() => {
     async function loadBooks() {
       setLoading(true);
@@ -56,10 +56,25 @@ export default function Home() {
         querySnapshot.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
         
         const listaFiltrada = lista.filter(item => {
-            const matchNome = item.tituloBusca ? item.tituloBusca.includes(searchTerm.toLowerCase()) : true;
+            const term = searchTerm.toLowerCase().trim();
+
+            // 1. Verifica Título
+            const matchTitle = item.tituloBusca ? item.tituloBusca.includes(term) : false;
+
+            // 2. Verifica Tags (NOVA LÓGICA)
+            // Se o livro tiver tags, verifica se ALGUMA delas contém o termo digitado
+            const matchTags = item.tags ? item.tags.some(tag => tag.toLowerCase().includes(term)) : false;
+
+            // O termo de busca é aceito se estiver no Título OU nas Tags
+            const matchSearch = term === '' ? true : (matchTitle || matchTags);
+
+            // 3. Verifica Categoria (Dropdown)
             const matchCat = (category && category !== "All") ? (item.categorias && item.categorias.includes(category)) : true;
-            return matchNome && matchCat;
+
+            // Retorna verdadeiro apenas se passar na Busca E no Filtro de Categoria
+            return matchSearch && matchCat;
         });
+        
         setStories(listaFiltrada);
       } catch (error) { console.log("Error loading:", error); } finally { setLoading(false); }
     }
@@ -86,7 +101,7 @@ export default function Home() {
             <div className="relative flex-1 md:w-72 group">
                 <input 
                     type="text" 
-                    placeholder="Search title..." 
+                    placeholder="Search title or tags..." 
                     value={searchTerm} 
                     onChange={(e) => setSearchTerm(e.target.value)} 
                     className="w-full h-full bg-[#1a1a1a] border border-[#333] border-r-0 rounded-l-md text-gray-200 pl-10 pr-4 text-sm outline-none focus:border-primary transition-colors"
@@ -94,7 +109,7 @@ export default function Home() {
                 <MdSearch className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-primary" size={20} />
             </div>
 
-            {/* BOTÃO DE FILTRO */}
+            {/* BOTÃO DE FILTRO (Dropdown Customizado) */}
             <div className="relative">
                 <button 
                     onClick={() => setShowFilter(!showFilter)}

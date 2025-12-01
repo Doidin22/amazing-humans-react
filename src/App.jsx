@@ -17,6 +17,7 @@ import PerfilPublico from './pages/PerfilPublico';
 import Biblioteca from './pages/Biblioteca';
 import Historico from './pages/Historico';
 import Notificacoes from './pages/Notificacoes';
+import HowItWorks from './pages/HowItWorks';
 
 // Páginas de Edição
 import EditarObra from './pages/EditarObra';
@@ -76,7 +77,7 @@ function App() {
             <Route path="/biblioteca" element={<Biblioteca />} />
             <Route path="/historico" element={<Historico />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
-            
+            <Route path="/how-it-works" element={<HowItWorks />} />
             {/* Rota de Assinatura */}
             <Route path="/assinatura" element={<Assinatura />} />
             
