@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- HELPER FUNCTIONS ---
+    // --- FUNÇÕES AUXILIARES ---
     function isLoggedIn() {
       return request.auth != null;
     }
@@ -15,9 +15,15 @@ service cloud.firestore {
       return isLoggedIn() && request.auth.uid == request.resource.data[fieldId];
     }
 
-    // --- RULES ---
+    // Verifica se o usuário é dono do LIVRO associado a este capítulo
+    function isBookOwner() {
+      return isLoggedIn() && 
+             get(/databases/$(database)/documents/obras/$(resource.data.obraId)).data.autorId == request.auth.uid;
+    }
 
-    // 1. USERS (Allow profile edits, but BLOCK balance/read count updates from client)
+    // --- REGRAS ---
+
+    // 1. USUÁRIOS
     match /usuarios/{userId} {
       allow read: if true;
       allow update: if isLoggedIn() && request.auth.uid == userId 
@@ -25,12 +31,12 @@ service cloud.firestore {
       allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
-    // 2. USER STATUS
+    // 2. STATUS DO USUÁRIO
     match /status_usuario/{userId} {
       allow read, write, delete: if isLoggedIn() && request.auth.uid == userId;
     }
 
-    // 3. BOOKS (Block view/rating updates from client, must be server-side)
+    // 3. OBRAS (LIVROS)
     match /obras/{obraId} {
       allow read: if resource.data.status == 'public' || isOwner('autorId');
       allow create: if willBeOwner('autorId');
@@ -39,22 +45,24 @@ service cloud.firestore {
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'rating', 'votes']);
     }
 
-    // 4. CHAPTERS
+    // 4. CAPÍTULOS (AQUI ESTÁ A CORREÇÃO)
     match /capitulos/{capId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId');
-      allow update: if isOwner('autorId') 
+      allow delete: if isOwner('autorId') || isBookOwner(); // Dono do livro também pode deletar
+      
+      // PERMITE ATUALIZAR SE: For dono do capítulo OU Dono do Livro (para corrigir bugs)
+      allow update: if (isOwner('autorId') || isBookOwner())
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views']);
     }
 
-    // 5. VIEWS (Block WRITE from client entirely, only Cloud Functions can write here)
+    // 5. VISUALIZAÇÕES
     match /visualizacoes_capitulos/{docId} {
        allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
        allow write: if false; 
     }
 
-    // 6. COMMENTS
+    // 6. COMENTÁRIOS
     match /comentarios/{comId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
@@ -63,34 +71,34 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
     }
 
-    // 7. RATINGS
+    // 7. AVALIAÇÕES
     match /avaliacoes/{docId} {
       allow read: if true;
       allow write, delete: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
     }
 
-    // 8. LIBRARY
+    // 8. BIBLIOTECA
     match /biblioteca/{docId} {
       allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
       allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
       allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
     }
     
-    // 9. HISTORY
+    // 9. HISTÓRICO
     match /historico/{docId} {
       allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
       allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
       allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
     }
 
-    // 10. FOLLOWERS
+    // 10. SEGUIDORES
     match /seguidores/{docId} {
       allow read: if true;
       allow create, update: if isLoggedIn() && request.resource.data.seguidorId == request.auth.uid;
       allow delete: if isLoggedIn() && (resource.data.seguidorId == request.auth.uid || resource.data.seguidoId == request.auth.uid);
     }
 
-    // 11. NOTIFICATIONS
+    // 11. NOTIFICAÇÕES
     match /notificacoes/{notifId} {
       allow read: if isLoggedIn() && resource.data.paraId == request.auth.uid;
       allow create: if isLoggedIn();

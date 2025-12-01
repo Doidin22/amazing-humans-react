@@ -2,55 +2,56 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { MdStar } from 'react-icons/md';
 
-// Este componente recebe os dados de "data" (o livro)
 export default function StoryCard({ data }) {
-  // Se tiver capa, mostra a imagem. Se não, mostra o placeholder colorido.
   const temCapa = data.capa && data.capa.length > 5;
 
   return (
-    <Link to={`/obra/${data.id}`} className="rr-card" style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
+    <Link to={`/obra/${data.id}`} className="group flex flex-col w-full text-decoration-none" title={data.titulo}>
       
-      {/* Área da Imagem */}
-      {temCapa ? (
-        <img 
-          src={data.capa} 
-          alt={data.titulo} 
-          style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px', marginBottom: '8px' }}
-          onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} 
-        />
-      ) : null}
+      {/* CAPA - Aspect Ratio 2:3 (Padrão Livro) */}
+      <div className="relative w-full aspect-[2/3] overflow-hidden bg-[#222] shadow-lg border border-[#333] group-hover:border-blue-500/50 transition-all">
+        {temCapa ? (
+          <img 
+            src={data.capa} 
+            alt={data.titulo} 
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} 
+          />
+        ) : null}
 
-      {/* Placeholder (aparece se não tiver capa ou se a imagem falhar) */}
-      <div 
-        className="cover-placeholder" 
-        style={{ 
-          display: temCapa ? 'none' : 'flex', 
-          height: '200px', 
-          width: '100%',
-          alignItems: 'center', 
-          justifyContent: 'center',
-          backgroundColor: '#333',
-          color: '#555',
-          fontSize: '3rem',
-          borderRadius: '4px',
-          marginBottom: '8px'
-        }}
-      >
-        {data.titulo ? data.titulo.charAt(0) : '?'}
+        {/* Fallback se não tiver capa */}
+        <div 
+          className={`w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-[#333] to-[#1a1a1a] ${temCapa ? 'hidden' : 'flex'}`}
+        >
+          {/* Efeito Lombada */}
+          <div className="absolute left-1 top-0 bottom-0 w-[2px] bg-white/10"></div>
+          <span className="text-5xl font-serif text-[#444] font-bold select-none">
+            {data.titulo ? data.titulo.charAt(0).toUpperCase() : '?'}
+          </span>
+        </div>
+
+        {/* Rating Badge */}
+        {data.rating > 0 && (
+            <div className="absolute top-0 right-0 bg-[#337ab7] text-white text-[10px] font-bold px-1.5 py-0.5 shadow-sm">
+                {data.rating.toFixed(1)}
+            </div>
+        )}
       </div>
 
-      {/* Informações */}
-      <div style={{ color: '#ffd700', fontSize: '0.8rem', marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-        <MdStar /> {(data.rating || 0).toFixed(1)}
+      {/* Título e Info */}
+      <div className="mt-2">
+        <h4 className="text-[#ddd] font-bold text-sm leading-tight line-clamp-2 group-hover:text-blue-400 transition-colors h-[2.5em]">
+          {data.titulo}
+        </h4>
+        
+        <div className="flex flex-wrap gap-1 mt-1">
+            {data.categorias && data.categorias.slice(0, 1).map((cat, i) => (
+                <span key={i} className="text-[9px] uppercase font-semibold text-gray-500 bg-[#1a1a1a] border border-[#333] px-1 rounded-[2px]">
+                    {cat}
+                </span>
+            ))}
+        </div>
       </div>
-      
-      <h4 style={{ fontSize: '0.9rem', color: 'white', marginBottom: '5px', margin: 0, lineHeight: '1.4' }}>
-        {data.titulo}
-      </h4>
-
-      <span className="rr-tag" style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
-        {data.categorias && data.categorias[0] ? data.categorias[0] : 'Story'}
-      </span>
 
     </Link>
   );

@@ -3,83 +3,67 @@ import { Link } from 'react-router-dom';
 import { FaHeart, FaTwitter, FaGithub, FaInstagram, FaCoffee } from 'react-icons/fa';
 
 export default function Footer() {
-  // Função para rolar para o topo sempre que clicar num link
   const handleScrollTop = () => {
     window.scrollTo(0, 0);
   };
 
   return (
-    <footer style={{ 
-        backgroundColor: '#1f1f1f', 
-        borderTop: '1px solid #333', 
-        padding: '40px 20px', 
-        marginTop: 'auto', 
-        color: '#ccc',
-        fontSize: '0.9rem'
-    }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
-        
-        {/* COLUNA 1: MARCA E SLOGAN */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <h3 style={{ color: '#4a90e2', margin: 0, fontSize: '1.2rem' }}>AMAZING HUMANS</h3>
-            <p style={{ margin: 0, color: '#888', fontStyle: 'italic' }}>
-                Built for writers & readers. <br/>Share your imagination with the world.
+    <footer className="bg-[#111] border-t border-[#333] pt-16 pb-8 mt-auto">
+      <div className="max-w-6xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+
+        {/* 1. MARCA E SOBRE */}
+        <div className="col-span-1 md:col-span-2">
+            <h3 className="text-blue-500 font-bold text-xl tracking-wider mb-4 uppercase">AMAZING HUMANS</h3>
+            <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-sm">
+                Built for writers & readers. <br/>
+                Share your imagination with the world in a modern, distraction-free environment.
             </p>
-            <p style={{ marginTop: 10, fontSize: '0.8rem' }}>
+            <p className="text-gray-600 text-xs">
                 © {new Date().getFullYear()} AmazingHumans. All rights reserved.
             </p>
         </div>
 
-        {/* COLUNA 2: LINKS ÚTEIS (Com Scroll Top) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <h4 style={{ color: 'white', margin: '0 0 10px 0' }}>Platform</h4>
-            
-            <Link to="/" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Home</Link>
-            <Link to="/biblioteca" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>My Library</Link>
-            <Link to="/escrever" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Start Writing</Link>
-            
-            {/* Links corrigidos para Termos e Privacidade */}
-            <Link to="/terms" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Terms of Service</Link>
-            <Link to="/privacy" onClick={handleScrollTop} style={{ color: '#aaa', textDecoration: 'none' }}>Privacy Policy</Link>
+        {/* 2. LINKS DA PLATAFORMA */}
+        <div>
+            <h4 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">Platform</h4>
+            <ul className="space-y-2 text-sm text-gray-400">
+                <li><Link to="/" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Home</Link></li>
+                <li><Link to="/biblioteca" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">My Library</Link></li>
+                <li><Link to="/escrever" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Start Writing</Link></li>
+                <li><Link to="/terms" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Terms of Service</Link></li>
+                <li><Link to="/privacy" onClick={handleScrollTop} className="hover:text-blue-400 transition-colors">Privacy Policy</Link></li>
+            </ul>
         </div>
 
-        {/* COLUNA 3: COMUNIDADE E SUPORTE */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <h4 style={{ color: 'white', margin: 0 }}>Community</h4>
+        {/* 3. COMUNIDADE E DOAÇÃO */}
+        <div>
+            <h4 className="text-white font-bold mb-4 uppercase text-sm tracking-wider">Community</h4>
             
             {/* Ícones Sociais */}
-            <div style={{ display: 'flex', gap: '15px' }}>
-                <a href="#" style={{ color: '#ccc', fontSize: '1.2rem' }}><FaTwitter /></a>
-                <a href="#" style={{ color: '#ccc', fontSize: '1.2rem' }}><FaInstagram /></a>
-                <a href="#" style={{ color: '#ccc', fontSize: '1.2rem' }}><FaGithub /></a>
+            <div className="flex gap-4 mb-6">
+                <a href="#" className="text-gray-400 hover:text-white transition-colors text-xl"><FaTwitter /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors text-xl"><FaInstagram /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors text-xl"><FaGithub /></a>
             </div>
-
+            
             {/* Botão Donate */}
             <a 
                 href="https://buymeacoffee.com/rlokin222" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                style={{ 
-                    display: 'inline-flex', 
-                    alignItems: 'center', 
-                    gap: '8px', 
-                    background: '#d9a404', 
-                    color: '#000', 
-                    padding: '10px 15px', 
-                    borderRadius: '20px', 
-                    textDecoration: 'none', 
-                    fontWeight: 'bold',
-                    width: 'fit-content'
-                }}
+                className="inline-flex items-center gap-2 bg-[#d9a404] hover:bg-[#f0c040] text-black font-bold py-2.5 px-5 rounded-full transition-all hover:-translate-y-1 shadow-lg shadow-yellow-500/10 text-sm"
             >
                 <FaCoffee /> Donate to Server
             </a>
         </div>
-
       </div>
 
-      <div style={{ textAlign: 'center', marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #333', fontSize: '0.8rem', color: '#666' }}>
-          Made with <FaHeart style={{ color: '#d9534f', verticalAlign: 'middle' }} /> by AmazingHumans Team
+      {/* --- RODAPÉ INFERIOR (Créditos) --- */}
+      {/* Aqui usamos Flexbox para alinhar o texto e o ícone na mesma linha */}
+      <div className="border-t border-white/5 pt-8 flex items-center justify-center">
+          <p className="text-gray-600 text-sm flex items-center gap-1.5">
+              Made with <FaHeart className="text-red-500 animate-pulse" /> by <span className="text-gray-400 font-medium">AmazingHumans Team</span>
+          </p>
       </div>
     </footer>
   );

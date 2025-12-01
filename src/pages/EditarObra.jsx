@@ -6,8 +6,8 @@ import {
   doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy 
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
-import { MdSave, MdDelete, MdEdit, MdArrowBack, MdVisibility, MdAdd } from 'react-icons/md';
-import toast from 'react-hot-toast'; // <--- IMPORTANTE
+import { MdSave, MdDelete, MdArrowBack, MdVisibility, MdAdd, MdLock, MdPublic, MdCancel, MdEdit } from 'react-icons/md';
+import toast from 'react-hot-toast';
 
 export default function EditarObra() {
   const { id } = useParams();
@@ -18,23 +18,32 @@ export default function EditarObra() {
   const [capa, setCapa] = useState('');
   const [sinopse, setSinopse] = useState('');
   const [status, setStatus] = useState('public');
+  const [categorias, setCategorias] = useState([]); 
   const [capitulos, setCapitulos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Lista fixa de categorias para o editor
+  const categoriesList = [
+      'Fantasy','Sci-Fi','Romance','Horror','Adventure',
+      'RPG','Mystery','Action','Isekai', 'FanFic'
+  ];
+
   const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
-  const editorConfig = {
-    height: 300,
-    menubar: false,
-    plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount',
-    toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat',
-    skin: 'oxide-dark',
-    content_css: 'dark',
-    body_class: 'my-editor-content'
+  const editorConfig = { 
+    height: 250, 
+    menubar: false, 
+    plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount', 
+    toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat', 
+    skin: 'oxide-dark', 
+    content_css: 'dark', 
+    body_class: 'my-editor-content' 
   };
 
   useEffect(() => {
     async function loadDados() {
+      if (!user?.uid) return; // Garante que tem usuário antes de buscar
+
       try {
         const docRef = doc(db, "obras", id);
         const snapshot = await getDoc(docRef);
@@ -46,163 +55,233 @@ export default function EditarObra() {
 
         const dados = snapshot.data();
         if (dados.autorId !== user?.uid) {
-          toast.error("You do not have permission to edit this book.");
+          toast.error("Permission denied.");
           return navigate("/dashboard");
         }
 
-        setTitulo(dados.titulo);
+        setTitulo(dados.titulo || '');
         setCapa(dados.capa || '');
         setSinopse(dados.sinopse || '');
         setStatus(dados.status || 'public');
+        setCategorias(dados.categorias || []); // Garante array vazio se não existir
 
-        const q = query(
-            collection(db, "capitulos"), 
-            where("obraId", "==", id), 
-            orderBy("data", "asc")
-        );
+        // Carregar Capítulos
+        const q = query(collection(db, "capitulos"), where("obraId", "==", id), orderBy("data", "asc"));
         const snapCaps = await getDocs(q);
         let lista = [];
         snapCaps.forEach(d => lista.push({ id: d.id, ...d.data() }));
         setCapitulos(lista);
-
-        setLoading(false);
-
+        
       } catch (error) {
-        console.log(error);
+        console.error("Erro ao carregar obra:", error);
+        toast.error("Error loading book data.");
+      } finally {
         setLoading(false);
       }
     }
-    if(user?.uid) loadDados();
+
+    loadDados();
   }, [id, user, navigate]);
 
+  const handleCategoria = (cat) => {
+    if (categorias.includes(cat)) {
+        setCategorias(categorias.filter(c => c !== cat));
+    } else {
+        setCategorias([...categorias, cat]);
+    }
+  };
+
   async function handleSave() {
+    if (!titulo.trim()) return toast.error("Title is required.");
+    
     setSaving(true);
     const toastId = toast.loading("Saving...");
     try {
-      await updateDoc(doc(db, "obras", id), { titulo, capa, sinopse, status });
-      toast.success("Book updated successfully!", { id: toastId });
+      await updateDoc(doc(db, "obras", id), { 
+          titulo, 
+          capa, 
+          sinopse, 
+          status, 
+          categorias,
+          tituloBusca: titulo.toLowerCase() // Atualiza também o índice de busca
+      });
+      toast.success("Saved!", { id: toastId });
     } catch (error) { 
+      console.error(error);
       toast.error("Error saving.", { id: toastId }); 
-    } finally { setSaving(false); }
+    } finally { 
+      setSaving(false); 
+    }
   }
 
   async function handleDeleteBook() {
-    const confirmacao = window.prompt("To delete this book and ALL chapters, type 'DELETE':");
-    if (confirmacao !== "DELETE") return;
-    
-    const toastId = toast.loading("Deleting book...");
+    const confirmText = window.prompt("Type 'DELETE' to confirm deletion of this book and all chapters:");
+    if(confirmText !== "DELETE") return;
+
+    const toastId = toast.loading("Deleting...");
     try {
+      // 1. Deleta a Obra
       await deleteDoc(doc(db, "obras", id));
+      
+      // 2. Deleta os Capítulos
       const q = query(collection(db, "capitulos"), where("obraId", "==", id));
       const snap = await getDocs(q);
-      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-      
-      toast.success("Book deleted.", { id: toastId });
+      const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+
+      toast.success("Deleted.", { id: toastId });
       navigate("/dashboard");
     } catch (error) { 
-      toast.error("Error deleting: " + error.message, { id: toastId }); 
+      console.error(error);
+      toast.error("Error deleting.", { id: toastId }); 
     }
   }
 
-  async function handleDeleteChapter(idCap, tituloCap) {
-    if(!window.confirm(`Are you sure you want to delete the chapter "${tituloCap}"?`)) return;
-    const toastId = toast.loading("Deleting chapter...");
-    try {
-      await deleteDoc(doc(db, "capitulos", idCap));
-      setCapitulos(capitulos.filter(c => c.id !== idCap));
-      toast.success("Chapter deleted", { id: toastId });
-    } catch (error) { 
-      toast.error("Error deleting chapter.", { id: toastId }); 
-    }
-  }
-
-  if (loading) return <div className="loading-spinner"></div>;
+  // --- LOADER ---
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px' }}>
+    <div className="max-w-6xl mx-auto px-4 py-8">
       
-      {/* CABEÇALHO */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30, flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Link to="/dashboard" style={{ color: '#aaa', textDecoration: 'none', display: 'flex', alignItems: 'center', fontSize: '1.1rem' }}>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-white/10 pb-4 gap-4">
+        <div className="flex items-center gap-4">
+            <Link to="/dashboard" className="text-gray-400 hover:text-white transition flex items-center gap-1">
                 <MdArrowBack size={24} /> Back
             </Link>
-            <h2 style={{ color: 'white', margin: 0, fontSize: '1.8rem' }}>Edit Book</h2>
+            <h1 className="text-2xl font-bold text-white">Edit Book</h1>
         </div>
-        <Link to={`/obra/${id}`} style={{ background: '#333', color: '#ccc', padding: '8px 15px', borderRadius: 5, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.9rem' }}>
+        <Link to={`/obra/${id}`} className="bg-[#2a2a2a] hover:bg-[#333] text-gray-300 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-white/10">
             <MdVisibility /> View Public Page
         </Link>
       </div>
 
-      {/* LAYOUT RESPONSIVO (GRID) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '40px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* --- COLUNA 1: DETALHES --- */}
-        <div className="form-container" style={{ background: '#1f1f1f', padding: '25px', borderRadius: '8px', border: '1px solid #333' }}>
-            <h3 style={{ color: '#4a90e2', borderBottom: '1px solid #333', paddingBottom: 15, marginTop: 0, marginBottom: 20 }}>
-                Book Details
-            </h3>
-            
-            <div style={{ marginBottom: 20 }}>
-                <label style={{ color: '#ffd700', display:'block', marginBottom:8, fontWeight: 'bold', fontSize: '0.9rem' }}>VISIBILITY</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem', outline: 'none' }}>
-                    <option value="public">🌎 Public (Visible to everyone)</option>
-                    <option value="private">🔒 Private (Only you can see)</option>
-                </select>
-            </div>
-            <div style={{ marginBottom: 20 }}>
-                <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>TITLE</label>
-                <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem' }} />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-                <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>COVER IMAGE (URL)</label>
-                <input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} style={{ width: '100%', padding: 12, background: '#2a2a2a', color: 'white', border: '1px solid #444', borderRadius: 5, fontSize: '1rem' }} />
-            </div>
-            <div style={{ marginBottom: 25 }}>
-                <label style={{ color: '#aaa', display:'block', marginBottom:8, fontSize: '0.9rem' }}>SYNOPSIS</label>
-                <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={editorConfig} value={sinopse} onEditorChange={(content) => setSinopse(content)} />
-            </div>
+        {/* --- COLUNA 1: CONFIGURAÇÕES DA OBRA --- */}
+        <div className="lg:col-span-1 space-y-6">
+            <div className="bg-[#1f1f1f] border border-[#333] rounded-xl p-6 shadow-lg">
+                
+                {/* Visibilidade */}
+                <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block tracking-wider">Visibility</label>
+                    <div className="flex gap-2 bg-[#151515] p-1 rounded-lg border border-[#333]">
+                        <button 
+                            onClick={() => setStatus('public')} 
+                            className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition-all ${status === 'public' ? 'bg-green-600/20 text-green-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            <MdPublic /> Public
+                        </button>
+                        <button 
+                            onClick={() => setStatus('private')} 
+                            className={`flex-1 py-2 rounded-md font-bold text-sm flex items-center justify-center gap-2 transition-all ${status === 'private' ? 'bg-red-600/20 text-red-400 shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            <MdLock /> Private
+                        </button>
+                    </div>
+                </div>
 
-            <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, fontWeight: 'bold' }}>
-                <MdSave size={20} /> {saving ? "Saving..." : "Save Changes"}
-            </button>
-            <div style={{ marginTop: 30, borderTop: '1px solid #333', paddingTop: 20 }}>
-                <button onClick={handleDeleteBook} className="btn-danger" style={{ width: '100%', padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, background: '#d9534f', border: 'none', color: 'white', borderRadius: 5, cursor: 'pointer' }}>
-                    <MdDelete size={20} /> Delete Book
+                <div className="mb-4">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Title</label>
+                    <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all" />
+                </div>
+
+                <div className="mb-4">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover URL</label>
+                    <input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all" placeholder="https://..." />
+                </div>
+
+                {/* Categorias */}
+                <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Categories</label>
+                    <div className="flex flex-wrap gap-2 bg-[#151515] p-3 rounded-lg border border-[#333]">
+                        {categoriesList.map(cat => (
+                            <button 
+                                key={cat} 
+                                onClick={() => handleCategoria(cat)}
+                                className={`text-[10px] px-2.5 py-1 rounded border transition-all ${categorias.includes(cat) ? 'bg-blue-500/20 border-blue-500 text-blue-400 font-bold' : 'bg-[#1f1f1f] border-[#333] text-gray-400 hover:border-gray-500'}`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Synopsis</label>
+                    <div className="rounded-lg overflow-hidden border border-[#333]">
+                        <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={editorConfig} value={sinopse} onEditorChange={(c) => setSinopse(c)} />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 mb-6">
+                    <Link to={`/obra/${id}`} className="flex-1 bg-transparent border border-[#444] text-gray-300 hover:bg-[#333] hover:text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all">
+                        <MdCancel size={18} /> Cancel
+                    </Link>
+
+                    <button onClick={handleSave} disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
+                        <MdSave size={18} /> {saving ? "Saving..." : "Save"}
+                    </button>
+                </div>
+
+                <button onClick={handleDeleteBook} className="w-full bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-all text-sm">
+                    <MdDelete size={16} /> Delete Book Permanently
                 </button>
             </div>
         </div>
 
-        {/* --- COLUNA 2: CAPÍTULOS --- */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <h3 style={{ color: 'white', margin: 0 }}>Chapters ({capitulos.length})</h3>
-                <Link to={`/escrever?obraId=${id}`} className="btn-primary" style={{ textDecoration: 'none', padding: '8px 15px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <MdAdd /> Add New
-                </Link>
-            </div>
-            <div style={{ background: '#1f1f1f', border: '1px solid #333', borderRadius: 8, flex: 1, minHeight: '400px', maxHeight: '800px', overflowY: 'auto' }}>
-                {capitulos.length === 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 20, color: '#777' }}>
-                        <p style={{ fontSize: '1.1rem' }}>No chapters yet.</p>
-                        <p style={{ fontSize: '0.9rem' }}>Start writing your story!</p>
-                    </div>
-                ) : (
-                    capitulos.map((cap, index) => (
-                        <div key={cap.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderBottom: '1px solid #333', background: index % 2 === 0 ? '#252525' : '#1f1f1f' }}>
-                            <div style={{ overflow: 'hidden', marginRight: 15 }}>
-                                <strong style={{ color: '#e0e0e0', display: 'block', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.titulo}</strong>
-                                <span style={{ fontSize: '0.8rem', color: '#666' }}>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Draft'} • 👁️ {cap.views || 0}</span>
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <Link to={`/editar-capitulo/${cap.id}`} title="Edit Chapter" style={{ background: '#d9a404', color: '#000', width: 35, height: 35, borderRadius: 5, display:'flex', alignItems:'center', justifyContent:'center', transition: '0.2s' }}><MdEdit size={18} /></Link>
-                                <button onClick={() => handleDeleteChapter(cap.id, cap.titulo)} title="Delete Chapter" style={{ background: '#d9534f', color: 'white', border: 'none', width: 35, height: 35, borderRadius: 5, cursor: 'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}><MdDelete size={18} /></button>
-                            </div>
+        {/* --- COLUNA 2: LISTA DE CAPÍTULOS --- */}
+        <div className="lg:col-span-2">
+            <div className="bg-[#1f1f1f] border border-[#333] rounded-xl overflow-hidden shadow-lg flex flex-col h-full max-h-[800px]">
+                <div className="p-4 border-b border-[#333] flex justify-between items-center bg-[#252525]">
+                    <h3 className="text-white font-bold flex items-center gap-2">
+                        Chapters <span className="bg-[#333] text-gray-400 text-xs px-2 py-0.5 rounded-full">{capitulos.length}</span>
+                    </h3>
+                    <Link to={`/escrever?obraId=${id}`} className="text-xs bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-1 transition-colors shadow-lg shadow-green-900/20">
+                        <MdAdd size={16} /> Add New Chapter
+                    </Link>
+                </div>
+                
+                <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                    {capitulos.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-40 text-gray-500">
+                            <p>No chapters yet.</p>
+                            <p className="text-sm">Click "Add New Chapter" to start.</p>
                         </div>
-                    ))
-                )}
+                    ) : (
+                        capitulos.map((cap, index) => (
+                            <div key={cap.id} className="p-3 rounded-lg hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-transparent hover:border-[#333]">
+                                <div className="flex items-center gap-4">
+                                    <span className="text-gray-600 font-mono text-xs w-6 text-center">#{index + 1}</span>
+                                    <div>
+                                        <p className="text-gray-200 font-medium text-sm group-hover:text-blue-400 transition-colors">{cap.titulo}</p>
+                                        <div className="flex items-center gap-3 text-[10px] text-gray-500 mt-0.5">
+                                            <span>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Draft'}</span>
+                                            {cap.views !== undefined && <span>👁️ {cap.views}</span>}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Link 
+                                        to={`/editar-capitulo/${cap.id}`} 
+                                        className="p-2 bg-[#333] text-yellow-500 rounded hover:bg-yellow-500/20 hover:text-yellow-400 transition-colors" 
+                                        title="Edit Chapter"
+                                    >
+                                        <MdEdit size={16}/>
+                                    </Link>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
         </div>
+
       </div>
     </div>
   );

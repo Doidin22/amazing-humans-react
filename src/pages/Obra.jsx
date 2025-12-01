@@ -7,11 +7,11 @@ import {
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdChevronLeft, MdChevronRight, MdFirstPage, MdLastPage 
+  MdInfoOutline, MdVisibility, MdCalendarToday, MdList
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import RatingWidget from '../components/RatingWidget';
-import SkeletonObra from '../components/SkeletonObra'; // <--- IMPORTAÇÃO DO SKELETON
+import SkeletonObra from '../components/SkeletonObra';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
 
@@ -27,10 +27,6 @@ export default function Obra() {
   const [idBiblioteca, setIdBiblioteca] = useState(null);
   const [podeAvaliar, setPodeAvaliar] = useState(false);
 
-  // Paginação
-  const [paginaAtual, setPaginaAtual] = useState(1);
-  const capitulosPorPagina = 10;
-
   useEffect(() => {
     async function loadObra() {
       try {
@@ -38,7 +34,7 @@ export default function Obra() {
         const snapshot = await getDoc(docRef);
 
         if (!snapshot.exists()) {
-          alert("Book not found!");
+          toast.error("Book not found!");
           setLoading(false);
           return;
         }
@@ -62,7 +58,6 @@ export default function Obra() {
         capsSnapshot.forEach((doc) => listaCaps.push({ id: doc.id, ...doc.data() }));
         
         setCapitulos(listaCaps);
-        setPaginaAtual(1);
 
       } catch (error) {
         console.log("Error loading book:", error);
@@ -88,11 +83,7 @@ export default function Obra() {
       }
 
       try {
-        const qHist = query(
-            collection(db, "historico"),
-            where("userId", "==", user.uid),
-            where("obraId", "==", id)
-        );
+        const qHist = query(collection(db, "historico"), where("userId", "==", user.uid), where("obraId", "==", id));
         const snapHist = await getDocs(qHist);
         if (!snapHist.empty) setPodeAvaliar(true);
         else setPodeAvaliar(false);
@@ -103,9 +94,7 @@ export default function Obra() {
 
   async function toggleBiblioteca() {
     if(!user) return toast.error("Login to add to library.");
-
     const loadingToast = toast.loading("Updating library...");
-
     try {
         if(estaNaBiblioteca) {
             await deleteDoc(doc(db, "biblioteca", idBiblioteca));
@@ -123,137 +112,178 @@ export default function Obra() {
     } catch (error) {
         toast.error("Error updating library", { id: loadingToast });
     }
-}
+  }
 
   const handleRatingUpdate = (newRating, newVotes) => {
       setObra(prev => ({ ...prev, rating: newRating, votes: newVotes }));
   };
 
-  const indexUltimoCapitulo = paginaAtual * capitulosPorPagina;
-  const indexPrimeiroCapitulo = indexUltimoCapitulo - capitulosPorPagina;
-  const capitulosAtuais = capitulos.slice(indexPrimeiroCapitulo, indexUltimoCapitulo);
-  const totalPaginas = Math.ceil(capitulos.length / capitulosPorPagina);
-
-  const irParaProxima = () => setPaginaAtual(prev => Math.min(prev + 1, totalPaginas));
-  const irParaAnterior = () => setPaginaAtual(prev => Math.max(prev - 1, 1));
-  const irParaInicio = () => setPaginaAtual(1);
-  const irParaFim = () => setPaginaAtual(totalPaginas);
-
-  // --- AQUI ESTÁ A MUDANÇA ---
   if (loading) return <SkeletonObra />;
 
   if (obra.status === 'private' && user?.uid !== obra.autorId) {
      return (
-        <div style={{ textAlign: 'center', padding: 50, color: '#aaa' }}>
-            <h2>🔒 This book is private</h2>
-            <Link to="/" style={{ color: '#4a90e2' }}>Go Home</Link>
+        <div className="flex flex-col items-center justify-center h-[50vh] text-gray-500">
+            <h2 className="text-2xl font-bold mb-2">🔒 This book is private</h2>
+            <Link to="/" className="text-primary hover:underline">Go Home</Link>
         </div>
      );
   }
 
   return (
-    <div style={{ paddingBottom: 50 }}>
+    <div className="min-h-screen pb-20 relative">
         
-        <div id="detalhesObra" style={{ display: 'flex', gap: '30px', padding: '30px', background: '#1f1f1f', borderRadius: '10px', marginBottom: '40px', border: '1px solid #333', flexWrap: 'wrap' }}>
-            <div style={{ flex: '0 0 200px', display: 'flex', justifyContent: 'center' }}>
-                {obra.capa ? (
-                    <img src={obra.capa} alt={obra.titulo} style={{ width: '100%', maxWidth: '200px', borderRadius: '5px', boxShadow: '0 5px 15px rgba(0,0,0,0.5)', objectFit: 'cover' }} />
+        {/* --- BACKDROP DE FUNDO (Efeito de Luz) --- */}
+        <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/10 to-[#121212] blur-[100px] pointer-events-none z-0"></div>
+
+        <div className="max-w-6xl mx-auto px-4 relative z-10 pt-10">
+            
+            {/* --- SEÇÃO PRINCIPAL (HEADER DO LIVRO) --- */}
+            <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-12">
+                
+                {/* 1. CAPA (Poster Style) */}
+                <div className="w-full md:w-64 lg:w-72 shrink-0 mx-auto md:mx-0">
+                    <div className="relative aspect-[2/3] rounded-lg shadow-2xl shadow-black/50 overflow-hidden border border-white/10 group">
+                        {obra.capa ? (
+                            <img src={obra.capa} alt={obra.titulo} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center text-center p-4">
+                                <span className="text-6xl font-serif text-gray-700 font-bold select-none mb-2">{obra.titulo?.charAt(0)}</span>
+                                <span className="text-xs text-gray-500 uppercase tracking-widest">No Cover</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Botões de Ação Mobile (aparecem aqui em telas pequenas) */}
+                    <div className="flex md:hidden gap-3 mt-6">
+                        {capitulos.length > 0 && (
+                            <Link to={`/ler/${capitulos[0].id}`} className="flex-1 btn-primary py-3 rounded-full text-center justify-center">Read</Link>
+                        )}
+                        <button onClick={toggleBiblioteca} className={`flex-1 border-2 font-bold py-2.5 rounded-full flex items-center justify-center gap-2 transition ${estaNaBiblioteca ? 'border-red-500 text-red-500 bg-red-500/10' : 'border-primary text-primary hover:bg-primary/10'}`}>
+                            {estaNaBiblioteca ? <MdBookmarkAdded size={20} /> : <MdBookmarkBorder size={20} />}
+                        </button>
+                    </div>
+                </div>
+
+                {/* 2. INFORMAÇÕES (Detalhes) */}
+                <div className="flex-1 flex flex-col">
+                    
+                    {/* Título e Autor */}
+                    <div className="mb-4 text-center md:text-left">
+                        <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">
+                            {obra.titulo}
+                        </h1>
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-400">
+                            <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary transition font-medium">
+                                <MdPerson size={18} /> {obra.autor || "Unknown"}
+                            </Link>
+                            <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                            <div className="flex items-center gap-1 text-yellow-500 font-bold">
+                                <MdStar size={18} /> {(obra.rating || 0).toFixed(1)}
+                                <span className="text-gray-500 font-normal ml-1">({obra.votes || 0} votes)</span>
+                            </div>
+                            <span className="w-1 h-1 bg-gray-600 rounded-full"></span>
+                            <div className="flex items-center gap-1">
+                                <MdVisibility size={16} /> {obra.views || 0} Views
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Categorias */}
+                    <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-6">
+                        {obra.categorias?.map((cat, index) => (
+                            <span key={index} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs text-gray-300 uppercase tracking-wider font-semibold hover:bg-white/10 transition cursor-default">
+                                {cat}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Sinopse */}
+                    <div className="bg-[#1f1f1f]/80 backdrop-blur-sm border border-white/5 p-6 rounded-xl mb-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+                        <h3 className="text-white font-bold mb-2 flex items-center gap-2"><MdInfoOutline /> Synopsis</h3>
+                        <div 
+                            className="text-gray-300 leading-relaxed font-serif text-sm md:text-base"
+                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse || "No synopsis available.") }}
+                        />
+                    </div>
+
+                    {/* Botões de Ação Desktop */}
+                    <div className="hidden md:flex gap-4 items-center mb-8">
+                        {capitulos.length > 0 ? (
+                            <Link to={`/ler/${capitulos[0].id}`} className="btn-primary px-8 py-3 rounded-full text-lg shadow-xl shadow-blue-500/20 hover:scale-105 transition-transform">
+                                <MdMenuBook size={22} /> Start Reading
+                            </Link>
+                        ) : (
+                            <button disabled className="bg-gray-700 text-gray-400 px-8 py-3 rounded-full font-bold cursor-not-allowed">No Chapters Yet</button>
+                        )}
+
+                        <button onClick={toggleBiblioteca} className={`px-6 py-2.5 rounded-full font-bold flex items-center gap-2 border-2 transition hover:scale-105 ${estaNaBiblioteca ? 'border-red-500 text-red-500 hover:bg-red-500/10' : 'border-gray-600 text-gray-300 hover:border-primary hover:text-primary hover:bg-primary/5'}`}>
+                            {estaNaBiblioteca ? <><MdBookmarkAdded size={20} /> Library</> : <><MdBookmarkBorder size={20} /> Add to Library</>}
+                        </button>
+
+                        {user?.uid === obra.autorId && (
+                            <Link to={`/editar-obra/${obra.id}`} className="ml-auto flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition">
+                                <MdEdit /> Edit Book
+                            </Link>
+                        )}
+                    </div>
+
+                    {/* Widget de Avaliação */}
+                    {user && podeAvaliar && (
+                        <div className="bg-[#151515] border border-white/5 p-4 rounded-lg flex items-center justify-between gap-4 max-w-md">
+                            <span className="text-sm text-gray-400 font-medium">Enjoying the story? Leave a rating:</span>
+                            <RatingWidget obraId={id} onRatingUpdate={handleRatingUpdate} />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- SEÇÃO DE CAPÍTULOS --- */}
+            <div className="mt-16">
+                <div className="flex items-center gap-4 mb-6 border-b border-white/10 pb-4">
+                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
+                        <MdList className="text-primary" /> Chapters <span className="text-sm font-normal text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">{capitulos.length}</span>
+                    </h3>
+                </div>
+
+                {capitulos.length === 0 ? (
+                    <div className="text-center py-12 bg-[#151515] border border-white/5 rounded-xl text-gray-500">
+                        <p>No chapters released yet.</p>
+                    </div>
                 ) : (
-                    <div className="cover-placeholder" style={{ width: '200px', height: '300px', fontSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{obra.titulo?.charAt(0)}</div>
+                    <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
+                        {capitulos.map((cap, index) => (
+                            <Link 
+                                to={`/ler/${cap.id}`} 
+                                key={cap.id} 
+                                className="flex items-center justify-between p-4 hover:bg-white/5 transition group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <span className="text-gray-600 font-mono text-sm w-6 text-center group-hover:text-primary">#{index + 1}</span>
+                                    <div>
+                                        <h4 className="text-gray-200 font-medium group-hover:text-primary transition-colors">{cap.titulo}</h4>
+                                        <span className="text-xs text-gray-500 md:hidden block mt-1">{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-6 text-sm text-gray-500">
+                                    <span className="hidden md:flex items-center gap-1"><MdCalendarToday size={14} /> {cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}</span>
+                                    <span className="flex items-center gap-1"><MdVisibility size={14} /> {cap.views || 0}</span>
+                                </div>
+                            </Link>
+                        ))}
+                    </div>
                 )}
             </div>
 
-            <div style={{ flex: 1, minWidth: '300px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap', marginBottom: '5px' }}>
-                    <h1 style={{ color: '#4a90e2', fontSize: '2.5rem', margin: 0, lineHeight: 1.2 }}>{obra.titulo}</h1>
-                    {user?.uid === obra.autorId && (
-                        <Link to={`/escrever?obraId=${obra.id}`} style={{ background: '#333', color: 'white', border: '1px solid #555', padding: '5px 15px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', fontSize: '0.9rem' }}><MdEdit /> Edit Book</Link>
-                    )}
+            {/* --- RECOMENDAÇÕES --- */}
+            {obra.categorias && (
+                <div className="mt-20">
+                    <Recomendacoes tags={obra.categorias} currentId={id} title="You Might Also Like" />
                 </div>
-
-                <p style={{ color: '#aaa', fontSize: '1.1rem', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <MdPerson /> By: 
-                    <Link to={`/usuario/${obra.autorId}`} style={{ color: '#4a90e2', textDecoration: 'none' }}>{obra.autor || "Unknown"}</Link>
-                </p>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-                    <span style={{ color: '#ffd700', fontSize: '1.2rem' }}><MdStar /></span>
-                    <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{(obra.rating || 0).toFixed(1)}</span>
-                    <span style={{ color: '#777', fontSize: '0.9rem' }}>({obra.votes || 0} votes)</span>
-                </div>
-
-                <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    {obra.categorias?.map((cat, index) => <span key={index} style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', color: '#aaa' }}>{cat}</span>)}
-                </div>
-
-                <div style={{ background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '3px solid #666', marginBottom: '20px' }}>
-                    <h4 style={{ color: '#ddd', margin: '0 0 5px 0' }}>Synopsis</h4>
-                    <div 
-                        style={{ color: '#bbb', fontStyle: 'italic', lineHeight: '1.6' }} 
-                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse || "No synopsis.") }}
-                    />
-                </div>
-
-                <div style={{ display: 'flex', gap: 10, marginTop: 20, flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                        {capitulos.length > 0 && (
-                            <Link to={`/ler/${capitulos[0].id}`} className="btn-primary" style={{ padding: '10px 20px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}><MdMenuBook /> Read First</Link>
-                        )}
-                        <button onClick={toggleBiblioteca} style={{ background: estaNaBiblioteca ? '#d9534f' : 'transparent', border: estaNaBiblioteca ? 'none' : '2px solid #4a90e2', color: estaNaBiblioteca ? 'white' : '#4a90e2', padding: '8px 20px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 'bold' }}>
-                            {estaNaBiblioteca ? <><MdBookmarkAdded /> In Library</> : <><MdBookmarkBorder /> Add to Library</>}
-                        </button>
-                    </div>
-
-                    {user ? (
-                        podeAvaliar ? (
-                            <RatingWidget obraId={id} onRatingUpdate={handleRatingUpdate} />
-                        ) : (
-                            <div style={{ marginTop: 15, padding: 15, border: '1px solid #444', borderRadius: 5, color: '#777', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <MdInfoOutline /> Read at least one chapter to rate this story.
-                            </div>
-                        )
-                    ) : null}
-                </div>
-            </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #444', paddingBottom: '10px', marginBottom: '15px' }}>
-             <h3 style={{ margin: 0, color: 'white' }}>Chapters ({capitulos.length})</h3>
-             
-             {capitulos.length > capitulosPorPagina && (
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                     <span style={{ color: '#777', fontSize: '0.8rem', marginRight: 10 }}>
-                         Page {paginaAtual} of {totalPaginas}
-                     </span>
-                 </div>
-             )}
-        </div>
-        
-        <div className="stories-grid" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {capitulos.length === 0 ? ( <p style={{ color: '#777' }}>No chapters yet.</p> ) : (
-                capitulosAtuais.map(cap => (
-                    <Link to={`/ler/${cap.id}`} key={cap.id} style={{ textDecoration: 'none', display: 'block', background: '#252525', padding: '15px', borderRadius: '5px', borderLeft: '4px solid #4a90e2', marginBottom: '5px' }}>
-                        <h4 style={{ color: 'white', margin: '0 0 5px 0' }}>{cap.titulo}</h4>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#777' }}>
-                            <span>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Date unknown'}</span>
-                            <span>👁️ {cap.views || 0}</span>
-                        </div>
-                    </Link>
-                ))
             )}
+
         </div>
-
-        {capitulos.length > capitulosPorPagina && (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 15, marginTop: 30, padding: 20, background: '#1f1f1f', borderRadius: 8, border: '1px solid #333' }}>
-                <button onClick={irParaInicio} disabled={paginaAtual === 1} style={{ background: 'none', border: 'none', color: paginaAtual === 1 ? '#444' : '#4a90e2', cursor: paginaAtual === 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }} title="First Page"><MdFirstPage size={28} /></button>
-                <button onClick={irParaAnterior} disabled={paginaAtual === 1} style={{ background: '#333', border: 'none', color: paginaAtual === 1 ? '#555' : 'white', padding: '8px 15px', borderRadius: 5, cursor: paginaAtual === 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}><MdChevronLeft size={24} /> Prev</button>
-                <span style={{ color: 'white', fontWeight: 'bold' }}>{paginaAtual} / {totalPaginas}</span>
-                <button onClick={irParaProxima} disabled={paginaAtual === totalPaginas} style={{ background: '#333', border: 'none', color: paginaAtual === totalPaginas ? '#555' : 'white', padding: '8px 15px', borderRadius: 5, cursor: paginaAtual === totalPaginas ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }}>Next <MdChevronRight size={24} /></button>
-                <button onClick={irParaFim} disabled={paginaAtual === totalPaginas} style={{ background: 'none', border: 'none', color: paginaAtual === totalPaginas ? '#444' : '#4a90e2', cursor: paginaAtual === totalPaginas ? 'default' : 'pointer', display: 'flex', alignItems: 'center' }} title="Last Page"><MdLastPage size={28} /></button>
-            </div>
-        )}
-
-        {obra.categorias && <Recomendacoes tags={obra.categorias} currentId={id} title="Similar Stories" />}
     </div>
   );
 }

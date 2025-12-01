@@ -5,13 +5,12 @@ import { collection, query, where, onSnapshot, limit } from 'firebase/firestore'
 import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
-  MdBookmarks, MdHistory, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdLogin, MdDiamond
+  MdBookmarks, MdLogout, MdArrowDropDown,
+  MdHome, MdClose, MdLogin, MdDiamond, MdHistory
 } from 'react-icons/md';
 
 export default function Header() {
   const { signed, user, logout } = useContext(AuthContext);
-  
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [notifCount, setNotifCount] = useState(0); 
@@ -21,143 +20,135 @@ export default function Header() {
 
   useEffect(() => {
     if (!user?.uid) return;
-
-    const q = query(
-        collection(db, "notificacoes"), 
-        where("paraId", "==", user.uid), 
-        where("lida", "==", false),
-        limit(20)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        setNotifCount(snapshot.size);
-    });
-
+    const q = query(collection(db, "notificacoes"), where("paraId", "==", user.uid), where("lida", "==", false), limit(20));
+    const unsubscribe = onSnapshot(q, (snapshot) => setNotifCount(snapshot.size));
     return () => unsubscribe();
   }, [user]);
 
+  // Função auxiliar para garantir a imagem (igual ao Perfil)
+  const getAvatarUrl = () => {
+    if (user?.avatar) return user.avatar;
+    return `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`;
+  };
+
+  const handleImageError = (e) => {
+    e.target.onerror = null;
+    e.target.src = `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`;
+  };
+
   return (
     <>
-      <div 
-        className={`drawer-overlay ${showDrawer ? 'open' : ''}`} 
-        onClick={() => setShowDrawer(false)}
-      ></div>
+      {/* --- MENU MOBILE (DRAWER) --- */}
+      {showDrawer && (
+        <div className="fixed inset-0 bg-black/80 z-[1000]" onClick={() => setShowDrawer(false)}></div>
+      )}
 
-      <div className={`mobile-nav-drawer ${showDrawer ? 'open' : ''}`} id="mobileDrawer">
-          <div style={{ alignSelf: 'flex-end', padding: '10px' }}>
-             <MdClose size={28} color="white" onClick={() => setShowDrawer(false)} style={{ cursor: 'pointer' }} />
+      <div className={`fixed top-0 left-0 h-full w-72 bg-[#1f1f1f] shadow-2xl z-[1001] transform transition-transform duration-300 ease-in-out ${showDrawer ? 'translate-x-0' : '-translate-x-full'}`}>
+          <div className="flex justify-end p-4">
+             <MdClose size={28} className="text-gray-400 cursor-pointer hover:text-white" onClick={() => setShowDrawer(false)} />
           </div>
 
-          {signed ? (
-            <>
-                <div className="user-info-drawer" onClick={() => setShowDrawer(false)} style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-                    <img src={user.avatar} alt="Avatar" style={{ width:40, height:40, borderRadius:'50%', border:'2px solid #4a90e2', marginRight:10 }} /> 
-                    <span style={{ color: 'white', fontWeight: 'bold' }}>{user.name}</span>
-                </div>
-                
-                <Link to="/" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MdHome size={24} /> Home
-                </Link>
-
-                <Link to="/notificacoes" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ position: 'relative', display: 'flex' }}>
-                        <MdNotifications size={24} />
-                        {notifCount > 0 && (
-                            <span style={{ position: 'absolute', top: -2, right: -2, background: 'red', width: 8, height: 8, borderRadius: '50%' }}></span>
-                        )}
+          <div className="flex flex-col gap-2 p-4">
+              {signed ? (
+                <>
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-700">
+                        {/* FOTO CORRIGIDA NO MOBILE */}
+                        <img 
+                            src={getAvatarUrl()} 
+                            onError={handleImageError}
+                            alt="Avatar" 
+                            className="w-10 h-10 rounded-full border border-blue-500 object-cover" 
+                        /> 
+                        <p className="text-white font-bold truncate">{user.name}</p>
                     </div>
-                    Notifications {notifCount > 0 && <span style={{ background: 'red', color: 'white', padding: '2px 6px', borderRadius: '10px', fontSize: '0.7rem', marginLeft: 'auto' }}>{notifCount}</span>}
-                </Link>
-
-                <Link to="/assinatura" onClick={() => setShowDrawer(false)} style={{ color: '#00d2ff', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10, fontWeight: 'bold' }}>
-                    <MdDiamond size={24} /> Go Premium
-                </Link>
-
-                <Link to="/perfil" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MdPerson size={24} /> My Profile
-                </Link>
-                <Link to="/biblioteca" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MdBookmarks size={24} /> Library
-                </Link>
-                <Link to="/dashboard" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MdEditNote size={24} /> Dashboard
-                </Link>
-                
-                <button 
-                    onClick={() => { logout(); setShowDrawer(false); }} 
-                    style={{ background: '#d9534f', color: 'white', border: 'none', padding: '10px', marginTop: 20, borderRadius: 5, fontWeight: 'bold', cursor: 'pointer', width: '100%' }}
-                >
-                    Logout
-                </button>
-            </>
-          ) : (
-            <>
-                <h3 style={{ color: 'white', textAlign: 'center', marginTop: 10, marginBottom: 20 }}>Welcome!</h3>
-                <Link to="/" onClick={() => setShowDrawer(false)} style={{ color: 'white', textDecoration: 'none', padding: '15px 0', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <MdHome size={24} /> Home
-                </Link>
-                <Link to="/login" onClick={() => setShowDrawer(false)} className="btn-header-login">
-                    <MdLogin size={20} /> Login / Sign Up
-                </Link>
-            </>
-          )}
+                    <Link to="/" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdHome size={22} /> Home</Link>
+                    <Link to="/notificacoes" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdNotifications size={22} /> Notifications</Link>
+                    <Link to="/assinatura" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-blue-400 py-3 font-bold"><MdDiamond size={22} /> Premium</Link>
+                    <Link to="/perfil" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdPerson size={22} /> Profile</Link>
+                    <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdBookmarks size={22} /> Library</Link>
+                    <Link to="/historico" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdHistory size={22} /> History</Link>
+                    <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white"><MdEditNote size={22} /> Dashboard</Link>
+                    <button onClick={() => { logout(); setShowDrawer(false); }} className="mt-6 w-full bg-red-600 text-white py-2 rounded font-bold">Logout</button>
+                </>
+              ) : (
+                <Link to="/login" onClick={() => setShowDrawer(false)} className="w-full bg-blue-600 text-white py-2 rounded font-bold text-center">Login</Link>
+              )}
+          </div>
       </div>
 
-      <header>
-         <button id="menuToggleBtn" onClick={toggleDrawer} style={{background:'none', border:'none', color:'white', cursor:'pointer'}}>
-           <div style={{ position: 'relative' }}>
-             <MdMenu size={32} />
-             {notifCount > 0 && <span style={{ position: 'absolute', top: 0, right: 0, background: 'red', width: 10, height: 10, borderRadius: '50%', border: '2px solid #1f1f1f' }}></span>}
-           </div>
-         </button>
-
-         <div className="logo">
-           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#4a90e2', fontWeight: 'bold', fontSize: '1.3rem' }}>
-              <img src="/logo-ah.png" alt="Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
-              AMAZING HUMANS
-           </Link>
+      {/* --- HEADER PRINCIPAL --- */}
+      <header className="sticky top-0 z-50 bg-[#151515] border-b border-[#333] h-16 flex items-center justify-between px-4 lg:px-8 shadow-md">
+         <div className="flex items-center gap-4">
+             <button className="lg:hidden text-gray-300" onClick={toggleDrawer}><MdMenu size={28} /></button>
+             <Link to="/" className="flex items-center gap-2">
+                <img src="/logo-ah.png" alt="Logo" className="h-8 w-auto object-contain" />
+                <span className="text-blue-500 font-bold text-lg tracking-wide hidden sm:block">AMAZING HUMANS</span>
+             </Link>
          </div>
 
-         <div className="user-area">
+         <div className="hidden lg:flex items-center gap-6">
            {!signed ? (
-             <Link to="/login" className="btn-header-login">
-                <MdLogin size={18} /> Login
+             <Link to="/login" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-1.5 rounded font-bold transition text-sm flex items-center gap-2">
+                <MdLogin /> Login
              </Link>
            ) : (
-             <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-               
-               <Link to="/notificacoes" style={{ color: '#ccc', display: 'flex', alignItems: 'center', position: 'relative' }}>
+             <div className="flex items-center gap-5">
+               <Link to="/notificacoes" className="text-gray-400 hover:text-white relative">
                  <MdNotifications size={24} />
-                 {notifCount > 0 && (
-                     <span style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', fontSize: '0.6rem', padding: '2px 5px', borderRadius: '50%', fontWeight: 'bold' }}>
-                         {notifCount > 20 ? '20+' : notifCount}
-                     </span>
-                 )}
+                 {notifCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>}
                </Link>
 
-               <div className="user-menu-trigger" onClick={toggleDropdown} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}>
-                 <img src={user.avatar} alt="Avatar" className="header-avatar" />
-                 <span className="hide-mobile" style={{ fontWeight: 'bold', color: '#ddd' }}>{user.name}</span>
-                 <MdArrowDropDown size={24} className="hide-mobile" />
-               </div>
+               <div className="relative group">
+                   {/* BOTÃO DROPDOWN COM FOTO CORRIGIDA */}
+                   <div onClick={toggleDropdown} className="flex items-center gap-2 cursor-pointer hover:bg-[#222] p-1.5 rounded transition border border-transparent hover:border-[#333]">
+                     <img 
+                        src={getAvatarUrl()} 
+                        onError={handleImageError}
+                        alt="User" 
+                        className="w-8 h-8 rounded-full border border-gray-600 object-cover" 
+                     />
+                     <span className="text-gray-300 font-medium text-sm max-w-[100px] truncate">{user.name}</span>
+                     <MdArrowDropDown className="text-gray-500" />
+                   </div>
 
-               <div className={`dropdown-box ${showDropdown ? 'active' : ''}`} onMouseLeave={() => setShowDropdown(false)}>
-                  <div style={{ padding: '10px 20px', borderBottom: '1px solid #333', marginBottom: '5px' }}>
-                      <strong style={{ color: 'white' }}>{user.name}</strong>
-                  </div>
-                  
-                  <Link to="/assinatura" className="dropdown-item" style={{ color: '#00d2ff' }}>
-                      <MdDiamond /> Go Premium
-                  </Link>
+                   {/* DROPDOWN MENU */}
+                   {showDropdown && (
+                       <div 
+                         className="absolute top-12 right-0 w-64 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 flex flex-col z-[2000]" 
+                         onMouseLeave={() => setShowDropdown(false)}
+                       >
+                          <div className="px-4 py-2 border-b border-[#333] mb-1">
+                              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Signed in as</p>
+                              <p className="text-white font-bold truncate text-sm">{user.name}</p>
+                          </div>
 
-                  <Link to="/perfil" className="dropdown-item"><MdPerson /> My Profile</Link>
-                  <Link to="/dashboard" className="dropdown-item"><MdEditNote /> Dashboard</Link>
-                  <div className="dropdown-divider"></div>
-                  <Link to="/biblioteca" className="dropdown-item"><MdBookmarks /> Library</Link>
-                  <Link to="/historico" className="dropdown-item"><MdHistory /> History</Link>
-                  <button onClick={logout} className="dropdown-item" style={{ color: '#d9534f' }}>
-                    <MdLogout /> Logout
-                  </button>
+                          <Link to="/assinatura" className="px-4 py-2.5 text-sm text-blue-400 hover:bg-[#2a2a2a] font-bold flex items-center gap-3 transition-colors">
+                              <MdDiamond size={18} /> Go Premium
+                          </Link>
+
+                          <Link to="/perfil" className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white flex items-center gap-3 transition-colors">
+                              <MdPerson size={18} /> My Profile
+                          </Link>
+                          
+                          <Link to="/dashboard" className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white flex items-center gap-3 transition-colors">
+                              <MdEditNote size={18} /> Dashboard
+                          </Link>
+                          
+                          <Link to="/biblioteca" className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white flex items-center gap-3 transition-colors">
+                              <MdBookmarks size={18} /> Library
+                          </Link>
+
+                          <Link to="/historico" className="px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white flex items-center gap-3 transition-colors">
+                              <MdHistory size={18} /> Reading History
+                          </Link>
+
+                          <div className="h-px bg-[#333] my-1 mx-2"></div>
+                          
+                          <button onClick={logout} className="px-4 py-2.5 text-sm text-red-400 hover:bg-[#2a2a2a] w-full text-left flex items-center gap-3 transition-colors font-semibold">
+                              <MdLogout size={18} /> Logout
+                          </button>
+                       </div>
+                   )}
                </div>
              </div>
            )}

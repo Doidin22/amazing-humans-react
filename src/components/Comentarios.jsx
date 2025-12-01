@@ -7,93 +7,203 @@ import {
   addDoc, doc, updateDoc, deleteDoc, serverTimestamp, 
   arrayUnion, arrayRemove 
 } from 'firebase/firestore';
-import { MdArrowUpward, MdDelete, MdChatBubbleOutline } from 'react-icons/md';
-import toast from 'react-hot-toast'; // <--- IMPORTANTE
+import { 
+  MdThumbUp, MdThumbUpOffAlt, MdThumbDownOffAlt, 
+  MdDelete, MdSort, MdKeyboardArrowDown, MdKeyboardArrowUp 
+} from 'react-icons/md';
+import toast from 'react-hot-toast';
 
-const CommentItem = ({ 
-    dados, profundidade = 0, comentarios, user, 
-    respondendoA, setRespondendoA, textoResposta, setTextoResposta, 
-    handleLike, handleDelete, handleEnviar 
-}) => {
-    const respostas = comentarios.filter(c => c.parentId === dados.id);
+// --- SUB-COMPONENTE: ITEM DE RESPOSTA (Nível 2) ---
+const ReplyItem = ({ dados, user, handleLike, handleDelete, handleResponderClick }) => {
     const jaCurtiu = dados.likes?.includes(user?.uid);
     const isOwner = user?.uid === dados.autorId;
+    const timeString = dados.data ? new Date(dados.data.seconds * 1000).toLocaleDateString() : 'just now';
+
+    // Identifica se o texto começa com @username para destacar
+    const renderText = (text) => {
+        const parts = text.split(' ');
+        return parts.map((part, i) => {
+            if (part.startsWith('@') && i === 0) { // Assume que o @tag é a primeira palavra
+                return <span key={i} className="text-blue-400 font-bold mr-1">{part}</span>;
+            }
+            return part + ' ';
+        });
+    };
 
     return (
-      <div style={{ marginTop: 15, position: 'relative' }}>
-        <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 40 }}>
-                {dados.autorId ? (
-                    <Link to={`/usuario/${dados.autorId}`}>
-                        <img src={dados.autorFoto || "https://via.placeholder.com/40"} alt="user" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', border: '1px solid #444' }} />
-                    </Link>
-                ) : (
-                    <img src="https://via.placeholder.com/40" alt="user" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                )}
-                {respostas.length > 0 && <div style={{ flex: 1, width: 2, backgroundColor: '#343536', marginTop: 5, marginBottom: 5 }}></div>}
-            </div>
-            <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.8rem', color: '#818384', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 5 }}>
-                    {dados.autorId ? (
-                        <Link to={`/usuario/${dados.autorId}`} style={{ color: '#D7DADC', fontWeight: 'bold', textDecoration: 'none' }} onMouseOver={(e) => e.target.style.textDecoration = 'underline'} onMouseOut={(e) => e.target.style.textDecoration = 'none'}>
-                            {dados.autorNome || "Unknown"}
-                        </Link>
-                    ) : (
-                        <span style={{ color: '#D7DADC', fontWeight: 'bold' }}>{dados.autorNome || "Unknown"}</span>
-                    )}
-                    <span>•</span>
-                    <span>{dados.data ? new Date(dados.data.seconds * 1000).toLocaleDateString() : 'now'}</span>
+        <div className="flex gap-3 mb-3 group">
+            <Link to={`/usuario/${dados.autorId}`} className="shrink-0">
+                <img 
+                    src={dados.autorFoto || "https://via.placeholder.com/40"} 
+                    alt="user" className="w-6 h-6 rounded-full object-cover" 
+                    onError={(e) => { e.target.src = "https://via.placeholder.com/40"; }}
+                />
+            </Link>
+            <div className="flex-1">
+                <div className="flex items-center gap-2 text-[11px] mb-0.5">
+                    <span className="font-bold text-white hover:text-gray-300 cursor-pointer">
+                        @{dados.autorNome?.replace(/\s+/g, '').toLowerCase()}
+                    </span>
+                    <span className="text-gray-500">{timeString}</span>
                 </div>
-                <div style={{ color: '#e0e0e0', fontSize: '0.95rem', lineHeight: '1.5', whiteSpace: 'pre-wrap', marginBottom: 8 }}>{dados.texto}</div>
-                <div style={{ display: 'flex', gap: 15, alignItems: 'center' }}>
-                    <button onClick={() => handleLike(dados.id, dados.likes)} style={{ background: 'none', border: 'none', color: jaCurtiu ? '#ff4500' : '#818384', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', fontWeight: 'bold' }}>
-                        <MdArrowUpward size={18} /> {dados.likes?.length || 0}
+                <div className="text-sm text-gray-200 leading-snug mb-1">
+                    {renderText(dados.texto)}
+                </div>
+                <div className="flex items-center gap-1">
+                    <button onClick={() => handleLike(dados.id, dados.likes)} className="flex items-center gap-1 p-1.5 rounded-full hover:bg-white/10 text-gray-400">
+                        {jaCurtiu ? <MdThumbUp size={14} className="text-white" /> : <MdThumbUpOffAlt size={14} />}
+                        <span className="text-[10px]">{dados.likes?.length || 0}</span>
                     </button>
-                    <button onClick={() => { if (respondendoA === dados.id) { setRespondendoA(null); setTextoResposta(''); } else { setRespondendoA(dados.id); setTextoResposta(''); } }} style={{ background: 'none', border: 'none', color: '#818384', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', fontWeight: 'bold' }}>
-                        <MdChatBubbleOutline size={18} /> Reply
+                    <button className="p-1.5 rounded-full hover:bg-white/10 text-gray-400"><MdThumbDownOffAlt size={14} /></button>
+                    <button 
+                        onClick={() => handleResponderClick(dados.autorNome)} 
+                        className="ml-2 px-2 py-1 rounded-full hover:bg-white/10 text-[10px] font-bold text-gray-400 hover:text-white"
+                    >
+                        Reply
                     </button>
                     {isOwner && (
-                        <button onClick={() => handleDelete(dados.id)} style={{ background: 'none', border: 'none', color: '#d9534f', cursor: 'pointer', fontSize: '0.8rem' }}>
-                            <MdDelete size={18} />
+                        <button onClick={() => handleDelete(dados.id)} className="ml-auto p-1.5 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100">
+                            <MdDelete size={14} />
                         </button>
                     )}
                 </div>
-                {respondendoA === dados.id && (
-                    <div className="animeLeft" style={{ marginTop: 10, marginBottom: 10, display: 'flex', gap: 10 }}>
-                         <div style={{ width: 2, background: '#343536', marginLeft: 15 }}></div>
-                         <div style={{ flex: 1 }}>
-                            <textarea autoFocus value={textoResposta} onChange={(e) => setTextoResposta(e.target.value)} placeholder={`Replying to ${dados.autorNome}...`} style={{ width: '100%', background: '#272729', border: '1px solid #343536', color: 'white', padding: 10, borderRadius: 4, minHeight: 80 }} />
-                            <div style={{ textAlign: 'right', marginTop: 5, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                                <button onClick={() => { setRespondendoA(null); setTextoResposta(''); }} style={{ background: 'transparent', color: '#818384', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Cancel</button>
-                                <button onClick={() => handleEnviar(dados.id)} className="btn-primary" style={{ padding: '5px 15px', fontSize: '0.8rem' }}>Reply</button>
-                            </div>
-                         </div>
-                    </div>
-                )}
-                {respostas.length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                        {respostas.map(resp => <CommentItem key={resp.id} dados={resp} profundidade={profundidade + 1} comentarios={comentarios} user={user} respondendoA={respondendoA} setRespondendoA={setRespondendoA} textoResposta={textoResposta} setTextoResposta={setTextoResposta} handleLike={handleLike} handleDelete={handleDelete} handleEnviar={handleEnviar} />)}
-                    </div>
+            </div>
+        </div>
+    );
+};
+
+// --- SUB-COMPONENTE: COMENTÁRIO PRINCIPAL (Nível 1) ---
+const CommentThread = ({ 
+    dados, todasRespostas, user, 
+    respondendoA, setRespondendoA, textoResposta, setTextoResposta, 
+    handleLike, handleDelete, handleEnviar 
+}) => {
+    const [mostrarRespostas, setMostrarRespostas] = useState(false);
+    
+    // Filtra as respostas que pertencem a este comentário pai
+    const minhasRespostas = todasRespostas.filter(r => r.parentId === dados.id);
+    const jaCurtiu = dados.likes?.includes(user?.uid);
+    const isOwner = user?.uid === dados.autorId;
+    const timeString = dados.data ? new Date(dados.data.seconds * 1000).toLocaleDateString() : 'just now';
+
+    // Ao clicar em responder num filho ou no pai
+    const prepararResposta = (nomeUsuario) => {
+        setRespondendoA(dados.id); // O ID técnico do pai é sempre o alvo no banco
+        setTextoResposta(`@${nomeUsuario?.replace(/\s+/g, '').toLowerCase()} `);
+    };
+
+    return (
+      <div className="flex gap-4 mb-6 group">
+        <Link to={`/usuario/${dados.autorId}`} className="shrink-0">
+            <img 
+                src={dados.autorFoto || "https://via.placeholder.com/40"} 
+                alt="user" className="w-10 h-10 rounded-full object-cover" 
+                onError={(e) => { e.target.src = "https://via.placeholder.com/40"; }}
+            />
+        </Link>
+
+        <div className="flex-1">
+            {/* Header Comentário */}
+            <div className="flex items-center gap-2 text-xs mb-1">
+                <span className="font-semibold text-white cursor-pointer hover:text-gray-300">
+                    @{dados.autorNome?.replace(/\s+/g, '').toLowerCase()}
+                </span>
+                <span className="text-gray-500 text-[11px]">{timeString}</span>
+            </div>
+
+            {/* Texto */}
+            <div className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap mb-2">
+                {dados.texto}
+            </div>
+
+            {/* Ações */}
+            <div className="flex items-center gap-1 mb-2">
+                <button onClick={() => handleLike(dados.id, dados.likes)} className="flex items-center gap-1.5 p-2 rounded-full hover:bg-white/10 text-gray-400">
+                    {jaCurtiu ? <MdThumbUp size={16} className="text-white" /> : <MdThumbUpOffAlt size={16} />}
+                    <span className="text-xs">{dados.likes?.length || 0}</span>
+                </button>
+                <button className="p-2 rounded-full hover:bg-white/10 text-gray-400"><MdThumbDownOffAlt size={16} /></button>
+                <button 
+                    onClick={() => prepararResposta(dados.autorNome)} 
+                    className="ml-2 px-3 py-1.5 rounded-full hover:bg-white/10 text-xs font-semibold text-gray-400 hover:text-white"
+                >
+                    Reply
+                </button>
+                {isOwner && (
+                    <button onClick={() => handleDelete(dados.id)} className="ml-auto p-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100">
+                        <MdDelete size={18} />
+                    </button>
                 )}
             </div>
+
+            {/* Input de Resposta (Aparece se estiver respondendo a ESTA thread) */}
+            {respondendoA === dados.id && (
+                <div className="mt-2 mb-4 flex gap-3 animate-fade-in">
+                     <img src={user?.avatar || "https://via.placeholder.com/40"} className="w-6 h-6 rounded-full" />
+                     <div className="flex-1">
+                        <input 
+                            autoFocus 
+                            value={textoResposta} 
+                            onChange={(e) => setTextoResposta(e.target.value)} 
+                            className="w-full bg-transparent border-b border-gray-700 text-white pb-1 text-sm focus:border-white focus:outline-none"
+                        />
+                        <div className="flex justify-end gap-2 mt-2">
+                            <button onClick={() => { setRespondendoA(null); setTextoResposta(''); }} className="px-3 py-1.5 rounded-full hover:bg-white/10 text-sm font-medium text-white">Cancel</button>
+                            <button onClick={() => handleEnviar(dados.id)} disabled={!textoResposta.trim()} className="px-3 py-1.5 rounded-full bg-blue-600 text-black font-bold text-sm hover:bg-blue-500 disabled:opacity-50">Reply</button>
+                        </div>
+                     </div>
+                </div>
+            )}
+
+            {/* Botão de Expandir Respostas (Igual YouTube) */}
+            {minhasRespostas.length > 0 && (
+                <div>
+                    <button 
+                        onClick={() => setMostrarRespostas(!mostrarRespostas)}
+                        className="flex items-center gap-2 text-blue-400 hover:bg-blue-500/10 px-3 py-1.5 rounded-full text-sm font-bold transition-colors mb-2"
+                    >
+                        {mostrarRespostas ? <MdKeyboardArrowUp /> : <MdKeyboardArrowDown />}
+                        {minhasRespostas.length} replies
+                    </button>
+
+                    {/* Lista de Respostas */}
+                    {mostrarRespostas && (
+                        <div className="pl-0">
+                            {minhasRespostas.map(resp => (
+                                <ReplyItem 
+                                    key={resp.id} 
+                                    dados={resp} 
+                                    user={user} 
+                                    handleLike={handleLike} 
+                                    handleDelete={handleDelete}
+                                    handleResponderClick={prepararResposta} 
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
       </div>
     );
 };
 
+// --- COMPONENTE PRINCIPAL ---
 export default function Comentarios({ targetId, targetType = 'capitulo', targetAuthorId, targetTitle }) {
   const { user } = useContext(AuthContext);
   const [comentarios, setComentarios] = useState([]);
   const [novoTexto, setNovoTexto] = useState('');
   const [respondendoA, setRespondendoA] = useState(null); 
   const [textoResposta, setTextoResposta] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, "comentarios"), where("targetId", "==", targetId));
     const unsub = onSnapshot(q, (snap) => {
       let lista = [];
       snap.forEach(d => lista.push({ id: d.id, ...d.data() }));
-      lista.sort((a, b) => { const dateA = a.data ? a.data.seconds : Infinity; const dateB = b.data ? b.data.seconds : Infinity; return dateA - dateB; });
+      // Ordena: Mais antigos primeiro para manter a cronologia de conversas
+      lista.sort((a, b) => { const dateA = a.data ? a.data.seconds : 0; const dateB = b.data ? b.data.seconds : 0; return dateB - dateA; });
       setComentarios(lista);
     });
     return () => unsub();
@@ -103,8 +213,21 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
     if (!user) return toast.error("Login to comment.");
     const textoFinal = parentId ? textoResposta : novoTexto;
     if (!textoFinal.trim()) return; 
+    
     try {
-      await addDoc(collection(db, "comentarios"), { texto: textoFinal, autorId: user.uid, autorNome: user.name, autorFoto: user.avatar, targetId: targetId, targetType: targetType, parentId: parentId, likes: [], data: serverTimestamp() });
+      await addDoc(collection(db, "comentarios"), { 
+          texto: textoFinal, 
+          autorId: user.uid, 
+          autorNome: user.name, 
+          autorFoto: user.avatar, 
+          targetId: targetId, 
+          targetType: targetType, 
+          parentId: parentId, 
+          likes: [], 
+          data: serverTimestamp() 
+      });
+
+      // Notificações
       let paraId = null;
       let mensagem = "";
       if (parentId) {
@@ -116,14 +239,19 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
       if (paraId && paraId !== user.uid) {
           await addDoc(collection(db, "notificacoes"), { paraId: paraId, mensagem: mensagem, tipo: 'comment', linkDestino: `/ler/${targetId}`, lida: false, data: serverTimestamp() });
       }
-      if (parentId) { setRespondendoA(null); setTextoResposta(''); } else { setNovoTexto(''); }
-    } catch (error) { console.error(error); toast.error("Error sending comment."); }
+
+      if (parentId) { setRespondendoA(null); setTextoResposta(''); } 
+      else { setNovoTexto(''); setIsFocused(false); }
+      
+      toast.success("Comment posted!");
+    } catch (error) { toast.error("Error sending comment."); }
   }
 
   async function handleLike(id, likesAtuais) {
-    if (!user) return toast.error("Login to vote.");
+    if (!user) return toast.error("Login to like.");
     const docRef = doc(db, "comentarios", id);
-    if (likesAtuais?.includes(user.uid)) { await updateDoc(docRef, { likes: arrayRemove(user.uid) }); } else { await updateDoc(docRef, { likes: arrayUnion(user.uid) }); }
+    if (likesAtuais?.includes(user.uid)) { await updateDoc(docRef, { likes: arrayRemove(user.uid) }); } 
+    else { await updateDoc(docRef, { likes: arrayUnion(user.uid) }); }
   }
 
   async function handleDelete(id) {
@@ -131,21 +259,54 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
   }
 
   const raiz = comentarios.filter(c => !c.parentId);
+  const respostas = comentarios.filter(c => c.parentId); // Passamos todas as respostas para os pais filtrarem
 
   return (
-    <div style={{ marginTop: 40, borderTop: '1px solid #333', paddingTop: 20 }}>
-        <h3 style={{ color: '#D7DADC', fontSize: '1.1rem', marginBottom: 20 }}>
-            Discussion <span style={{ color: '#818384', fontSize: '0.9rem' }}>({comentarios.length})</span>
-        </h3>
-        <div style={{ border: '1px solid #343536', borderRadius: 4, overflow: 'hidden', marginBottom: 30, background: '#1a1a1b' }}>
-            <textarea placeholder={user ? "What are your thoughts?" : "Login to comment..."} value={novoTexto} onChange={(e) => setNovoTexto(e.target.value)} disabled={!user} style={{ width: '100%', background: 'transparent', border: 'none', color: '#D7DADC', padding: 10, minHeight: 80, outline: 'none' }} />
-            <div style={{ background: '#272729', padding: '5px 10px', textAlign: 'right', borderTop: '1px solid #343536', display: 'flex', justifyContent: 'flex-end', gap: 10, alignItems: 'center' }}>
-                {novoTexto.length > 0 && <button onClick={() => setNovoTexto('')} style={{ background: 'transparent', color: '#818384', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>Cancel</button>}
-                <button onClick={() => handleEnviar(null)} disabled={!user || !novoTexto.trim()} style={{ background: '#D7DADC', color: '#1a1a1b', border: 'none', padding: '5px 15px', borderRadius: 20, fontWeight: 'bold', cursor: 'pointer', opacity: (!user || !novoTexto.trim()) ? 0.5 : 1 }}>Comment</button>
+    <div className="max-w-4xl mx-auto mt-10">
+        <div className="flex items-center gap-8 mb-6">
+            <h3 className="text-xl font-bold text-white">{comentarios.length} Comments</h3>
+            <div className="flex items-center gap-2 text-gray-400 font-semibold text-sm cursor-pointer hover:text-white transition-colors">
+                <MdSort size={20} /> <span>Sort by</span>
             </div>
         </div>
-        <div>{raiz.map(c => <CommentItem key={c.id} dados={c} comentarios={comentarios} user={user} respondendoA={respondendoA} setRespondendoA={setRespondendoA} textoResposta={textoResposta} setTextoResposta={setTextoResposta} handleLike={handleLike} handleDelete={handleDelete} handleEnviar={handleEnviar} />)}</div>
-        {raiz.length === 0 && <p style={{ color: '#818384', textAlign: 'center', marginTop: 40 }}>No comments yet.</p>}
+
+        <div className="flex gap-4 mb-10">
+            <img src={user?.avatar || "https://via.placeholder.com/40"} className="w-10 h-10 rounded-full object-cover" />
+            <div className="flex-1">
+                <input 
+                    placeholder="Add a comment..." 
+                    value={novoTexto} 
+                    onChange={(e) => setNovoTexto(e.target.value)} 
+                    onFocus={() => setIsFocused(true)}
+                    disabled={!user}
+                    className="w-full bg-transparent border-b border-gray-700 pb-2 text-white placeholder-gray-500 text-sm focus:border-white focus:outline-none transition-colors"
+                />
+                {(isFocused || novoTexto) && (
+                    <div className="flex justify-end gap-2 mt-2">
+                        <button onClick={() => { setIsFocused(false); setNovoTexto(''); }} className="px-4 py-2 rounded-full hover:bg-white/10 text-sm font-medium text-white">Cancel</button>
+                        <button onClick={() => handleEnviar(null)} disabled={!user || !novoTexto.trim()} className={`px-4 py-2 rounded-full font-medium text-sm ${!novoTexto.trim() ? 'bg-white/10 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-black hover:bg-blue-500'}`}>Comment</button>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        <div className="space-y-4">
+            {raiz.map(c => (
+                <CommentThread 
+                    key={c.id} 
+                    dados={c} 
+                    todasRespostas={respostas} 
+                    user={user} 
+                    respondendoA={respondendoA} 
+                    setRespondendoA={setRespondendoA} 
+                    textoResposta={textoResposta} 
+                    setTextoResposta={setTextoResposta} 
+                    handleLike={handleLike} 
+                    handleDelete={handleDelete} 
+                    handleEnviar={handleEnviar} 
+                />
+            ))}
+        </div>
     </div>
   );
 }

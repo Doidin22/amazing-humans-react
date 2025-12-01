@@ -22,14 +22,25 @@ import Notificacoes from './pages/Notificacoes';
 import EditarObra from './pages/EditarObra';
 import EditarCapitulo from './pages/EditarCapitulo';
 
-// Assinatura (Mantida para migrar para dinheiro real)
+// Assinatura
 import Assinatura from './pages/Assinatura';
 
 // Páginas Legais
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 
+// Página de Manutenção (Novo Import)
+import Manutencao from './pages/Manutencao';
+
 function App() {
+  // --- CONTROLE DE MANUTENÇÃO ---
+  // Mude para TRUE quando quiser "fechar" o site para atualizações.
+  const EM_MANUTENCAO = false; 
+
+  if (EM_MANUTENCAO) {
+    return <Manutencao />;
+  }
+
   return (
     <AuthProvider>
       <BrowserRouter>

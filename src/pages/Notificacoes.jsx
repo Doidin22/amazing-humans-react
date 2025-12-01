@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore'; // <--- writeBatch adicionado
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, writeBatch } from 'firebase/firestore'; 
 import { useNavigate } from 'react-router-dom';
-import { MdNotifications, MdPersonAdd, MdComment, MdMenuBook, MdDeleteForever } from 'react-icons/md'; // <--- Ícone novo
+import { MdNotifications, MdPersonAdd, MdComment, MdMenuBook, MdDeleteSweep, MdCheckCircle } from 'react-icons/md'; 
 import DOMPurify from 'dompurify';
 
 export default function Notificacoes() {
@@ -49,7 +49,6 @@ export default function Notificacoes() {
       navigate(destino);
   }
 
-  // --- NOVA FUNÇÃO: LIMPAR TUDO ---
   async function limparNotificacoes() {
       if(!window.confirm("Clear all notifications?")) return;
 
@@ -59,73 +58,129 @@ export default function Notificacoes() {
             const docRef = doc(db, "notificacoes", notif.id);
             batch.delete(docRef);
         });
-
         await batch.commit();
-        // Não precisa atualizar o estado manual, o onSnapshot fará isso
       } catch(error) {
           console.error("Error clearing notifications:", error);
-          alert("Error clearing notifications.");
       }
   }
 
-  const getIcon = (tipo) => {
+  async function marcarTodasLidas() {
+      try {
+        const batch = writeBatch(db);
+        notificacoes.forEach(notif => {
+            if(!notif.lida) {
+                const docRef = doc(db, "notificacoes", notif.id);
+                batch.update(docRef, { lida: true });
+            }
+        });
+        await batch.commit();
+      } catch(error) {
+          console.error("Error updating:", error);
+      }
+  }
+
+  // Define ícone e cor com base no tipo
+  const getStyleData = (tipo, lida) => {
       switch(tipo) {
-          case 'follow': return <MdPersonAdd size={24} />;
-          case 'chapter': return <MdMenuBook size={24} />;
-          case 'comment': return <MdComment size={24} />;
-          default: return <MdNotifications size={24} />;
+          case 'follow': 
+            return { 
+                icon: <MdPersonAdd size={20} />, 
+                bg: lida ? 'bg-gray-800' : 'bg-green-500/20', 
+                iconColor: lida ? 'text-gray-500' : 'text-green-400' 
+            };
+          case 'chapter': 
+            return { 
+                icon: <MdMenuBook size={20} />, 
+                bg: lida ? 'bg-gray-800' : 'bg-blue-500/20', 
+                iconColor: lida ? 'text-gray-500' : 'text-blue-400' 
+            };
+          case 'comment': 
+            return { 
+                icon: <MdComment size={20} />, 
+                bg: lida ? 'bg-gray-800' : 'bg-yellow-500/20', 
+                iconColor: lida ? 'text-gray-500' : 'text-yellow-400' 
+            };
+          default: 
+            return { 
+                icon: <MdNotifications size={20} />, 
+                bg: lida ? 'bg-gray-800' : 'bg-gray-700', 
+                iconColor: 'text-gray-400' 
+            };
       }
   };
 
   if(loading) return <div className="loading-spinner"></div>;
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '3px solid #4a90e2', paddingBottom: 10, marginBottom: 20 }}>
-          <h2 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <MdNotifications /> Notifications
+    <div className="max-w-2xl mx-auto px-4 py-8">
+      
+      {/* HEADER DA PÁGINA */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+              <div className="bg-primary/20 p-2 rounded-lg text-primary"><MdNotifications /></div> 
+              Notifications
           </h2>
           
-          {/* BOTÃO DE LIMPAR */}
-          {notificacoes.length > 0 && (
-            <button onClick={limparNotificacoes} className="btn-danger" style={{ padding: '5px 15px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <MdDeleteForever /> Clear All
-            </button>
-          )}
+          <div className="flex gap-2">
+            {notificacoes.some(n => !n.lida) && (
+                <button onClick={marcarTodasLidas} className="text-xs font-bold text-blue-400 hover:text-white px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-500/20 transition flex items-center gap-1">
+                    <MdCheckCircle /> Mark all read
+                </button>
+            )}
+            {notificacoes.length > 0 && (
+                <button onClick={limparNotificacoes} className="text-xs font-bold text-red-400 hover:text-white px-3 py-1.5 rounded-lg border border-red-500/30 hover:bg-red-500/20 transition flex items-center gap-1">
+                    <MdDeleteSweep /> Clear All
+                </button>
+            )}
+          </div>
       </div>
 
-      <div className="notif-list">
+      {/* LISTA */}
+      <div className="flex flex-col gap-3">
         {notificacoes.length === 0 ? (
-            <p style={{ color: '#777', textAlign: 'center', marginTop: 20 }}>No notifications yet.</p>
+            <div className="text-center py-20 bg-[#151515] rounded-xl border border-[#333]">
+                <MdNotifications size={40} className="mx-auto text-gray-600 mb-3" />
+                <p className="text-gray-500 font-medium">No notifications yet.</p>
+            </div>
         ) : (
-            notificacoes.map(item => (
-                <div 
-                    key={item.id} 
-                    className={`notif-item ${!item.lida ? 'unread' : ''}`}
-                    onClick={() => handleClick(item)}
-                    style={{ 
-                        background: item.lida ? '#1f1f1f' : '#2a2a2a',
-                        borderLeft: item.lida ? '1px solid #333' : '4px solid #4a90e2',
-                        padding: 15, marginBottom: 10, borderRadius: 5, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 15
-                    }}
-                >
-                    <div className="notif-icon" style={{ color: '#4a90e2' }}>
-                        {getIcon(item.tipo)}
-                    </div>
-                    
-                    <div className="notif-content" style={{ flex: 1 }}>
-                        <div 
-                            className="notif-text" 
-                            style={{ color: item.lida ? '#aaa' : 'white', fontSize: '0.95rem' }}
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.mensagem) }} 
-                        />
-                        <div className="notif-date" style={{ fontSize: '0.75rem', color: '#666', marginTop: 5 }}>
-                            {item.data ? new Date(item.data.seconds * 1000).toLocaleDateString() : "Just now"}
+            notificacoes.map(item => {
+                const styleData = getStyleData(item.tipo, item.lida);
+                
+                return (
+                    <div 
+                        key={item.id} 
+                        onClick={() => handleClick(item)}
+                        className={`
+                            relative flex items-start gap-4 p-4 rounded-xl cursor-pointer border transition-all duration-200 group
+                            ${item.lida 
+                                ? 'bg-[#151515] border-transparent hover:bg-[#1a1a1a] hover:border-white/5' 
+                                : 'bg-[#1f1f1f] border-primary/20 hover:border-primary/50 shadow-lg shadow-black/20'
+                            }
+                        `}
+                    >
+                        {/* Indicador de não lida (Bolinha azul na esquerda) */}
+                        {!item.lida && (
+                            <div className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-primary rounded-full shadow-[0_0_10px_#4a90e2]"></div>
+                        )}
+
+                        {/* Ícone */}
+                        <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${styleData.bg} ${styleData.iconColor}`}>
+                            {styleData.icon}
+                        </div>
+                        
+                        {/* Conteúdo */}
+                        <div className="flex-1">
+                            <div 
+                                className={`text-sm leading-relaxed ${item.lida ? 'text-gray-400' : 'text-gray-200'}`}
+                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(item.mensagem) }} 
+                            />
+                            <p className="text-xs text-gray-600 mt-1.5 font-medium">
+                                {item.data ? new Date(item.data.seconds * 1000).toLocaleString() : "Just now"}
+                            </p>
                         </div>
                     </div>
-                </div>
-            ))
+                );
+            })
         )}
       </div>
     </div>
