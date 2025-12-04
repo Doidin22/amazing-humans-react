@@ -6,6 +6,9 @@ import { MdSearch, MdList, MdAutoAwesome, MdCheck } from 'react-icons/md';
 import StoryCard from '../components/StoryCard';
 import SkeletonCard from '../components/SkeletonCard';
 import Recomendacoes from '../components/Recomendacoes';
+import AdBanner from '../components/AdBanner'; 
+import HeroCarousel from '../components/HeroCarousel';
+import { Helmet } from 'react-helmet-async'; 
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -13,19 +16,16 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estado para o Filtro Customizado
   const [category, setCategory] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   
   const [lastTags, setLastTags] = useState([]);
 
-  // Lista de categorias para o menu
   const categoriesList = [
       "All", "Fantasy", "Sci-Fi", "Romance", "Horror", 
       "Adventure", "RPG", "Mystery", "Action", "Isekai", "FanFic"
   ];
 
-  // 1. Busca histórico
   useEffect(() => {
     async function fetchUserHistory() {
       if (!user?.uid) return;
@@ -44,49 +44,99 @@ export default function Home() {
     fetchUserHistory();
   }, [user]);
 
-  // 2. Busca Livros (COM LÓGICA DE TAGS ATUALIZADA)
+  // --- NOVA LÓGICA DE BUSCA (Debounce + Firestore Query) ---
   useEffect(() => {
-    async function loadBooks() {
+    const delayDebounce = setTimeout(async () => {
       setLoading(true);
       const storiesRef = collection(db, "obras");
+      
       try {
-        const q = query(storiesRef, where("status", "==", "public"), orderBy("dataCriacao", "desc"), limit(20));
-        const querySnapshot = await getDocs(q);
-        const lista = [];
-        querySnapshot.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
-        
-        const listaFiltrada = lista.filter(item => {
+        let lista = [];
+
+        // CASO 1: TEM TERMO DE BUSCA (Pesquisa no Banco)
+        if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase().trim();
+            
+            // Busca por Título (Prefixo)
+            // Ex: Digitar "Har" encontra "Harry Potter"
+            const qTitle = query(
+                storiesRef, 
+                where("status", "==", "public"),
+                where("tituloBusca", ">=", term),
+                where("tituloBusca", "<=", term + "\uf8ff"),
+                limit(20)
+            );
 
-            // 1. Verifica Título
-            const matchTitle = item.tituloBusca ? item.tituloBusca.includes(term) : false;
+            // Busca por Tags (Exata)
+            // Ex: Digitar "Fantasy" encontra livros com a tag "Fantasy"
+            const qTags = query(
+                storiesRef,
+                where("status", "==", "public"),
+                where("tags", "array-contains", term),
+                limit(20)
+            );
 
-            // 2. Verifica Tags (NOVA LÓGICA)
-            // Se o livro tiver tags, verifica se ALGUMA delas contém o termo digitado
-            const matchTags = item.tags ? item.tags.some(tag => tag.toLowerCase().includes(term)) : false;
+            // Executa as duas buscas em paralelo
+            const [snapTitle, snapTags] = await Promise.all([
+                getDocs(qTitle),
+                getDocs(qTags)
+            ]);
 
-            // O termo de busca é aceito se estiver no Título OU nas Tags
-            const matchSearch = term === '' ? true : (matchTitle || matchTags);
+            // Junta os resultados sem duplicatas (usando Map pelo ID)
+            const resultadosUnicos = new Map();
+            snapTitle.forEach(doc => resultadosUnicos.set(doc.id, { id: doc.id, ...doc.data() }));
+            snapTags.forEach(doc => resultadosUnicos.set(doc.id, { id: doc.id, ...doc.data() }));
 
-            // 3. Verifica Categoria (Dropdown)
-            const matchCat = (category && category !== "All") ? (item.categorias && item.categorias.includes(category)) : true;
+            lista = Array.from(resultadosUnicos.values());
 
-            // Retorna verdadeiro apenas se passar na Busca E no Filtro de Categoria
-            return matchSearch && matchCat;
+        } else {
+            // CASO 2: SEM BUSCA (Carrega os últimos 20)
+            const q = query(
+                storiesRef, 
+                where("status", "==", "public"), 
+                orderBy("dataCriacao", "desc"), 
+                limit(20)
+            );
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
+        }
+        
+        // Aplica o filtro de Categoria no resultado (Client-Side)
+        const listaFiltrada = lista.filter(item => {
+            const matchCat = (category && category !== "All") 
+                ? (item.categorias && item.categorias.includes(category)) 
+                : true;
+            return matchCat;
         });
         
         setStories(listaFiltrada);
-      } catch (error) { console.log("Error loading:", error); } finally { setLoading(false); }
-    }
-    loadBooks();
+
+      } catch (error) { 
+          console.error("Error searching:", error); 
+          // Se der erro de índice, avisa no console
+      } finally { 
+          setLoading(false); 
+      }
+    }, 500); // Espera 500ms o usuário parar de digitar antes de buscar
+
+    return () => clearTimeout(delayDebounce);
   }, [searchTerm, category]);
 
   return (
     <div className="pb-20 max-w-[1200px] mx-auto px-4" onClick={() => setShowFilter(false)}>
       
-      {/* --- TOPO: CONTROLES --- */}
+      <Helmet>
+        <title>Amazing Humans | Read & Write Stories</title>
+        <meta name="description" content="A sanctuary for imagination. Read thousands of stories for free." />
+        <meta property="og:title" content="Amazing Humans | Read & Write Stories" />
+        <meta property="og:image" content="/logo-ah.png" />
+      </Helmet>
+
+      <div className="mt-6">
+        <HeroCarousel />
+      </div>
+
       <div className="flex flex-col-reverse md:flex-row justify-between items-end md:items-center mt-8 mb-4 gap-4 min-h-[40px]">
-        
         <div className="flex-1">
             {lastTags.length > 0 && (
                 <div className="flex items-center gap-2 text-yellow-500 animate-pulse">
@@ -96,7 +146,6 @@ export default function Home() {
             )}
         </div>
 
-        {/* PESQUISA E FILTRO */}
         <div className="flex w-full md:w-auto h-10 shadow-lg relative" onClick={(e) => e.stopPropagation()}>
             <div className="relative flex-1 md:w-72 group">
                 <input 
@@ -109,7 +158,6 @@ export default function Home() {
                 <MdSearch className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-primary" size={20} />
             </div>
 
-            {/* BOTÃO DE FILTRO (Dropdown Customizado) */}
             <div className="relative">
                 <button 
                     onClick={() => setShowFilter(!showFilter)}
@@ -119,7 +167,6 @@ export default function Home() {
                     <MdList size={22} />
                 </button>
 
-                {/* LISTA SUSPENSA */}
                 {showFilter && (
                     <div className="absolute right-0 top-12 w-48 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in origin-top-right">
                         <div className="px-4 py-2 border-b border-[#333] mb-1">
@@ -146,6 +193,8 @@ export default function Home() {
              <Recomendacoes tags={lastTags} title="" />
           </div>
       )}
+
+      <AdBanner className="mb-10" />
 
       <div className="flex items-center gap-3 border-b border-white/10 pb-3 mb-6 mt-2">
         <div className="h-6 w-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(74,144,226,0.5)]"></div>

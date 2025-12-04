@@ -18,6 +18,7 @@ import Biblioteca from './pages/Biblioteca';
 import Historico from './pages/Historico';
 import Notificacoes from './pages/Notificacoes';
 import HowItWorks from './pages/HowItWorks';
+import Admin from './pages/Admin';
 
 // Páginas de Edição
 import EditarObra from './pages/EditarObra';
@@ -78,6 +79,7 @@ function App() {
             <Route path="/historico" element={<Historico />} />
             <Route path="/notificacoes" element={<Notificacoes />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/admin" element={<Admin />} />
             {/* Rota de Assinatura */}
             <Route path="/assinatura" element={<Assinatura />} />
             

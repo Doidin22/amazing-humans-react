@@ -15,15 +15,25 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // 1. Monitor Geral de Auth (Firebase + Perfil em Tempo Real)
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
         
-        const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), (docSnap) => {
+        // Monitora o documento do usuário em tempo real
+        const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), async (docSnap) => {
             if (docSnap.exists()) {
                 const dados = docSnap.data();
+
+                // --- SISTEMA DE BANIMENTO ---
+                if (dados.banned === true) {
+                    toast.error("This account has been suspended.");
+                    await signOut(auth);
+                    setUser(null);
+                    setLoadingAuth(false);
+                    return; 
+                }
+
                 const avatarFinal = dados.foto || firebaseUser.photoURL || generateAvatar(uid);
 
                 setUser({
@@ -32,16 +42,24 @@ export function AuthProvider({ children }) {
                     avatar: avatarFinal,
                     email: firebaseUser.email,
                     type: 'google',
-                    assinatura: dados.assinatura || null
+                    role: dados.role || 'user',
+                    // --- DADOS DE GAMIFICAÇÃO ---
+                    nivel: dados.nivel || 0,
+                    xp: dados.saldoInterno || 0, // Usamos o saldo como XP/Moedas
+                    leituras: dados.contador_leituras || 0
                 });
             } else {
+                // Usuário novo
                 setUser({
                     uid: uid,
                     name: firebaseUser.displayName || "Loading...",
                     avatar: firebaseUser.photoURL || generateAvatar(uid),
                     email: firebaseUser.email,
                     type: 'google',
-                    assinatura: null
+                    role: 'user',
+                    nivel: 0,
+                    xp: 0,
+                    leituras: 0
                 });
             }
             setLoadingAuth(false);
@@ -87,17 +105,16 @@ export function AuthProvider({ children }) {
     }
   }
 
+  function isAdmin() {
+    return user?.role === 'admin';
+  }
+
   function isVip() {
-    if (!user || !user.assinatura || !user.assinatura.expiraEm) return false;
-    const now = new Date();
-    const expirationDate = user.assinatura.expiraEm.toDate 
-        ? user.assinatura.expiraEm.toDate() 
-        : new Date(user.assinatura.expiraEm);
-    return now < expirationDate;
+    return false; 
   }
 
   return (
-    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isVip }}>
+    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isVip, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

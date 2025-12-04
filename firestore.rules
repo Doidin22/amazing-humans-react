@@ -14,11 +14,10 @@ service cloud.firestore {
     function willBeOwner(fieldId) {
       return isLoggedIn() && request.auth.uid == request.resource.data[fieldId];
     }
-
-    // Verifica se o usuário é dono do LIVRO associado a este capítulo
-    function isBookOwner() {
+    
+    function isAdmin() {
       return isLoggedIn() && 
-             get(/databases/$(database)/documents/obras/$(resource.data.obraId)).data.autorId == request.auth.uid;
+             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == "admin";
     }
 
     // --- REGRAS ---
@@ -27,83 +26,47 @@ service cloud.firestore {
     match /usuarios/{userId} {
       allow read: if true;
       allow update: if isLoggedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['saldoInterno', 'contador_leituras']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'saldoInterno']);
       allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
-    // 2. STATUS DO USUÁRIO
-    match /status_usuario/{userId} {
-      allow read, write, delete: if isLoggedIn() && request.auth.uid == userId;
-    }
-
-    // 3. OBRAS (LIVROS)
+    // 2. OBRAS (LIVROS)
     match /obras/{obraId} {
-      allow read: if resource.data.status == 'public' || isOwner('autorId');
+      allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId');
-      allow update: if isOwner('autorId') 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views', 'rating', 'votes']);
+      allow delete: if isOwner('autorId') || isAdmin(); 
+      allow update: if isOwner('autorId');
     }
 
-    // 4. CAPÍTULOS (AQUI ESTÁ A CORREÇÃO)
+    // 3. CAPÍTULOS
     match /capitulos/{capId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId') || isBookOwner(); // Dono do livro também pode deletar
-      
-      // PERMITE ATUALIZAR SE: For dono do capítulo OU Dono do Livro (para corrigir bugs)
-      allow update: if (isOwner('autorId') || isBookOwner())
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['views']);
+      allow delete: if isOwner('autorId') || isAdmin(); 
+      allow update: if isOwner('autorId');
     }
 
-    // 5. VISUALIZAÇÕES
-    match /visualizacoes_capitulos/{docId} {
-       allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
-       allow write: if false; 
-    }
-
-    // 6. COMENTÁRIOS
-    match /comentarios/{comId} {
-      allow read: if true;
-      allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId');
-      allow update: if isLoggedIn() 
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']);
-    }
-
-    // 7. AVALIAÇÕES
-    match /avaliacoes/{docId} {
-      allow read: if true;
-      allow write, delete: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
-    }
-
-    // 8. BIBLIOTECA
-    match /biblioteca/{docId} {
-      allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
-    }
-    
-    // 9. HISTÓRICO
-    match /historico/{docId} {
-      allow read: if isLoggedIn() && (resource == null || resource.data.userId == request.auth.uid);
-      allow write: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
-      allow delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // 10. SEGUIDORES
-    match /seguidores/{docId} {
-      allow read: if true;
-      allow create, update: if isLoggedIn() && request.resource.data.seguidorId == request.auth.uid;
-      allow delete: if isLoggedIn() && (resource.data.seguidorId == request.auth.uid || resource.data.seguidoId == request.auth.uid);
-    }
-
-    // 11. NOTIFICAÇÕES
-    match /notificacoes/{notifId} {
-      allow read: if isLoggedIn() && resource.data.paraId == request.auth.uid;
+    // 4. REPORTS (DENÚNCIAS)
+    match /reports/{reportId} {
       allow create: if isLoggedIn();
-      allow update: if isLoggedIn() && resource.data.paraId == request.auth.uid;
-      allow delete: if isLoggedIn() && resource.data.paraId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
     }
+
+    // 5. REVIEWS (NOVA REGRA CORRIGIDA)
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isLoggedIn(); // Permite criar se estiver logado
+      // Permite deletar se for dono do review OU admin
+      allow delete: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Outras coleções
+    match /comentarios/{docId} { allow read: if true; allow write: if isLoggedIn(); }
+    match /historico/{docId} { allow read, write: if isLoggedIn() && request.auth.uid == resource.data.userId; }
+    match /notificacoes/{docId} { allow read, write: if isLoggedIn(); }
+    match /biblioteca/{docId} { allow read, write: if isLoggedIn(); }
+    match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } // (Para o rating antigo, se ainda usar)
+    match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
+    match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
   }
 }

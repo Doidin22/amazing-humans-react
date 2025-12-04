@@ -1,32 +1,33 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { db, functions } from '../services/firebaseConnection';
-import { httpsCallable } from 'firebase/functions';
+import { db } from '../services/firebaseConnection';
 import { 
   doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp 
 } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdVisibility, MdList, MdLabel, MdLock, MdShoppingCart 
+  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
 import Reviews from '../components/Reviews'; 
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
+import { Helmet } from 'react-helmet-async'; 
+import ReportModal from '../components/ReportModal';
 
 export default function Obra() {
   const { id } = useParams();
-  const { user, isVip } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
   const [obra, setObra] = useState(null);
   const [capitulos, setCapitulos] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [estaNaBiblioteca, setEstaNaBiblioteca] = useState(false);
   const [idBiblioteca, setIdBiblioteca] = useState(null);
-  const [isOwned, setIsOwned] = useState(false);
-  const [buying, setBuying] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [lastReadId, setLastReadId] = useState(null);
 
   useEffect(() => {
     async function loadObra() {
@@ -50,10 +51,18 @@ export default function Obra() {
         capsSnapshot.forEach((doc) => listaCaps.push({ id: doc.id, ...doc.data() }));
         setCapitulos(listaCaps);
 
+        if (user?.uid) {
+            const histRef = doc(db, "historico", `${user.uid}_${id}`);
+            const histSnap = await getDoc(histRef);
+            if (histSnap.exists()) {
+                setLastReadId(histSnap.data().lastChapterId);
+            }
+        }
+
       } catch (error) { console.log(error); } finally { setLoading(false); }
     }
     loadObra();
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     async function checkLibrary() {
@@ -63,11 +72,9 @@ export default function Obra() {
       if (!snapLib.empty) { 
           setEstaNaBiblioteca(true); 
           setIdBiblioteca(snapLib.docs[0].id); 
-          if(snapLib.docs[0].data().owned) setIsOwned(true);
       } else { 
           setEstaNaBiblioteca(false); 
           setIdBiblioteca(null); 
-          setIsOwned(false);
       }
     }
     checkLibrary();
@@ -91,54 +98,62 @@ export default function Obra() {
     } catch (error) { toast.error("Error updating library"); }
   }
 
-  async function handleBuyBook() {
-      if (!user) return toast.error("Login required.");
-      const confirm = window.confirm(`Buy this book for ${obra.preco} coins?`);
-      if (!confirm) return;
-
-      setBuying(true);
-      const toastId = toast.loading("Processing purchase...");
-
-      try {
-          const buyFn = httpsCallable(functions, 'buyBook');
-          await buyFn({ obraId: id, autorId: obra.autorId, preco: obra.preco, tituloObra: obra.titulo });
-          
-          toast.success("Purchase successful!", { id: toastId });
-          setIsOwned(true);
-          setEstaNaBiblioteca(true);
-      } catch (error) {
-          console.error(error);
-          toast.error(error.message, { id: toastId });
-      } finally {
-          setBuying(false);
-      }
-  }
-
   if (loading) return <SkeletonObra />;
 
-  const hasAccess = user?.uid === obra.autorId || obra.tipo !== 'premium' || isVip() || isOwned;
+  const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read this story on Amazing Humans.';
 
   return (
     <div className="min-h-screen pb-20 relative">
+        <Helmet>
+            <title>{obra.titulo} | Amazing Humans</title>
+            <meta name="description" content={cleanSinopse} />
+            <meta property="og:type" content="book" />
+            <meta property="og:title" content={obra.titulo} />
+            <meta property="og:description" content={cleanSinopse} />
+            <meta property="og:image" content={obra.capa || "/logo-ah.png"} />
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={obra.titulo} />
+            <meta name="twitter:description" content={cleanSinopse} />
+            <meta name="twitter:image" content={obra.capa || "/logo-ah.png"} />
+        </Helmet>
+
+        <ReportModal 
+            isOpen={showReport} 
+            onClose={() => setShowReport(false)} 
+            targetId={id} 
+            targetType="book" 
+            targetName={obra.titulo} 
+        />
+
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/10 to-[#121212] blur-[100px] pointer-events-none z-0"></div>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10 pt-10">
             <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-12">
                 
+                {/* CAPA COM FALLBACK PARA LOGO */}
                 <div className="w-full md:w-64 lg:w-72 shrink-0 mx-auto md:mx-0">
-                    <div className="relative aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10">
-                        {obra.capa ? <img src={obra.capa} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-[#222] flex items-center justify-center text-4xl font-bold">{obra.titulo?.charAt(0)}</div>}
-                        
-                        {obra.tipo === 'premium' && (
-                            <div className="absolute top-2 right-2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded shadow flex items-center gap-1">
-                                <MdLock size={12} /> PREMIUM
-                            </div>
-                        )}
+                    <div className="relative aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 bg-[#222]">
+                        <img 
+                            src={obra.capa || '/logo-ah.png'} 
+                            className="w-full h-full object-cover" 
+                            alt={obra.titulo}
+                            onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }}
+                        />
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col">
-                    <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">{obra.titulo}</h1>
+                    <div className="flex justify-between items-start">
+                        <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">{obra.titulo}</h1>
+                        <button 
+                            onClick={() => setShowReport(true)}
+                            className="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-white/5 transition-colors"
+                            title="Report this book"
+                        >
+                            <MdFlag size={20} />
+                        </button>
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
                         <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary"><MdPerson /> {obra.autor || "Unknown"}</Link>
                         <div className="flex items-center gap-1 text-yellow-500"><MdStar /> {(obra.rating || 0).toFixed(1)}</div>
@@ -168,26 +183,16 @@ export default function Obra() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center">
-                        {hasAccess ? (
-                            capitulos.length > 0 && (
-                                <Link to={`/ler/${capitulos[0].id}`} className="btn-primary px-8 py-3 rounded-full text-lg shadow-xl hover:scale-105 transition-transform"><MdMenuBook /> Read Now</Link>
-                            )
-                        ) : (
-                            <div className="flex gap-3">
-                                <button onClick={handleBuyBook} disabled={buying} className="bg-green-600 hover:bg-green-500 text-white px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-transform hover:scale-105 disabled:opacity-50">
-                                    {buying ? "Processing..." : <><MdShoppingCart /> Buy for {obra.preco} Coins</>}
-                                </button>
-                                <Link to="/assinatura" className="bg-yellow-500 hover:bg-yellow-400 text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg transition-transform hover:scale-105">
-                                    <MdStar /> Get Premium (Read Free)
-                                </Link>
-                            </div>
+                        {capitulos.length > 0 && (
+                            <Link to={`/ler/${lastReadId || capitulos[0].id}`} className="btn-primary px-8 py-3 rounded-full text-lg shadow-xl hover:scale-105 transition-transform flex items-center gap-2">
+                                <MdMenuBook /> {lastReadId ? "Continue Reading" : "Read Now"}
+                            </Link>
                         )}
 
                         <button onClick={toggleBiblioteca} className={`px-6 py-2.5 rounded-full font-bold flex items-center gap-2 border-2 transition ${estaNaBiblioteca ? 'border-red-500 text-red-500' : 'border-gray-600 text-gray-300'}`}>
                             {estaNaBiblioteca ? <><MdBookmarkAdded /> Library</> : <><MdBookmarkBorder /> Add</>}
                         </button>
                         
-                        {/* ALTERAÇÃO AQUI: Botão de editar escondido no mobile (hidden md:flex) */}
                         {user?.uid === obra.autorId && (
                             <Link to={`/editar-obra/${obra.id}`} className="ml-auto hidden md:flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition"><MdEdit /> Edit</Link>
                         )}
@@ -198,27 +203,41 @@ export default function Obra() {
             <div className="mt-16">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><MdList className="text-primary" /> Chapters</h3>
                 
-                {!hasAccess ? (
-                    <div className="bg-[#1a1a1a] border border-red-500/30 p-8 rounded-xl text-center">
-                        <MdLock size={40} className="text-red-500 mx-auto mb-4" />
-                        <h4 className="text-xl font-bold text-white mb-2">Premium Content</h4>
-                        <p className="text-gray-400 mb-6">This book requires a premium subscription or one-time purchase to read.</p>
-                        <div className="flex justify-center gap-4">
-                            <Link to="/assinatura" className="text-yellow-500 hover:underline">Get Premium</Link>
-                            <span className="text-gray-600">|</span>
-                            <button onClick={handleBuyBook} className="text-green-500 hover:underline">Buy Now</button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
-                        {capitulos.map((cap, i) => (
-                            <Link to={`/ler/${cap.id}`} key={cap.id} className="flex items-center justify-between p-4 hover:bg-white/5 transition group">
-                                <div className="flex items-center gap-4"><span className="text-gray-600 w-6">#{i + 1}</span><span className="text-gray-200 group-hover:text-primary">{cap.titulo}</span></div>
-                                <span className="text-sm text-gray-500">{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}</span>
+                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
+                    {capitulos.map((cap, i) => {
+                        const isLastRead = cap.id === lastReadId;
+                        return (
+                            <Link 
+                                to={`/ler/${cap.id}`} 
+                                key={cap.id} 
+                                className={`flex items-center justify-between p-4 hover:bg-white/5 transition group ${isLastRead ? 'bg-primary/10 border-l-4 border-primary' : ''}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-xs w-6 text-center ${isLastRead ? 'text-primary font-bold' : 'text-gray-600'}`}>#{i + 1}</span>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`${isLastRead ? 'text-primary font-bold' : 'text-gray-200 group-hover:text-primary'}`}>
+                                                {cap.titulo}
+                                            </span>
+                                            {isLastRead && (
+                                                <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                                                    <MdVisibility /> Last Read
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-gray-500 hidden sm:block">
+                                        {cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}
+                                    </span>
+                                    {isLastRead && <MdPlayArrow className="text-primary" />}
+                                </div>
                             </Link>
-                        ))}
-                    </div>
-                )}
+                        );
+                    })}
+                </div>
             </div>
 
             <Reviews obraId={id} obraTitulo={obra.titulo} autorId={obra.autorId} />

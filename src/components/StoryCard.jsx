@@ -3,36 +3,25 @@ import { Link } from 'react-router-dom';
 import { MdStar } from 'react-icons/md';
 
 export default function StoryCard({ data }) {
-  const temCapa = data.capa && data.capa.length > 5;
+  // Verifica se a capa existe, senão usa o logo do site
+  const capaUrl = (data.capa && data.capa.length > 5) ? data.capa : '/logo-ah.png';
 
   return (
     <Link to={`/obra/${data.id}`} className="group flex flex-col w-full text-decoration-none" title={data.titulo}>
       
       {/* CAPA - Aspect Ratio 2:3 (Padrão Livro) */}
-      <div className="relative w-full aspect-[2/3] overflow-hidden bg-[#222] shadow-lg border border-[#333] group-hover:border-blue-500/50 transition-all">
-        {temCapa ? (
-          <img 
-            src={data.capa} 
-            alt={data.titulo} 
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => { e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }} 
-          />
-        ) : null}
-
-        {/* Fallback se não tiver capa */}
-        <div 
-          className={`w-full h-full flex flex-col items-center justify-center p-2 text-center bg-gradient-to-b from-[#333] to-[#1a1a1a] ${temCapa ? 'hidden' : 'flex'}`}
-        >
-          {/* Efeito Lombada */}
-          <div className="absolute left-1 top-0 bottom-0 w-[2px] bg-white/10"></div>
-          <span className="text-5xl font-serif text-[#444] font-bold select-none">
-            {data.titulo ? data.titulo.charAt(0).toUpperCase() : '?'}
-          </span>
-        </div>
+      <div className="relative w-full aspect-[2/3] overflow-hidden bg-[#222] shadow-lg border border-[#333] group-hover:border-blue-500/50 transition-all rounded-md">
+        <img 
+          src={capaUrl} 
+          alt={data.titulo} 
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          // Se a imagem quebrar (link inválido), carrega o logo
+          onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} 
+        />
 
         {/* Rating Badge */}
         {data.rating > 0 && (
-            <div className="absolute top-0 right-0 bg-[#337ab7] text-white text-[10px] font-bold px-1.5 py-0.5 shadow-sm">
+            <div className="absolute top-0 right-0 bg-[#337ab7] text-white text-[10px] font-bold px-1.5 py-0.5 shadow-sm rounded-bl-md">
                 {data.rating.toFixed(1)}
             </div>
         )}
