@@ -2,15 +2,15 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
-  collection, addDoc, serverTimestamp, query, where, getDocs, doc, getDoc, setDoc, writeBatch
+  collection, addDoc, serverTimestamp, query, where, getDocs, doc, writeBatch
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MdEdit, MdBook, MdCheckCircle, MdCancel, MdClose } from 'react-icons/md';
+import { MdEdit, MdBook, MdCheckCircle, MdCancel, MdClose, MdAttachMoney, MdLock } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 export default function Escrever() {
-  const { user } = useContext(AuthContext);
+  const { user, isVip } = useContext(AuthContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const obraIdUrl = searchParams.get('obraId');
@@ -23,17 +23,19 @@ export default function Escrever() {
   const [sinopse, setSinopse] = useState('');
   const [categorias, setCategorias] = useState([]);
   
-  // --- NOVO: TAGS ---
+  // --- CAMPOS PREMIUM ---
+  const [isPremiumBook, setIsPremiumBook] = useState(false);
+  const [bookPrice, setBookPrice] = useState(0);
+
   const [tags, setTags] = useState([]); 
   const [tagInput, setTagInput] = useState('');
 
   const [obraSelecionada, setObraSelecionada] = useState(obraIdUrl || '');
   const [tituloCapitulo, setTituloCapitulo] = useState('');
   const [conteudo, setConteudo] = useState('');
-  const [notaAutor, setNotaAutor] = useState('');
+  const [notaAutor, setNotaAutor] = useState(''); // <--- Estado para a Nota do Autor
   const [loadingPost, setLoadingPost] = useState(false);
 
-  // Lista de categorias (Gêneros Fixos)
   const genresList = ['Fantasy','Sci-Fi','Romance','Horror','Adventure','RPG','Mystery','Action','Isekai','FanFic'];
 
   useEffect(() => {
@@ -54,7 +56,6 @@ export default function Escrever() {
     if (e.target.checked) { setCategorias([...categorias, valor]); } else { setCategorias(categorias.filter(c => c !== valor)); }
   };
 
-  // Funções de Tag
   const handleTagKeyDown = (e) => {
       if(e.key === 'Enter' || e.key === ',') {
           e.preventDefault();
@@ -69,12 +70,6 @@ export default function Escrever() {
   const removeTag = (tagToRemove) => {
       setTags(tags.filter(tag => tag !== tagToRemove));
   };
-
-  function contarPalavras(html) {
-      const textoLimpo = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!textoLimpo) return 0;
-      return textoLimpo.split(' ').length;
-  }
 
   async function enviarNotificacoes(nomeObra, tituloCap, idCapitulo) {
     try {
@@ -103,6 +98,7 @@ export default function Escrever() {
     
     if (modo === 'nova') { 
         if(!tituloObra || !sinopse) return toast.error("Please fill in Book Title and Synopsis."); 
+        if(isPremiumBook && (!bookPrice || bookPrice <= 0)) return toast.error("Please set a valid price.");
     } else { 
         if(!obraSelecionada) return toast.error("Select a book."); 
     }
@@ -113,7 +109,6 @@ export default function Escrever() {
     const toastId = toast.loading("Publishing...");
 
     try {
-        // Lógica de limite diário (simplificada aqui, mantenha a sua se já existir no banco)
         let idFinalObra = obraSelecionada;
         let nomeFinalObra = "";
         
@@ -123,12 +118,17 @@ export default function Escrever() {
                 capa: capa, 
                 sinopse: sinopse, 
                 categorias: categorias, 
-                tags: tags, // SALVANDO TAGS
+                tags: tags, 
                 autor: user.name, 
                 autorId: user.uid, 
                 dataCriacao: serverTimestamp(), 
                 tituloBusca: tituloObra.toLowerCase(), 
-                views: 0, rating: 0, votes: 0, status: 'public'
+                views: 0, rating: 0, votes: 0, 
+                status: 'public',
+                
+                // Configuração Premium
+                tipo: isPremiumBook ? 'premium' : 'free',
+                preco: isPremiumBook ? parseFloat(bookPrice) : 0
             });
             idFinalObra = docRef.id; nomeFinalObra = tituloObra;
         } else {
@@ -136,8 +136,17 @@ export default function Escrever() {
             nomeFinalObra = obraObj ? obraObj.titulo : "Unknown";
         }
         
+        // Salvando com a Nota do Autor
         const capRef = await addDoc(collection(db, "capitulos"), {
-            obraId: idFinalObra, nomeObra: nomeFinalObra, titulo: tituloCapitulo, conteudo: conteudo, authorNote: notaAutor, autor: user.name, autorId: user.uid, data: serverTimestamp(), views: 0
+            obraId: idFinalObra, 
+            nomeObra: nomeFinalObra, 
+            titulo: tituloCapitulo, 
+            conteudo: conteudo, 
+            authorNote: notaAutor, // <--- Aqui está a nota
+            autor: user.name, 
+            autorId: user.uid, 
+            data: serverTimestamp(), 
+            views: 0
         });
         
         await enviarNotificacoes(nomeFinalObra, tituloCapitulo, capRef.id);
@@ -191,6 +200,36 @@ export default function Escrever() {
                                 <input type="text" value={capa} onChange={(e)=>setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-primary outline-none transition-colors" />
                             </div>
 
+                            {/* --- SEÇÃO PREMIUM (SÓ PARA VIP) --- */}
+                            {isVip() && (
+                                <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="flex items-center gap-2 text-sm font-bold text-blue-300 cursor-pointer">
+                                            <input type="checkbox" checked={isPremiumBook} onChange={(e) => setIsPremiumBook(e.target.checked)} className="accent-blue-500" />
+                                            Premium Book (For Sale)
+                                        </label>
+                                        <MdLock className="text-blue-400" />
+                                    </div>
+                                    {isPremiumBook && (
+                                        <div className="animate-fade-in mt-2">
+                                            <label className="block text-xs font-bold text-gray-400 mb-1">Price (Coins)</label>
+                                            <div className="relative">
+                                                <MdAttachMoney className="absolute left-3 top-3 text-green-500" />
+                                                <input 
+                                                    type="number" 
+                                                    min="1"
+                                                    value={bookPrice} 
+                                                    onChange={(e)=>setBookPrice(e.target.value)} 
+                                                    className="w-full bg-[#101010] border border-blue-500/50 rounded-lg p-2 pl-8 text-white focus:border-blue-400 outline-none" 
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                            <p className="text-[10px] text-gray-500 mt-1">Premium users read for free. Others buy.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Genres</label>
                                 <div className="flex flex-wrap gap-2">
@@ -202,9 +241,8 @@ export default function Escrever() {
                                 </div>
                             </div>
 
-                            {/* --- INPUT DE TAGS --- */}
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tags (Press Enter)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Tags</label>
                                 <div className="bg-[#151515] border border-[#333] rounded-lg p-2 flex flex-wrap gap-2">
                                     {tags.map((tag, i) => (
                                         <span key={i} className="bg-blue-600/20 text-blue-400 text-xs px-2 py-1 rounded flex items-center gap-1 border border-blue-600/30">
@@ -253,6 +291,19 @@ export default function Escrever() {
                         <div>
                             <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{...editorConfig, height: 600}} onEditorChange={(content) => setConteudo(content)} />
                         </div>
+
+                        {/* --- NOVA SEÇÃO: NOTA DO AUTOR --- */}
+                        <div className="pt-4 border-t border-white/5">
+                            <label className="text-xs font-bold text-blue-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
+                            <div className="border border-[#333] rounded-lg overflow-hidden">
+                                <Editor 
+                                    tinymceScriptSrc={OPEN_SOURCE_TINY} 
+                                    init={{...editorConfig, height: 200, statusbar: false}} 
+                                    onEditorChange={(content) => setNotaAutor(content)} 
+                                />
+                            </div>
+                        </div>
+
                     </div>
                     <div className="mt-8 flex justify-end pt-6 border-t border-white/10">
                         <button onClick={handlePublicar} disabled={loadingPost} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50">

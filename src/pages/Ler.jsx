@@ -9,7 +9,8 @@ import {
 import DOMPurify from 'dompurify';
 import { 
   MdArrowBack, MdNavigateBefore, MdNavigateNext, MdSettings, 
-  MdClose, MdFormatSize, MdFormatLineSpacing, MdTextFields
+  MdClose, MdFormatSize, MdFormatLineSpacing, MdLock, MdSmartphone,
+  MdTextFields, MdViewHeadline, MdPhotoSizeSelectSmall
 } from 'react-icons/md';
 import Comentarios from '../components/Comentarios';
 import toast from 'react-hot-toast';
@@ -17,39 +18,41 @@ import toast from 'react-hot-toast';
 export default function Ler() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, isVip } = useContext(AuthContext);
 
   const [capitulo, setCapitulo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [blocked, setBlocked] = useState(false);
+  const [mobileOnlyBlock, setMobileOnlyBlock] = useState(false);
   const [prevId, setPrevId] = useState(null);
   const [nextId, setNextId] = useState(null);
 
   // --- ESTADOS DE CONFIGURAÇÃO DE LEITURA ---
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
-    fontSize: 18,       // Tamanho da fonte (px)
-    lineHeight: 1.8,    // Altura da linha
-    fontFamily: 'serif',// 'serif', 'sans', 'mono'
-    maxWidth: 800       // Largura do texto (px)
+    fontSize: 18,       
+    lineHeight: 1.8,    
+    fontFamily: 'serif',
+    maxWidth: 800       
   });
 
-  // 1. Carregar Configurações Salvas
+  // Carregar configurações salvas
   useEffect(() => {
     const savedSettings = localStorage.getItem('ah_reader_settings');
-    if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-    }
+    if (savedSettings) setSettings(JSON.parse(savedSettings));
   }, []);
 
-  // 2. Salvar Configurações Automaticamente
+  // Salvar configurações automaticamente
   useEffect(() => {
     localStorage.setItem('ah_reader_settings', JSON.stringify(settings));
   }, [settings]);
 
-  // 3. Carregar Capítulo
   useEffect(() => {
     async function loadCapitulo() {
       setLoading(true);
+      setBlocked(false);
+      setMobileOnlyBlock(false);
+
       try {
         const docRef = doc(db, "capitulos", id);
         const docSnap = await getDoc(docRef);
@@ -61,6 +64,48 @@ export default function Ler() {
         }
 
         const data = docSnap.data();
+        
+        // --- VERIFICAÇÃO DE ACESSO ---
+        const obraRef = doc(db, "obras", data.obraId);
+        const obraSnap = await getDoc(obraRef);
+        
+        if (obraSnap.exists()) {
+            const obraData = obraSnap.data();
+            
+            // 1. Verifica se é Premium
+            if (obraData.tipo === 'premium') {
+                
+                // Regra Mobile Only: Se é premium, só abre em telas pequenas (Ex: < 768px)
+                if (window.innerWidth > 768) {
+                    setMobileOnlyBlock(true);
+                    setLoading(false);
+                    return;
+                }
+
+                // 2. Verifica Permissão (Dono, VIP ou Comprador)
+                let hasAccess = false;
+                if (user?.uid === obraData.autorId) hasAccess = true;
+                if (isVip()) hasAccess = true;
+
+                if (!hasAccess && user?.uid) {
+                    // Verifica se comprou
+                    const libQuery = await getDocs(query(
+                        collection(db, "biblioteca"), 
+                        where("userId", "==", user.uid), 
+                        where("obraId", "==", data.obraId),
+                        where("owned", "==", true)
+                    ));
+                    if (!libQuery.empty) hasAccess = true;
+                }
+
+                if (!hasAccess) {
+                    setBlocked(true);
+                    setLoading(false);
+                    return;
+                }
+            }
+        }
+
         setCapitulo({ id: docSnap.id, ...data });
 
         // Histórico
@@ -89,16 +134,14 @@ export default function Ler() {
         console.error("Erro ao carregar:", error);
       } finally {
         setLoading(false);
-        window.scrollTo(0, 0); // Rola para o topo ao mudar de capítulo
+        window.scrollTo(0, 0); 
       }
     }
     loadCapitulo();
-  }, [id, navigate, user]);
+  }, [id, navigate, user, isVip]);
 
-  // Funções de Ajuste
   const updateSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
-
-  // Classes de Fonte do Tailwind baseadas na escolha
+  
   const getFontClass = () => {
       switch(settings.fontFamily) {
           case 'sans': return 'font-sans';
@@ -107,11 +150,38 @@ export default function Ler() {
       }
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center h-screen">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-    </div>
-  );
+  if (loading) return <div className="loading-spinner"></div>;
+
+  // --- BLOQUEIO MOBILE ---
+  if (mobileOnlyBlock) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#121212]">
+              <MdSmartphone size={60} className="text-blue-500 mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Mobile Only Experience</h2>
+              <p className="text-gray-400 max-w-md mb-6">
+                  This Premium book is exclusive to our mobile experience. Please open this page on your phone or download our app.
+              </p>
+              <Link to="/" className="btn-primary">Back to Home</Link>
+          </div>
+      );
+  }
+
+  // --- BLOQUEIO DE PAGAMENTO ---
+  if (blocked) {
+      return (
+          <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-[#121212]">
+              <MdLock size={60} className="text-yellow-500 mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Premium Content</h2>
+              <p className="text-gray-400 max-w-md mb-6">
+                  You need to buy this book or subscribe to Premium to read this chapter.
+              </p>
+              <div className="flex gap-4">
+                  <Link to="/assinatura" className="bg-yellow-500 text-black px-6 py-2 rounded-full font-bold">Get Premium</Link>
+                  <button onClick={() => navigate(-1)} className="border border-gray-600 px-6 py-2 rounded-full text-gray-300">Go Back</button>
+              </div>
+          </div>
+      );
+  }
 
   const cleanContent = DOMPurify.sanitize(capitulo.conteudo);
   const cleanNote = capitulo.authorNote ? DOMPurify.sanitize(capitulo.authorNote) : null;
@@ -152,13 +222,15 @@ export default function Ler() {
 
                     {/* Tipo de Fonte */}
                     <div>
-                        <div className="text-xs text-gray-500 uppercase font-bold mb-2">Font Family</div>
+                        <div className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
+                            <MdTextFields /> Font Family
+                        </div>
                         <div className="flex gap-2 bg-[#151515] p-1 rounded-lg border border-[#333]">
                             {['serif', 'sans', 'mono'].map(font => (
                                 <button 
                                     key={font}
                                     onClick={() => updateSetting('fontFamily', font)}
-                                    className={`flex-1 py-1.5 rounded text-sm font-medium transition-all ${settings.fontFamily === font ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                                    className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${settings.fontFamily === font ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
                                 >
                                     {font === 'serif' ? 'Serif' : font === 'sans' ? 'Sans' : 'Mono'}
                                 </button>
@@ -168,13 +240,15 @@ export default function Ler() {
 
                     {/* Espaçamento (Line Height) */}
                     <div>
-                        <div className="text-xs text-gray-500 uppercase font-bold mb-2">Line Spacing</div>
+                        <div className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
+                            <MdFormatLineSpacing /> Spacing
+                        </div>
                         <div className="flex gap-2 bg-[#151515] p-1 rounded-lg border border-[#333]">
                             {[1.4, 1.8, 2.2].map(h => (
                                 <button 
                                     key={h}
                                     onClick={() => updateSetting('lineHeight', h)}
-                                    className={`flex-1 py-1.5 rounded text-sm font-medium transition-all ${settings.lineHeight === h ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                                    className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${settings.lineHeight === h ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
                                 >
                                     {h === 1.4 ? 'Tight' : h === 1.8 ? 'Normal' : 'Wide'}
                                 </button>
@@ -184,13 +258,15 @@ export default function Ler() {
 
                     {/* Largura do Texto */}
                     <div>
-                        <div className="text-xs text-gray-500 uppercase font-bold mb-2">Page Width</div>
+                        <div className="text-xs text-gray-500 uppercase font-bold mb-2 flex items-center gap-2">
+                            <MdPhotoSizeSelectSmall /> Page Width
+                        </div>
                         <div className="flex gap-2 bg-[#151515] p-1 rounded-lg border border-[#333]">
                             {[600, 800, 1200].map(w => (
                                 <button 
                                     key={w}
                                     onClick={() => updateSetting('maxWidth', w)}
-                                    className={`flex-1 py-1.5 rounded text-sm font-medium transition-all ${settings.maxWidth === w ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                                    className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${settings.maxWidth === w ? 'bg-primary text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
                                 >
                                     {w === 600 ? 'S' : w === 800 ? 'M' : 'L'}
                                 </button>
@@ -240,7 +316,7 @@ export default function Ler() {
                         <MdNavigateBefore size={24} /> Prev
                     </Link>
                 ) : (
-                    <div className="opacity-0">Prev</div> // Espaço vazio para manter layout
+                    <div className="opacity-0">Prev</div> 
                 )}
 
                 {nextId ? (

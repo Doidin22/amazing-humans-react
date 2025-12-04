@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCExW9WyhaKidmp3SM2jzt68UFyFQYspv8",
@@ -13,17 +18,15 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+
+// --- ATUALIZAÇÃO: Nova forma de ativar persistência (remove o aviso amarelo) ---
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
+
+const functions = getFunctions(app);
 const provider = new GoogleAuthProvider();
 
-// --- ATIVA O CACHE LOCAL (ECONOMIA DE LEITURAS) ---
-enableIndexedDbPersistence(db)
-  .catch((err) => {
-      if (err.code == 'failed-precondition') {
-          console.log("Persistência falhou: Múltiplas abas abertas.");
-      } else if (err.code == 'unimplemented') {
-          console.log("Navegador não suporta persistência.");
-      }
-  });
-
-export { auth, db, provider };
+export { auth, db, provider, functions };

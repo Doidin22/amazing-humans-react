@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { db } from '../services/firebaseConnection';
 import { 
   doc, getDoc, collection, query, where, getDocs, setDoc, deleteDoc, addDoc, serverTimestamp
@@ -7,7 +7,7 @@ import {
 import { AuthContext } from '../contexts/AuthContext';
 import StoryCard from '../components/StoryCard';
 import { FaPatreon, FaDiscord, FaTwitter, FaCoffee, FaUserPlus, FaUserCheck } from 'react-icons/fa';
-import toast from 'react-hot-toast'; // <--- IMPORTANTE
+import toast from 'react-hot-toast';
 
 export default function PerfilPublico() {
   const { id } = useParams();
@@ -18,12 +18,16 @@ export default function PerfilPublico() {
   const [seguindo, setSeguindo] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Helper para avatar
+  const getFallbackAvatar = (name) => `https://ui-avatars.com/api/?name=${name || 'User'}&background=random`;
+
   useEffect(() => {
     async function loadData() {
       try {
-        let dadosAutor = { nome: "Unknown User", foto: "https://via.placeholder.com/150" };
+        let dadosAutor = { nome: "Unknown User", foto: "" };
         const userDoc = await getDoc(doc(db, "usuarios", id));
         if (userDoc.exists()) { dadosAutor = userDoc.data(); } 
+        
         const q = query(collection(db, "obras"), where("autorId", "==", id), where("status", "==", "public"));
         const snap = await getDocs(q);
         let listaObras = [];
@@ -34,6 +38,7 @@ export default function PerfilPublico() {
         });
         setAutor(dadosAutor);
         setObras(listaObras);
+        
         if (user?.uid) {
             const followId = `${user.uid}_${id}`;
             const followDoc = await getDoc(doc(db, "seguidores", followId));
@@ -73,7 +78,12 @@ export default function PerfilPublico() {
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: 20 }}>
        <div style={{ textAlign: 'center', background: '#1f1f1f', padding: 40, borderRadius: 10, borderBottom: '4px solid #4a90e2', marginBottom: 40 }}>
-            <img src={autor?.foto || "https://via.placeholder.com/150"} alt={autor?.nome} style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid #4a90e2', marginBottom: 15, backgroundColor: '#333' }} onError={(e) => { e.target.src = "https://via.placeholder.com/150"; }} />
+            <img 
+                src={autor?.foto || getFallbackAvatar(autor?.nome)} 
+                alt={autor?.nome} 
+                style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid #4a90e2', marginBottom: 15, backgroundColor: '#333' }} 
+                onError={(e) => { e.target.src = getFallbackAvatar(autor?.nome); }} 
+            />
             <h2 style={{ color: 'white', margin: 0 }}>{autor?.nome}</h2>
             <p style={{ color: '#777' }}>Author</p>
             {autor?.social && (

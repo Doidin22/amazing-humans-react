@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdLogin, MdDiamond, MdHistory, MdInfoOutline 
+  MdHome, MdClose, MdLogin, MdDiamond, MdHistory, MdInfoOutline, MdPhoneIphone 
 } from 'react-icons/md';
 
 export default function Header() {
@@ -35,6 +35,10 @@ export default function Header() {
     e.target.src = `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`;
   };
 
+  const handleDownloadApp = () => {
+      alert("App download link coming soon! (iOS/Android)");
+  };
+
   return (
     <>
       {/* --- MENU MOBILE (DRAWER) --- */}
@@ -42,16 +46,30 @@ export default function Header() {
         <div className="fixed inset-0 bg-black/80 z-[1000]" onClick={() => setShowDrawer(false)}></div>
       )}
 
-      <div className={`fixed top-0 left-0 h-full w-72 bg-[#1f1f1f] shadow-2xl z-[1001] transform transition-transform duration-300 ease-in-out ${showDrawer ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className={`fixed top-0 left-0 h-full w-72 bg-[#1f1f1f] shadow-2xl z-[1001] transform transition-transform duration-300 ease-in-out overflow-y-auto ${showDrawer ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex justify-end p-4">
              <MdClose size={28} className="text-gray-400 cursor-pointer hover:text-white" onClick={() => setShowDrawer(false)} />
           </div>
 
-          <div className="flex flex-col gap-2 p-4">
+          <div className="flex flex-col gap-2 p-4 pb-20">
+              <div className="mb-6 bg-blue-600/10 border border-blue-500/30 rounded-xl p-4">
+                  <h4 className="text-blue-400 font-bold flex items-center gap-2 mb-2 text-sm">
+                      <MdPhoneIphone /> Get the App
+                  </h4>
+                  <p className="text-xs text-gray-400 mb-3 leading-relaxed">
+                      Enjoy the best reading experience with our official mobile app.
+                  </p>
+                  <button 
+                      onClick={handleDownloadApp}
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-lg font-bold text-xs transition-colors shadow-lg"
+                  >
+                      Download Now
+                  </button>
+              </div>
+
               {signed ? (
                 <>
-                    {/* Usuário Logado */}
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-700">
+                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-700">
                         <img 
                             src={getAvatarUrl()} 
                             onError={handleImageError}
@@ -65,7 +83,6 @@ export default function Header() {
                         <MdHome size={22} /> Home
                     </Link>
 
-                    {/* Link Adicionado Aqui */}
                     <Link to="/how-it-works" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white border-b border-white/5">
                         <MdInfoOutline size={22} /> How it Works
                     </Link>
@@ -91,9 +108,7 @@ export default function Header() {
                         <MdHistory size={22} /> Reading History
                     </Link>
                     
-                    <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white border-b border-white/5">
-                        <MdEditNote size={22} /> Author Dashboard
-                    </Link>
+                    {/* ALTERAÇÃO AQUI: Removido 'Author Dashboard' do menu mobile completamente */}
                     
                     <button onClick={() => { logout(); setShowDrawer(false); }} className="mt-6 w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold transition-colors">
                         Logout
@@ -101,7 +116,6 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                    {/* Usuário Deslogado (Visitante) */}
                     <div className="mb-6 pb-4 border-b border-gray-700">
                         <p className="text-gray-400 text-sm font-bold uppercase tracking-wider">Menu</p>
                     </div>
@@ -110,7 +124,6 @@ export default function Header() {
                         <MdHome size={22} /> Home
                     </Link>
 
-                    {/* Link Adicionado Aqui Também */}
                     <Link to="/how-it-works" onClick={() => setShowDrawer(false)} className="flex items-center gap-3 text-gray-300 py-3 hover:text-white border-b border-white/5">
                         <MdInfoOutline size={22} /> How it Works
                     </Link>
@@ -125,7 +138,6 @@ export default function Header() {
           </div>
       </div>
 
-      {/* --- HEADER PRINCIPAL (DESKTOP) --- */}
       <header className="sticky top-0 z-50 bg-[#151515] border-b border-[#333] h-16 flex items-center justify-between px-4 lg:px-8 shadow-md">
          <div className="flex items-center gap-4">
              <button className="lg:hidden text-gray-300 hover:text-white transition" onClick={toggleDrawer}>
@@ -144,13 +156,11 @@ export default function Header() {
              </Link>
            ) : (
              <div className="flex items-center gap-6">
-               
                <Link to="/notificacoes" className="text-gray-400 hover:text-white relative transition-colors p-1">
                  <MdNotifications size={24} />
                  {notifCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse"></span>}
                </Link>
 
-               {/* USER DROPDOWN */}
                <div className="relative group">
                    <div 
                         onClick={toggleDropdown} 
@@ -166,7 +176,6 @@ export default function Header() {
                      <MdArrowDropDown className="text-gray-500" />
                    </div>
 
-                   {/* MENU FLUTUANTE */}
                    {showDropdown && (
                        <div 
                          className="absolute top-12 right-0 w-64 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 flex flex-col z-[2000] animate-fade-in origin-top-right" 

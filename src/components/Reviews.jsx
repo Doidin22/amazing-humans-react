@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
-  collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, deleteDoc 
+  collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, deleteDoc 
 } from 'firebase/firestore';
 import { MdStar, MdStarBorder, MdDelete, MdRateReview } from 'react-icons/md';
 import toast from 'react-hot-toast';
@@ -16,7 +16,9 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
   const [content, setContent] = useState('');
   const [isWriting, setIsWriting] = useState(false);
 
-  // Carregar Reviews
+  // Helper para avatar
+  const getFallbackAvatar = (name) => `https://ui-avatars.com/api/?name=${name || 'User'}&background=random`;
+
   useEffect(() => {
     const q = query(
       collection(db, "reviews"), 
@@ -33,7 +35,6 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
     return () => unsubscribe();
   }, [obraId]);
 
-  // Enviar Review
   async function handleSubmit(e) {
     e.preventDefault();
     if (!user) return toast.error("Login to write a review.");
@@ -41,7 +42,6 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
     if (!content.trim()) return toast.error("Please write some content.");
 
     try {
-      // Salva a review
       await addDoc(collection(db, "reviews"), {
         obraId,
         obraTitulo,
@@ -53,9 +53,6 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
         content,
         createdAt: serverTimestamp()
       });
-
-      // Atualiza a média na coleção 'obras' (Opcional: backend function é melhor, mas faremos simples aqui)
-      // *Nota: Para produção real, use Cloud Functions para calcular média*
       
       setTitle('');
       setContent('');
@@ -94,12 +91,10 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
         )}
       </div>
 
-      {/* Formulário de Escrita */}
       {isWriting && (
         <form onSubmit={handleSubmit} className="bg-[#1f1f1f] border border-[#333] p-6 rounded-xl mb-10 animate-fade-in">
             <h4 className="text-white font-bold mb-4">Write your review</h4>
             
-            {/* Estrelas */}
             <div className="flex gap-1 mb-4">
                 {[1,2,3,4,5].map(star => (
                     <button 
@@ -141,7 +136,6 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
         </form>
       )}
 
-      {/* Lista de Reviews */}
       <div className="space-y-6">
         {reviews.length === 0 ? (
             <p className="text-gray-500 text-center py-10">No reviews yet. Be the first to review!</p>
@@ -150,7 +144,12 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
                 <div key={review.id} className="bg-[#1a1a1a] border border-[#333] p-5 rounded-xl">
                     <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-3">
-                            <img src={review.userAvatar || "https://via.placeholder.com/40"} alt={review.userName} className="w-10 h-10 rounded-full border border-gray-600 object-cover" />
+                            <img 
+                                src={review.userAvatar || getFallbackAvatar(review.userName)} 
+                                alt={review.userName} 
+                                className="w-10 h-10 rounded-full border border-gray-600 object-cover" 
+                                onError={(e) => { e.target.src = getFallbackAvatar(review.userName); }}
+                            />
                             <div>
                                 <p className="text-white font-bold text-sm">{review.userName}</p>
                                 <div className="flex text-yellow-500 text-xs">

@@ -13,17 +13,18 @@ import {
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
-// --- SUB-COMPONENTE: ITEM DE RESPOSTA (Nível 2) ---
+// Helper para avatar
+const getFallbackAvatar = (name) => `https://ui-avatars.com/api/?name=${name || 'User'}&background=random`;
+
 const ReplyItem = ({ dados, user, handleLike, handleDelete, handleResponderClick }) => {
     const jaCurtiu = dados.likes?.includes(user?.uid);
     const isOwner = user?.uid === dados.autorId;
     const timeString = dados.data ? new Date(dados.data.seconds * 1000).toLocaleDateString() : 'just now';
 
-    // Identifica se o texto começa com @username para destacar
     const renderText = (text) => {
         const parts = text.split(' ');
         return parts.map((part, i) => {
-            if (part.startsWith('@') && i === 0) { // Assume que o @tag é a primeira palavra
+            if (part.startsWith('@') && i === 0) { 
                 return <span key={i} className="text-blue-400 font-bold mr-1">{part}</span>;
             }
             return part + ' ';
@@ -34,9 +35,9 @@ const ReplyItem = ({ dados, user, handleLike, handleDelete, handleResponderClick
         <div className="flex gap-3 mb-3 group">
             <Link to={`/usuario/${dados.autorId}`} className="shrink-0">
                 <img 
-                    src={dados.autorFoto || "https://via.placeholder.com/40"} 
+                    src={dados.autorFoto || getFallbackAvatar(dados.autorNome)} 
                     alt="user" className="w-6 h-6 rounded-full object-cover" 
-                    onError={(e) => { e.target.src = "https://via.placeholder.com/40"; }}
+                    onError={(e) => { e.target.src = getFallbackAvatar(dados.autorNome); }}
                 />
             </Link>
             <div className="flex-1">
@@ -72,7 +73,6 @@ const ReplyItem = ({ dados, user, handleLike, handleDelete, handleResponderClick
     );
 };
 
-// --- SUB-COMPONENTE: COMENTÁRIO PRINCIPAL (Nível 1) ---
 const CommentThread = ({ 
     dados, todasRespostas, user, 
     respondendoA, setRespondendoA, textoResposta, setTextoResposta, 
@@ -80,15 +80,13 @@ const CommentThread = ({
 }) => {
     const [mostrarRespostas, setMostrarRespostas] = useState(false);
     
-    // Filtra as respostas que pertencem a este comentário pai
     const minhasRespostas = todasRespostas.filter(r => r.parentId === dados.id);
     const jaCurtiu = dados.likes?.includes(user?.uid);
     const isOwner = user?.uid === dados.autorId;
     const timeString = dados.data ? new Date(dados.data.seconds * 1000).toLocaleDateString() : 'just now';
 
-    // Ao clicar em responder num filho ou no pai
     const prepararResposta = (nomeUsuario) => {
-        setRespondendoA(dados.id); // O ID técnico do pai é sempre o alvo no banco
+        setRespondendoA(dados.id);
         setTextoResposta(`@${nomeUsuario?.replace(/\s+/g, '').toLowerCase()} `);
     };
 
@@ -96,14 +94,13 @@ const CommentThread = ({
       <div className="flex gap-4 mb-6 group">
         <Link to={`/usuario/${dados.autorId}`} className="shrink-0">
             <img 
-                src={dados.autorFoto || "https://via.placeholder.com/40"} 
+                src={dados.autorFoto || getFallbackAvatar(dados.autorNome)} 
                 alt="user" className="w-10 h-10 rounded-full object-cover" 
-                onError={(e) => { e.target.src = "https://via.placeholder.com/40"; }}
+                onError={(e) => { e.target.src = getFallbackAvatar(dados.autorNome); }}
             />
         </Link>
 
         <div className="flex-1">
-            {/* Header Comentário */}
             <div className="flex items-center gap-2 text-xs mb-1">
                 <span className="font-semibold text-white cursor-pointer hover:text-gray-300">
                     @{dados.autorNome?.replace(/\s+/g, '').toLowerCase()}
@@ -111,12 +108,10 @@ const CommentThread = ({
                 <span className="text-gray-500 text-[11px]">{timeString}</span>
             </div>
 
-            {/* Texto */}
             <div className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap mb-2">
                 {dados.texto}
             </div>
 
-            {/* Ações */}
             <div className="flex items-center gap-1 mb-2">
                 <button onClick={() => handleLike(dados.id, dados.likes)} className="flex items-center gap-1.5 p-2 rounded-full hover:bg-white/10 text-gray-400">
                     {jaCurtiu ? <MdThumbUp size={16} className="text-white" /> : <MdThumbUpOffAlt size={16} />}
@@ -136,10 +131,9 @@ const CommentThread = ({
                 )}
             </div>
 
-            {/* Input de Resposta (Aparece se estiver respondendo a ESTA thread) */}
             {respondendoA === dados.id && (
                 <div className="mt-2 mb-4 flex gap-3 animate-fade-in">
-                     <img src={user?.avatar || "https://via.placeholder.com/40"} className="w-6 h-6 rounded-full" />
+                     <img src={user?.avatar || getFallbackAvatar(user?.name)} className="w-6 h-6 rounded-full" />
                      <div className="flex-1">
                         <input 
                             autoFocus 
@@ -155,7 +149,6 @@ const CommentThread = ({
                 </div>
             )}
 
-            {/* Botão de Expandir Respostas (Igual YouTube) */}
             {minhasRespostas.length > 0 && (
                 <div>
                     <button 
@@ -166,7 +159,6 @@ const CommentThread = ({
                         {minhasRespostas.length} replies
                     </button>
 
-                    {/* Lista de Respostas */}
                     {mostrarRespostas && (
                         <div className="pl-0">
                             {minhasRespostas.map(resp => (
@@ -188,7 +180,6 @@ const CommentThread = ({
     );
 };
 
-// --- COMPONENTE PRINCIPAL ---
 export default function Comentarios({ targetId, targetType = 'capitulo', targetAuthorId, targetTitle }) {
   const { user } = useContext(AuthContext);
   const [comentarios, setComentarios] = useState([]);
@@ -202,7 +193,6 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
     const unsub = onSnapshot(q, (snap) => {
       let lista = [];
       snap.forEach(d => lista.push({ id: d.id, ...d.data() }));
-      // Ordena: Mais antigos primeiro para manter a cronologia de conversas
       lista.sort((a, b) => { const dateA = a.data ? a.data.seconds : 0; const dateB = b.data ? b.data.seconds : 0; return dateB - dateA; });
       setComentarios(lista);
     });
@@ -227,7 +217,6 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
           data: serverTimestamp() 
       });
 
-      // Notificações
       let paraId = null;
       let mensagem = "";
       if (parentId) {
@@ -259,7 +248,7 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
   }
 
   const raiz = comentarios.filter(c => !c.parentId);
-  const respostas = comentarios.filter(c => c.parentId); // Passamos todas as respostas para os pais filtrarem
+  const respostas = comentarios.filter(c => c.parentId);
 
   return (
     <div className="max-w-4xl mx-auto mt-10">
@@ -271,7 +260,7 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
         </div>
 
         <div className="flex gap-4 mb-10">
-            <img src={user?.avatar || "https://via.placeholder.com/40"} className="w-10 h-10 rounded-full object-cover" />
+            <img src={user?.avatar || getFallbackAvatar(user?.name)} className="w-10 h-10 rounded-full object-cover" />
             <div className="flex-1">
                 <input 
                     placeholder="Add a comment..." 
