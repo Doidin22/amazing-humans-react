@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MdMenuBook, MdEdit, MdMonetizationOn, MdEmojiEvents, MdArrowForward } from 'react-icons/md';
+import { MdMenuBook, MdEdit, MdArrowForward } from 'react-icons/md';
 
 export default function HowItWorks() {
   return (
@@ -13,7 +13,7 @@ export default function HowItWorks() {
           How <span className="text-primary">Amazing Humans</span> Works
         </h1>
         <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          A platform built for imagination. Read thousands of stories for free, publish your own worlds, and earn rewards as you grow.
+          A platform built for imagination. Read thousands of stories for free and publish your own worlds.
         </p>
         <div className="flex justify-center gap-4">
             <Link to="/escrever" className="btn-primary px-8 py-3 text-lg rounded-full shadow-xl hover:scale-105 transition-transform">Start Writing</Link>
@@ -68,29 +68,6 @@ export default function HowItWorks() {
             </ul>
         </div>
 
-      </div>
-
-      {/* Seção de Gamificação (Futuro) */}
-      <div className="max-w-4xl mx-auto px-6 mb-20 text-center">
-        <h2 className="text-3xl font-bold text-white mb-12">Level Up Your Experience</h2>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div className="p-6 bg-[#1a1a1a] rounded-xl border border-[#333] hover:-translate-y-2 transition-transform">
-                <MdEmojiEvents size={40} className="text-yellow-500 mx-auto mb-4" />
-                <h4 className="font-bold text-white mb-2">Earn Badges</h4>
-                <p className="text-sm text-gray-500">Unlock special badges by reading streaks or publishing milestones.</p>
-            </div>
-            <div className="p-6 bg-[#1a1a1a] rounded-xl border border-[#333] hover:-translate-y-2 transition-transform">
-                <MdMonetizationOn size={40} className="text-emerald-400 mx-auto mb-4" />
-                <h4 className="font-bold text-white mb-2">Collect Coins</h4>
-                <p className="text-sm text-gray-500">Read daily to earn coins (Coming Soon) to support authors.</p>
-            </div>
-            <div className="p-6 bg-[#1a1a1a] rounded-xl border border-[#333] hover:-translate-y-2 transition-transform">
-                <MdMenuBook size={40} className="text-purple-400 mx-auto mb-4" />
-                <h4 className="font-bold text-white mb-2">Discover</h4>
-                <p className="text-sm text-gray-500">Our algorithm suggests books based on what you actually read.</p>
-            </div>
-        </div>
       </div>
 
       {/* CTA Final */}

@@ -1,24 +1,51 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Merriweather:wght@300;400;700&display=swap');
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Estilos Globais */
+/* --- CONFIGURAÇÃO GLOBAL --- */
 body {
-  @apply bg-background text-gray-200 font-sans min-h-screen flex flex-col overflow-x-hidden bg-gradient-dark;
+  @apply bg-background text-gray-200 font-sans min-h-screen flex flex-col overflow-x-hidden;
+  
+  /* Gradiente sutil no topo para dar "luz" ao site */
+  background-image: radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.12), rgba(15, 15, 15, 1) 70%);
+  background-attachment: fixed; /* O fundo fica fixo enquanto rola */
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { @apply bg-[#121212]; }
-::-webkit-scrollbar-thumb { @apply bg-[#333] rounded-md hover:bg-primary; }
+/* Scrollbar Estilizada */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors; }
 
-/* Ícones */
-.material-icons {
-  font-family: 'Material Icons';
-  font-weight: normal; font-style: normal; font-size: 24px; display: inline-block;
-  line-height: 1; text-transform: none; letter-spacing: normal; word-wrap: normal;
-  white-space: nowrap; direction: ltr;
+/* --- CLASSES UTILITÁRIAS DE DESIGN --- */
+
+/* Botão Principal com Gradiente Vibrante */
+.btn-primary {
+  @apply bg-gradient-primary text-white font-bold py-2.5 px-6 rounded-full shadow-lg 
+         hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] 
+         transition-all duration-300 border border-white/10 flex items-center justify-center gap-2;
+}
+
+/* Painéis de Vidro (Glassmorphism) Refinados */
+.glass-panel {
+  @apply bg-surface/70 backdrop-blur-xl border border-white/5 shadow-glass transition-colors;
+}
+
+/* Cards Padrão (Sem vidro, para listas longas) */
+.card-base {
+  @apply bg-surface border border-white/5 rounded-xl hover:border-white/10 transition-colors;
+}
+
+/* Inputs Modernos */
+.input-modern {
+  @apply bg-background border border-white/10 rounded-lg px-4 py-3 text-white 
+         focus:border-primary focus:ring-1 focus:ring-primary/50 focus:outline-none 
+         transition-all placeholder-gray-600;
+}
+
+/* Animações Úteis */
+.hover-lift {
+  @apply transition-transform duration-300 hover:-translate-y-1;
 }

@@ -4,7 +4,7 @@ import { db } from '../services/firebaseConnection';
 import { 
   collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, doc, deleteDoc 
 } from 'firebase/firestore';
-import { MdStar, MdStarBorder, MdDelete, MdRateReview } from 'react-icons/md';
+import { MdStar, MdStarBorder, MdDelete, MdRateReview, MdChevronLeft, MdChevronRight } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 export default function Reviews({ obraId, obraTitulo, autorId }) {
@@ -16,7 +16,10 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
   const [content, setContent] = useState('');
   const [isWriting, setIsWriting] = useState(false);
 
-  // Helper para avatar
+  // Paginação
+  const [pagina, setPagina] = useState(1);
+  const ITENS_POR_PAGINA = 10;
+
   const getFallbackAvatar = (name) => `https://ui-avatars.com/api/?name=${name || 'User'}&background=random`;
 
   useEffect(() => {
@@ -58,6 +61,7 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
       setContent('');
       setRating(0);
       setIsWriting(false);
+      setPagina(1); // Volta para a primeira página para ver o novo review
       toast.success("Review published!");
     } catch (error) {
       console.error(error);
@@ -74,6 +78,14 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
         toast.error("Error deleting.");
     }
   }
+
+  // Lógica de Paginação
+  const totalPaginas = Math.ceil(reviews.length / ITENS_POR_PAGINA);
+  const inicio = (pagina - 1) * ITENS_POR_PAGINA;
+  const reviewsVisiveis = reviews.slice(inicio, inicio + ITENS_POR_PAGINA);
+
+  const irParaAnterior = () => setPagina(p => Math.max(p - 1, 1));
+  const irParaProxima = () => setPagina(p => Math.min(p + 1, totalPaginas));
 
   return (
     <div className="mt-16 border-t border-white/10 pt-10">
@@ -92,7 +104,7 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
       </div>
 
       {isWriting && (
-        <form onSubmit={handleSubmit} className="bg-[#1f1f1f] border border-[#333] p-6 rounded-xl mb-10 animate-fade-in">
+        <form onSubmit={handleSubmit} className="glass-panel p-6 rounded-xl mb-10 animate-fade-in border border-white/10">
             <h4 className="text-white font-bold mb-4">Write your review</h4>
             
             <div className="flex gap-1 mb-4">
@@ -118,7 +130,7 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
                 placeholder="Review Title (e.g., 'Amazing plot twist!')"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white mb-4 focus:border-primary outline-none"
+                className="input-modern w-full mb-4"
             />
 
             <textarea 
@@ -126,22 +138,22 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
                 placeholder="What did you think about this book?"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white mb-4 focus:border-primary outline-none resize-y"
+                className="input-modern w-full mb-4 resize-y"
             ></textarea>
 
             <div className="flex justify-end gap-3">
-                <button type="button" onClick={() => setIsWriting(false)} className="text-gray-400 hover:text-white px-4 py-2 font-bold">Cancel</button>
-                <button type="submit" className="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg">Post Review</button>
+                <button type="button" onClick={() => setIsWriting(false)} className="text-gray-400 hover:text-white px-4 py-2 font-bold transition-colors">Cancel</button>
+                <button type="submit" className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-lg font-bold shadow-lg transition-colors">Post Review</button>
             </div>
         </form>
       )}
 
       <div className="space-y-6">
-        {reviews.length === 0 ? (
-            <p className="text-gray-500 text-center py-10">No reviews yet. Be the first to review!</p>
+        {reviewsVisiveis.length === 0 ? (
+            <p className="text-gray-500 text-center py-10 bg-white/5 rounded-xl border border-dashed border-white/10">No reviews yet. Be the first to review!</p>
         ) : (
-            reviews.map(review => (
-                <div key={review.id} className="bg-[#1a1a1a] border border-[#333] p-5 rounded-xl">
+            reviewsVisiveis.map(review => (
+                <div key={review.id} className="bg-[#18181b] border border-white/5 p-6 rounded-xl hover:border-white/10 transition-colors">
                     <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center gap-3">
                             <img 
@@ -168,7 +180,7 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
                     <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{review.content}</p>
 
                     {(user?.uid === review.userId || user?.uid === autorId) && (
-                        <div className="mt-4 pt-3 border-t border-[#333] flex justify-end">
+                        <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
                             <button onClick={() => handleDelete(review.id)} className="text-red-400 hover:text-red-300 text-xs flex items-center gap-1 font-bold transition-colors">
                                 <MdDelete /> Delete
                             </button>
@@ -178,6 +190,30 @@ export default function Reviews({ obraId, obraTitulo, autorId }) {
             ))
         )}
       </div>
+
+      {/* PAGINAÇÃO */}
+      {totalPaginas > 1 && (
+        <div className="flex justify-center items-center gap-4 mt-10 pt-6 border-t border-white/5">
+            <button 
+                onClick={irParaAnterior} 
+                disabled={pagina === 1} 
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-colors"
+            >
+                <MdChevronLeft size={24} />
+            </button>
+            <span className="text-sm font-bold text-gray-400">
+                Page {pagina} of {totalPaginas}
+            </span>
+            <button 
+                onClick={irParaProxima} 
+                disabled={pagina === totalPaginas} 
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 text-white transition-colors"
+            >
+                <MdChevronRight size={24} />
+            </button>
+        </div>
+      )}
+
     </div>
   );
 }

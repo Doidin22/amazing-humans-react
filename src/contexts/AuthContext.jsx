@@ -42,11 +42,7 @@ export function AuthProvider({ children }) {
                     avatar: avatarFinal,
                     email: firebaseUser.email,
                     type: 'google',
-                    role: dados.role || 'user',
-                    // --- DADOS DE GAMIFICAÇÃO ---
-                    nivel: dados.nivel || 0,
-                    xp: dados.saldoInterno || 0, // Usamos o saldo como XP/Moedas
-                    leituras: dados.contador_leituras || 0
+                    role: dados.role || 'user'
                 });
             } else {
                 // Usuário novo
@@ -56,10 +52,7 @@ export function AuthProvider({ children }) {
                     avatar: firebaseUser.photoURL || generateAvatar(uid),
                     email: firebaseUser.email,
                     type: 'google',
-                    role: 'user',
-                    nivel: 0,
-                    xp: 0,
-                    leituras: 0
+                    role: 'user'
                 });
             }
             setLoadingAuth(false);

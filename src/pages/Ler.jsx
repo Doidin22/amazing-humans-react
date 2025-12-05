@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { db, functions } from '../services/firebaseConnection'; // <--- Import functions
-import { httpsCallable } from 'firebase/functions'; // <--- Import httpsCallable
+import { db, functions } from '../services/firebaseConnection'; 
+import { httpsCallable } from 'firebase/functions'; 
 import { 
   doc, getDoc, collection, query, where, orderBy, limit, getDocs, 
   setDoc, serverTimestamp 
@@ -10,8 +10,7 @@ import {
 import DOMPurify from 'dompurify';
 import { 
   MdArrowBack, MdNavigateBefore, MdNavigateNext, MdSettings, 
-  MdClose, MdFormatSize, MdFormatLineSpacing, 
-  MdTextFields, MdPhotoSizeSelectSmall, MdMenuBook, 
+  MdClose, MdFormatSize, MdTextFields, MdPhotoSizeSelectSmall, MdMenuBook, 
   MdColorLens, MdAutorenew, MdVolumeUp, MdPause, MdStop, MdFlag
 } from 'react-icons/md';
 import Comentarios from '../components/Comentarios';
@@ -31,13 +30,17 @@ export default function Ler() {
   const [showReport, setShowReport] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
+  
+  // Configurações padrão
+  const defaultSettings = {
     fontSize: 18,       
     lineHeight: 1.8,    
     fontFamily: 'serif',
-    maxWidth: 800,
+    widthClass: 'max-w-2xl', 
     theme: 'dark'
-  });
+  };
+
+  const [settings, setSettings] = useState(defaultSettings);
 
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(1);
@@ -48,8 +51,19 @@ export default function Ler() {
   const utteranceRef = useRef(null);
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem('ah_reader_settings');
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
+    const saved = localStorage.getItem('ah_reader_settings');
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            if (typeof parsed.widthClass !== 'string') {
+                parsed.widthClass = 'max-w-2xl';
+            }
+            setSettings({ ...defaultSettings, ...parsed });
+        } catch (e) {
+            console.error("Erro ao carregar configs, resetando...", e);
+            localStorage.removeItem('ah_reader_settings');
+        }
+    }
   }, []);
 
   useEffect(() => {
@@ -76,7 +90,6 @@ export default function Ler() {
         setCapitulo({ id: docSnap.id, ...data });
 
         if (user?.uid) {
-            // 1. Salva no Histórico (Visível na Biblioteca)
             const historyRef = doc(db, "historico", `${user.uid}_${data.obraId}`);
             await setDoc(historyRef, {
                 userId: user.uid,
@@ -87,19 +100,11 @@ export default function Ler() {
                 accessedAt: serverTimestamp()
             }, { merge: true });
 
-            // 2. Chama a Cloud Function (Dá XP e conta leitura)
-            // Não usamos await aqui para não travar o carregamento da página
             const registerReading = httpsCallable(functions, 'registerReading');
             registerReading({ 
                 obraId: data.obraId, 
-                capituloId: docSnap.id, 
-                autorId: data.autorId 
-            }).then((result) => {
-                // Se o backend disser que ganhou moeda/xp, avisa o usuário
-                if(result.data.earnedCoin) {
-                    toast.success("Level Up Progress! +XP", { icon: '✨', position: 'bottom-center' });
-                }
-            }).catch(err => console.error("Gamification error:", err));
+                capituloId: docSnap.id
+            }).catch(err => console.error("Reading register error:", err));
         }
 
         const qAnt = query(collection(db, "capitulos"), where("obraId", "==", data.obraId), where("data", "<", data.data), orderBy("data", "desc"), limit(1));
@@ -120,17 +125,13 @@ export default function Ler() {
     };
   }, [id, navigate, user]);
 
-  // ... (Resto das funções de configuração, scroll e renderização IGUAIS ao anterior) ...
-  // Vou omitir o restante para não ficar gigante, pois só mudamos o useEffect acima.
-  // Mantenha o return e as outras funções exatamente como estavam.
-  
   const updateSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }));
 
   const getThemeStyles = () => {
       switch(settings.theme) {
-          case 'light': return { bg: 'bg-[#f5f5f5]', text: 'text-gray-900', secondaryBg: 'bg-white', border: 'border-gray-300' };
-          case 'sepia': return { bg: 'bg-[#f4ecd8]', text: 'text-[#5b4636]', secondaryBg: 'bg-[#eaddcf]', border: 'border-[#d3c4bc]' };
-          default: return { bg: 'bg-[#121212]', text: 'text-gray-300', secondaryBg: 'bg-[#1f1f1f]', border: 'border-[#333]' };
+          case 'light': return { bg: 'bg-[#f8f9fa]', text: 'text-gray-800', title: 'text-gray-900', secondaryBg: 'bg-white', border: 'border-gray-200' };
+          case 'sepia': return { bg: 'bg-[#f4ecd8]', text: 'text-[#433422]', title: 'text-[#2b2115]', secondaryBg: 'bg-[#eaddcf]', border: 'border-[#d3c4bc]' };
+          default: return { bg: 'bg-[#0F0F0F]', text: 'text-gray-300', title: 'text-gray-100', secondaryBg: 'bg-[#18181b]', border: 'border-[#27272a]' };
       }
   };
   const currentTheme = getThemeStyles();
@@ -183,8 +184,12 @@ export default function Ler() {
   const cleanNote = capitulo.authorNote ? DOMPurify.sanitize(capitulo.authorNote) : null;
 
   return (
-    <div className={`min-h-screen pb-20 relative transition-colors duration-500 ${currentTheme.bg}`}>
-        <div className="fixed top-24 right-4 z-50 flex flex-col items-end gap-2">
+    <div className={`min-h-screen pb-24 md:pb-20 relative transition-colors duration-500 ${currentTheme.bg}`}>
+        
+        {/* --- CONTROLES DE LEITURA (RESPONSIVO) --- */}
+        
+        {/* 1. VERSÃO DESKTOP (Flutuante na direita, como antes) */}
+        <div className="hidden md:flex fixed top-24 right-4 z-50 flex-col items-end gap-2">
             <div className="flex flex-col gap-2">
                 <button 
                     onClick={toggleSpeaking}
@@ -206,9 +211,51 @@ export default function Ler() {
             <button onClick={() => setShowSettings(!showSettings)} className={`${currentTheme.secondaryBg} ${currentTheme.border} ${currentTheme.text} p-3 rounded-full shadow-lg border hover:border-primary transition-all mt-2`}>
                 {showSettings ? <MdClose size={24} /> : <MdSettings size={24} />}
             </button>
+        </div>
 
-            {showSettings && (
-                <div className={`${currentTheme.secondaryBg} ${currentTheme.border} p-5 rounded-xl shadow-2xl w-72 animate-fade-in space-y-5 border`}>
+        {/* 2. VERSÃO MOBILE (Barra Fixa no Rodapé) */}
+        <div className={`md:hidden fixed bottom-0 left-0 w-full z-[100] border-t px-6 py-3 flex justify-between items-center safe-area-pb ${currentTheme.secondaryBg} ${currentTheme.border} shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]`}>
+            
+            <button 
+                onClick={toggleSpeaking}
+                className={`p-2 rounded-full transition-colors ${isSpeaking ? 'text-green-500 bg-green-500/10' : `${currentTheme.text}`}`}
+            >
+                {isSpeaking ? <MdStop size={28} /> : <MdVolumeUp size={28} />}
+            </button>
+
+            <button 
+                onClick={toggleAutoScroll}
+                className={`p-2 rounded-full transition-colors ${isAutoScrolling ? 'text-blue-500 bg-blue-500/10' : `${currentTheme.text}`}`}
+            >
+                {isAutoScrolling ? <MdPause size={28} /> : <MdAutorenew size={28} />}
+            </button>
+
+            <button 
+                onClick={() => setShowSettings(!showSettings)} 
+                className={`p-2 rounded-full transition-colors ${showSettings ? 'text-primary' : `${currentTheme.text}`}`}
+            >
+                {showSettings ? <MdClose size={28} /> : <MdSettings size={28} />}
+            </button>
+        </div>
+
+        {/* --- MENU DE CONFIGURAÇÕES (Comum a ambos) --- */}
+        {/* Ajustado para aparecer no centro/bottom no mobile e no lado no desktop */}
+        {showSettings && (
+            <>
+                {/* Mobile Overlay para fechar ao clicar fora */}
+                <div className="fixed inset-0 z-[101] bg-black/50 md:hidden" onClick={() => setShowSettings(false)}></div>
+
+                <div className={`
+                    fixed z-[102] 
+                    /* Mobile Styles */
+                    bottom-20 left-4 right-4 
+                    /* Desktop Styles */
+                    md:bottom-auto md:left-auto md:top-24 md:right-20 md:w-72 
+                    
+                    ${currentTheme.secondaryBg} ${currentTheme.border} p-5 rounded-xl shadow-2xl animate-fade-in space-y-5 border
+                `}>
+                    
+                    {/* Tema */}
                     <div>
                         <div className={`text-xs uppercase font-bold mb-2 flex items-center gap-2 ${currentTheme.text} opacity-70`}><MdColorLens /> Theme</div>
                         <div className="flex gap-2">
@@ -217,14 +264,18 @@ export default function Ler() {
                             ))}
                         </div>
                     </div>
+
+                    {/* Tamanho da Fonte */}
                     <div>
                         <div className={`flex justify-between text-xs uppercase font-bold mb-2 ${currentTheme.text} opacity-70`}><span>Size</span><span>{settings.fontSize}px</span></div>
                         <div className={`flex items-center gap-3 p-2 rounded-lg border ${currentTheme.bg} ${currentTheme.border}`}>
                             <MdFormatSize size={16} className={currentTheme.text} />
-                            <input type="range" min="14" max="32" step="1" value={settings.fontSize} onChange={(e) => updateSetting('fontSize', Number(e.target.value))} className="w-full accent-blue-500 h-1 rounded-lg appearance-none cursor-pointer" />
+                            <input type="range" min="14" max="28" step="1" value={settings.fontSize} onChange={(e) => updateSetting('fontSize', Number(e.target.value))} className="w-full accent-blue-500 h-1 rounded-lg appearance-none cursor-pointer" />
                             <MdFormatSize size={24} className={currentTheme.text} />
                         </div>
                     </div>
+
+                    {/* Fonte */}
                     <div>
                         <div className={`text-xs uppercase font-bold mb-2 flex items-center gap-2 ${currentTheme.text} opacity-70`}><MdTextFields /> Font</div>
                         <div className={`flex gap-2 p-1 rounded-lg border ${currentTheme.bg} ${currentTheme.border}`}>
@@ -233,32 +284,32 @@ export default function Ler() {
                             ))}
                         </div>
                     </div>
-                    <div>
+
+                    {/* Largura (Apenas Desktop) */}
+                    <div className="hidden md:block">
                         <div className={`text-xs uppercase font-bold mb-2 flex items-center gap-2 ${currentTheme.text} opacity-70`}><MdPhotoSizeSelectSmall /> Width</div>
                         <div className={`flex gap-2 p-1 rounded-lg border ${currentTheme.bg} ${currentTheme.border}`}>
-                            {[600, 800, 1200].map(w => (
-                                <button key={w} onClick={() => updateSetting('maxWidth', w)} className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${settings.maxWidth === w ? 'bg-blue-600 text-white' : `${currentTheme.text} hover:opacity-80`}`}>{w === 600 ? 'S' : w === 800 ? 'M' : 'L'}</button>
+                            {[
+                                { label: 'S', cls: 'max-w-lg' },
+                                { label: 'M', cls: 'max-w-2xl' }, 
+                                { label: 'L', cls: 'max-w-4xl' }
+                            ].map(w => (
+                                <button key={w.label} onClick={() => updateSetting('widthClass', w.cls)} className={`flex-1 py-1.5 rounded text-xs font-bold transition-all ${settings.widthClass === w.cls ? 'bg-blue-600 text-white' : `${currentTheme.text} hover:opacity-80`}`}>{w.label}</button>
                             ))}
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            </>
+        )}
 
-        <ReportModal 
-            isOpen={showReport} 
-            onClose={() => setShowReport(false)} 
-            targetId={id} 
-            targetType="chapter" 
-            targetName={capitulo.titulo} 
-        />
-
-        <div className={`mx-auto px-4 pt-8 transition-all duration-300 ease-in-out`} style={{ maxWidth: `${settings.maxWidth}px` }}>
+        {/* CONTAINER DO TEXTO */}
+        <div className={`mx-auto px-6 pt-12 transition-all duration-300 ease-in-out ${settings.widthClass}`}>
+            
             <Link to={`/obra/${capitulo.obraId}`} className={`inline-flex items-center gap-2 mb-8 font-medium transition-colors ${currentTheme.text} hover:text-blue-500 opacity-70 hover:opacity-100`}>
                 <MdArrowBack /> Back to Book
             </Link>
 
-            <h1 className={`text-3xl md:text-4xl font-bold text-center border-b pb-6 mb-8 ${currentTheme.text} ${currentTheme.border} font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}`}>
+            <h1 className={`text-3xl md:text-5xl font-bold text-center border-b border-white/5 pb-8 mb-10 ${currentTheme.title} font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}`}>
                 {capitulo.titulo}
             </h1>
 
@@ -267,16 +318,16 @@ export default function Ler() {
                 className={`
                     ${currentTheme.text} 
                     font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}
-                    selection:bg-blue-500/30
+                    selection:bg-blue-500/30 leading-relaxed
                 `}
                 style={{ fontSize: `${settings.fontSize}px`, lineHeight: settings.lineHeight }}
                 dangerouslySetInnerHTML={{ __html: cleanContent }} 
             />
 
-            <AdBanner className={`my-12 border-none bg-transparent`} />
+            <AdBanner className={`my-16 border-none bg-transparent`} />
 
             {cleanNote && (
-                <div className={`mt-12 border-l-4 border-blue-500 p-6 rounded-r-lg ${currentTheme.secondaryBg}`}>
+                <div className={`mt-16 border-l-4 border-blue-500 p-6 rounded-r-lg ${currentTheme.secondaryBg}`}>
                     <h4 className="text-blue-500 font-bold mb-2 text-sm uppercase tracking-wide">Author Note</h4>
                     <div className={`${currentTheme.text} italic text-sm`} dangerouslySetInnerHTML={{ __html: cleanNote }} />
                 </div>
@@ -291,9 +342,9 @@ export default function Ler() {
                 </button>
             </div>
 
-            <div className={`flex justify-between items-center mt-4 pt-8 border-t ${currentTheme.border}`}>
+            <div className={`flex justify-between items-center mt-8 pt-8 border-t ${currentTheme.border}`}>
                 {prevId ? (
-                    <Link to={`/ler/${prevId}`} className={`flex items-center gap-2 px-5 py-3 rounded-lg font-bold transition-all border ${currentTheme.secondaryBg} ${currentTheme.text} ${currentTheme.border} hover:border-blue-500`}>
+                    <Link to={`/ler/${prevId}`} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all border ${currentTheme.secondaryBg} ${currentTheme.text} ${currentTheme.border} hover:border-blue-500 hover:-translate-x-1`}>
                         <MdNavigateBefore size={24} /> <span className="hidden sm:inline">Prev</span>
                     </Link>
                 ) : ( <div className="w-24 opacity-0"></div> )}
@@ -308,13 +359,13 @@ export default function Ler() {
                 </Link>
 
                 {nextId ? (
-                    <Link to={`/ler/${nextId}`} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-all shadow-lg shadow-blue-500/20">
+                    <Link to={`/ler/${nextId}`} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3 rounded-lg font-bold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-1">
                         <span className="hidden sm:inline">Next</span> <MdNavigateNext size={24} />
                     </Link>
                 ) : ( <div className={`${currentTheme.text} font-medium w-24 text-right opacity-50`}>End</div> )}
             </div>
 
-            <div className="mt-16">
+            <div className="mt-20">
                 <Comentarios targetId={id} targetType="capitulo" targetAuthorId={capitulo.autorId} targetTitle={capitulo.titulo} />
             </div>
 

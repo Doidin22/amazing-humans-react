@@ -25,8 +25,9 @@ service cloud.firestore {
     // 1. USUÁRIOS
     match /usuarios/{userId} {
       allow read: if true;
+      // Impede o usuário de alterar seu próprio cargo (role)
       allow update: if isLoggedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'saldoInterno']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
       allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
@@ -52,11 +53,10 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
-    // 5. REVIEWS (NOVA REGRA CORRIGIDA)
+    // 5. REVIEWS
     match /reviews/{reviewId} {
       allow read: if true;
-      allow create: if isLoggedIn(); // Permite criar se estiver logado
-      // Permite deletar se for dono do review OU admin
+      allow create: if isLoggedIn(); 
       allow delete: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
@@ -65,7 +65,7 @@ service cloud.firestore {
     match /historico/{docId} { allow read, write: if isLoggedIn() && request.auth.uid == resource.data.userId; }
     match /notificacoes/{docId} { allow read, write: if isLoggedIn(); }
     match /biblioteca/{docId} { allow read, write: if isLoggedIn(); }
-    match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } // (Para o rating antigo, se ainda usar)
+    match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } 
     match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
     match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
   }
