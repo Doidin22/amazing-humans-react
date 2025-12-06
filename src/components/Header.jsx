@@ -6,17 +6,16 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdLogin, MdInfoOutline, MdPhoneIphone, MdSecurity 
+  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity, MdMonetizationOn 
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
 export default function Header() {
-  const { signed, user, logout } = useContext(AuthContext); // Removi isAdmin do destruct pois vamos usar user.role direto
+  const { signed, user, logout } = useContext(AuthContext); 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   const [notifCount, setNotifCount] = useState(0); 
   const [scrolled, setScrolled] = useState(false);
-  
   const [installPrompt, setInstallPrompt] = useState(null);
 
   const toggleDropdown = () => setShowDropdown(!showDropdown);
@@ -64,53 +63,43 @@ export default function Header() {
     }
   };
 
-  // Verificação direta de Admin
   const isUserAdmin = user?.role === 'admin';
 
   return (
     <>
-      {/* Mobile Drawer Overlay */}
-      {showDrawer && (
-        <div className="fixed inset-0 bg-black/60 z-[1000] backdrop-blur-sm transition-opacity" onClick={() => setShowDrawer(false)}></div>
-      )}
-
       {/* Mobile Drawer */}
+      {showDrawer && <div className="fixed inset-0 bg-black/60 z-[1000] backdrop-blur-sm" onClick={() => setShowDrawer(false)}></div>}
+      
       <div className={`fixed top-0 left-0 h-full w-72 bg-[#121212] border-r border-white/5 shadow-2xl z-[1001] transform transition-transform duration-300 ease-in-out ${showDrawer ? 'translate-x-0' : '-translate-x-full'} overflow-y-auto`}>
           <div className="flex justify-end p-4">
-             <button onClick={() => setShowDrawer(false)} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition">
-                <MdClose size={24} />
-             </button>
+             <button onClick={() => setShowDrawer(false)} className="p-2 text-gray-400 hover:text-white rounded-full hover:bg-white/10 transition"><MdClose size={24} /></button>
           </div>
 
           <div className="flex flex-col gap-1 p-4 pb-20">
-              
               <div className="mx-2 mb-6 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 shadow-inner">
-                  <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm">
-                      <MdPhoneIphone /> <span>Install App</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mb-3 leading-relaxed">Add to your home screen.</p>
+                  <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm"><MdPhoneIphone /> <span>Install App</span></div>
                   <button onClick={handleInstallClick} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg transition-all active:scale-95">Install Now</button>
               </div>
 
               {signed ? (
                 <>
-                    <div className="flex items-center gap-3 mb-6 p-3 bg-white/5 rounded-xl border border-white/5 mx-2">
-                        <img src={getAvatarUrl()} alt="User" className="w-10 h-10 rounded-full border border-primary object-cover" onError={(e) => handleImgError(e, 'avatar')} /> 
-                        <div className="overflow-hidden">
-                            <p className="text-white font-bold truncate text-sm">{user.name}</p>
-                            <p className="text-[10px] text-gray-500 uppercase">{user.role}</p>
+                    <div className="flex flex-col gap-2 mb-6 p-3 bg-white/5 rounded-xl border border-white/5 mx-2">
+                        <div className="flex items-center gap-3">
+                            <img src={getAvatarUrl()} alt="User" className="w-10 h-10 rounded-full border border-primary object-cover" onError={(e) => handleImgError(e, 'avatar')} /> 
+                            <div className="overflow-hidden">
+                                <p className="text-white font-bold truncate text-sm">{user.name}</p>
+                                <p className="text-[10px] text-yellow-500 font-bold uppercase">Lvl {user.level || 0}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-black/30 p-2 rounded text-xs text-yellow-400 font-bold border border-yellow-500/20 justify-center">
+                            <MdMonetizationOn /> {user.coins || 0} Coins
                         </div>
                     </div>
                     
-                    {/* BOTÃO ADMIN MOBILE */}
-                    {isUserAdmin && (
-                        <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg">
-                            <MdSecurity size={20} /> Admin Panel
-                        </Link>
-                    )}
+                    {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> Admin Panel</Link>}
 
                     <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> Home</Link>
-                    <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile</Link>
+                    <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile & Wallet</Link>
                     <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="drawer-link"><MdBookmarks size={20} /> Library</Link>
                     <Link to="/escrever" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Write</Link>
                     <Link to="/notificacoes" onClick={() => setShowDrawer(false)} className="drawer-link flex justify-between">
@@ -143,14 +132,18 @@ export default function Header() {
              </div>
 
              <div className="hidden lg:flex items-center gap-6">
-               <a href="https://buymeacoffee.com/rlokin222" target="_blank" className="flex items-center gap-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-4 py-1.5 rounded-full font-bold text-xs transition-all">
-                  <FaCoffee size={14} /> Support
-               </a>
+               <a href="https://buymeacoffee.com/rlokin222" target="_blank" className="flex items-center gap-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-4 py-1.5 rounded-full font-bold text-xs transition-all"><FaCoffee size={14} /> Support</a>
 
                {!signed ? (
                  <Link to="/login" className="bg-primary hover:bg-primary-dark text-white px-6 py-2 rounded-full font-bold transition text-sm shadow-lg shadow-primary/20">Login</Link>
                ) : (
                  <div className="flex items-center gap-6 border-l border-white/10 pl-6">
+                   
+                   {/* MOEDAS (DESKTOP) */}
+                   <div className="flex items-center gap-1 text-yellow-400 font-bold bg-white/5 px-3 py-1 rounded-full border border-white/10" title="Your Coins">
+                        <MdMonetizationOn /> {user.coins || 0}
+                   </div>
+
                    <Link to="/notificacoes" className="text-gray-400 hover:text-white relative transition-colors">
                      <MdNotifications size={24} />
                      {notifCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0a0a0a]"></span>}
@@ -166,14 +159,12 @@ export default function Header() {
                            <div className="absolute top-12 right-0 w-60 glass-panel rounded-xl py-2 flex flex-col z-50 animate-fade-in origin-top-right overflow-hidden" onMouseLeave={() => setShowDropdown(false)}>
                               <div className="px-4 py-3 border-b border-white/5 mb-1">
                                   <p className="text-white font-bold truncate text-sm">{user.name}</p>
-                                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role}</p>
+                                  <div className="flex justify-between items-center mt-1">
+                                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role}</p>
+                                      <p className="text-[10px] text-yellow-500 font-bold uppercase">Level {user.level || 0}</p>
+                                  </div>
                               </div>
-
-                              {/* BOTÃO ADMIN DESKTOP */}
-                              {isUserAdmin && (
-                                  <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> Admin Panel</Link>
-                              )}
-
+                              {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> Admin Panel</Link>}
                               <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> Dashboard</Link>
                               <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
                               <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
@@ -187,11 +178,7 @@ export default function Header() {
              </div>
          </div>
       </header>
-
-      <style>{`
-        .drawer-link { @apply flex items-center gap-3 text-gray-400 py-3 hover:text-white border-b border-white/5 transition-colors text-sm font-medium px-2; }
-        .dropdown-item { @apply px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors; }
-      `}</style>
+      <style>{`.drawer-link { @apply flex items-center gap-3 text-gray-400 py-3 hover:text-white border-b border-white/5 transition-colors text-sm font-medium px-2; } .dropdown-item { @apply px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors; }`}</style>
     </>
   );
 }

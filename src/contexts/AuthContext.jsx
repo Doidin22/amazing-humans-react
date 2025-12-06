@@ -20,12 +20,10 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
         
-        // Monitora o documento do usuário em tempo real
         const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), async (docSnap) => {
             if (docSnap.exists()) {
                 const dados = docSnap.data();
 
-                // --- SISTEMA DE BANIMENTO ---
                 if (dados.banned === true) {
                     toast.error("This account has been suspended.");
                     await signOut(auth);
@@ -42,17 +40,27 @@ export function AuthProvider({ children }) {
                     avatar: avatarFinal,
                     email: firebaseUser.email,
                     type: 'google',
-                    role: dados.role || 'user'
+                    role: dados.role || 'user',
+                    // Dados da Economia
+                    coins: dados.coins || 0,
+                    level: dados.level || 0,
+                    isAdFree: dados.isAdFree || false,
+                    isVip: dados.isVip || false,
+                    badges: dados.badges || [] // <--- NOVO
                 });
             } else {
-                // Usuário novo
+                // Novo usuário
                 setUser({
                     uid: uid,
                     name: firebaseUser.displayName || "Loading...",
                     avatar: firebaseUser.photoURL || generateAvatar(uid),
                     email: firebaseUser.email,
                     type: 'google',
-                    role: 'user'
+                    role: 'user',
+                    coins: 0,
+                    level: 0,
+                    isAdFree: false,
+                    badges: []
                 });
             }
             setLoadingAuth(false);
@@ -102,12 +110,14 @@ export function AuthProvider({ children }) {
     return user?.role === 'admin';
   }
 
-  function isVip() {
-    return false; 
+  function hasAds() {
+      if (!user) return true;
+      if (user.isAdFree || user.level >= 100 || user.isVip) return false;
+      return true;
   }
 
   return (
-    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isVip, isAdmin }}>
+    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isAdmin, hasAds }}>
       {children}
     </AuthContext.Provider>
   );

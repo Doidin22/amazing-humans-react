@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { db } from '../services/firebaseConnection';
-import { 
-  doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp 
-} from 'firebase/firestore';
+import { db, functions } from '../services/firebaseConnection';
+import { doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow
+  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdMonetizationOn, MdSend, MdVerified 
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
@@ -28,6 +27,9 @@ export default function Obra() {
   const [idBiblioteca, setIdBiblioteca] = useState(null);
   const [showReport, setShowReport] = useState(false);
   const [lastReadId, setLastReadId] = useState(null);
+  
+  const [voting, setVoting] = useState(false);
+  const [donationAmount, setDonationAmount] = useState(10); 
 
   useEffect(() => {
     async function loadObra() {
@@ -38,11 +40,15 @@ export default function Obra() {
 
         const dadosObra = { id: snapshot.id, ...snapshot.data() };
         
-        if (dadosObra.autorId && !dadosObra.autor) {
+        // Busca dados do autor (Nome e Badges)
+        if (dadosObra.autorId) {
             const userDoc = await getDoc(doc(db, "usuarios", dadosObra.autorId));
-            if (userDoc.exists()) dadosObra.autor = userDoc.data().nome;
+            if (userDoc.exists()) {
+                const uData = userDoc.data();
+                dadosObra.autor = uData.nome;
+                dadosObra.autorBadges = uData.badges || [];
+            }
         }
-
         setObra(dadosObra);
 
         const q = query(collection(db, "capitulos"), where("obraId", "==", id), orderBy("data", "asc"));
@@ -54,11 +60,8 @@ export default function Obra() {
         if (user?.uid) {
             const histRef = doc(db, "historico", `${user.uid}_${id}`);
             const histSnap = await getDoc(histRef);
-            if (histSnap.exists()) {
-                setLastReadId(histSnap.data().lastChapterId);
-            }
+            if (histSnap.exists()) { setLastReadId(histSnap.data().lastChapterId); }
         }
-
       } catch (error) { console.log(error); } finally { setLoading(false); }
     }
     loadObra();
@@ -69,13 +72,8 @@ export default function Obra() {
       if (!user?.uid || !id) return;
       const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid), where("obraId", "==", id));
       const snapLib = await getDocs(qLib);
-      if (!snapLib.empty) { 
-          setEstaNaBiblioteca(true); 
-          setIdBiblioteca(snapLib.docs[0].id); 
-      } else { 
-          setEstaNaBiblioteca(false); 
-          setIdBiblioteca(null); 
-      }
+      if (!snapLib.empty) { setEstaNaBiblioteca(true); setIdBiblioteca(snapLib.docs[0].id); } 
+      else { setEstaNaBiblioteca(false); setIdBiblioteca(null); }
     }
     checkLibrary();
   }, [id, user]);
@@ -98,72 +96,122 @@ export default function Obra() {
     } catch (error) { toast.error("Error updating library"); }
   }
 
-  if (loading) return <SkeletonObra />;
+  async function handleVote() {
+      if(!user) return toast.error("Login to vote.");
+      
+      const amount = parseInt(donationAmount);
+      if(!amount || amount < 1) return toast.error("Minimum donation is 1 coin.");
+      
+      if(user.coins < amount) return toast.error(`Insufficient coins. You have ${user.coins}.`);
+      if(obra.autorId === user.uid) return toast.error("You cannot donate to your own story.");
 
-  const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read this story on Amazing Humans.';
+      setVoting(true);
+      const voteFunc = httpsCallable(functions, 'voteStory');
+      const toastId = toast.loading(`Donating ${amount} coins...`);
+
+      try {
+          const result = await voteFunc({ obraId: id, amountCoins: amount });
+          
+          if(result.data.success) {
+              toast.success("Thank you for your support!", { id: toastId });
+              setObra(prev => ({ 
+                  ...prev, 
+                  monthly_coins: (prev.monthly_coins || 0) + amount,
+                  total_coins: (prev.total_coins || 0) + amount 
+              }));
+          } else {
+              toast.error(result.data.message || "Failed.", { id: toastId });
+          }
+      } catch(e) {
+          toast.error("Transaction failed.", { id: toastId });
+      } finally {
+          setVoting(false);
+      }
+  }
+
+  if (loading) return <SkeletonObra />;
+  const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read on Amazing Humans.';
+  
+  const isAuthor = user?.uid === obra.autorId;
 
   return (
     <div className="min-h-screen pb-20 relative">
         <Helmet>
             <title>{obra.titulo} | Amazing Humans</title>
             <meta name="description" content={cleanSinopse} />
-            <meta property="og:type" content="book" />
-            <meta property="og:title" content={obra.titulo} />
-            <meta property="og:description" content={cleanSinopse} />
-            <meta property="og:image" content={obra.capa || "/logo-ah.png"} />
-            <meta name="twitter:card" content="summary_large_image" />
-            <meta name="twitter:title" content={obra.titulo} />
-            <meta name="twitter:description" content={cleanSinopse} />
-            <meta name="twitter:image" content={obra.capa || "/logo-ah.png"} />
         </Helmet>
 
-        <ReportModal 
-            isOpen={showReport} 
-            onClose={() => setShowReport(false)} 
-            targetId={id} 
-            targetType="book" 
-            targetName={obra.titulo} 
-        />
+        <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} targetId={id} targetType="book" targetName={obra.titulo} />
 
         <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-primary/10 to-[#121212] blur-[100px] pointer-events-none z-0"></div>
 
         <div className="max-w-6xl mx-auto px-4 relative z-10 pt-10">
             <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-12">
                 
-                {/* CAPA COM FALLBACK PARA LOGO */}
+                {/* CAPA + DOAÇÃO */}
                 <div className="w-full md:w-64 lg:w-72 shrink-0 mx-auto md:mx-0">
                     <div className="relative aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 bg-[#222]">
-                        <img 
-                            src={obra.capa || '/logo-ah.png'} 
-                            className="w-full h-full object-cover" 
-                            alt={obra.titulo}
-                            onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }}
-                        />
+                        <img src={obra.capa || '/logo-ah.png'} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} alt={obra.titulo}/>
+                    </div>
+                    
+                    {/* WIDGET DOAÇÃO */}
+                    <div className="mt-4 p-4 bg-[#1f1f1f] rounded-xl border border-white/5 text-center">
+                        <p className="text-yellow-500 font-bold text-sm mb-2 flex items-center justify-center gap-1">
+                            <MdMonetizationOn size={18} /> {obra.monthly_coins || 0} Monthly Coins
+                        </p>
+                        
+                        {isAuthor ? (
+                            <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 text-xs p-2 rounded mt-2">
+                                You are the author. You cannot vote on your own story.
+                            </div>
+                        ) : (
+                            <>
+                                <p className="text-xs text-gray-500 mb-3">Support this story to help it win!</p>
+                                <div className="flex gap-2 justify-center items-center">
+                                    <input 
+                                        type="number" 
+                                        min="1"
+                                        value={donationAmount}
+                                        onChange={(e) => setDonationAmount(e.target.value)}
+                                        className="w-20 bg-[#121212] border border-[#333] text-white text-sm rounded-lg px-2 py-1.5 focus:border-yellow-500 outline-none text-center"
+                                        placeholder="10"
+                                    />
+                                    <button 
+                                        onClick={handleVote} 
+                                        disabled={voting} 
+                                        className="bg-yellow-600 hover:bg-yellow-500 text-white border border-yellow-500/50 px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-lg shadow-yellow-500/10 disabled:opacity-50"
+                                    >
+                                        <MdSend size={14} /> Donate
+                                    </button>
+                                </div>
+                                <p className="text-[10px] text-gray-600 mt-2">1 Coin = 1 Vote</p>
+                            </>
+                        )}
                     </div>
                 </div>
 
+                {/* INFO */}
                 <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-start">
                         <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">{obra.titulo}</h1>
-                        <button 
-                            onClick={() => setShowReport(true)}
-                            className="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-white/5 transition-colors"
-                            title="Report this book"
-                        >
-                            <MdFlag size={20} />
-                        </button>
+                        <button onClick={() => setShowReport(true)} className="text-gray-500 hover:text-red-500 p-2 rounded-full hover:bg-white/5 transition-colors" title="Report"><MdFlag size={20} /></button>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
-                        <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary"><MdPerson /> {obra.autor || "Unknown"}</Link>
+                        <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary transition-colors">
+                            <MdPerson /> 
+                            {obra.autor || "Unknown"}
+                            {/* EXIBE O SELO SE TIVER */}
+                            {obra.autorBadges?.includes('pioneer') && (
+                                <MdVerified className="text-yellow-400" title="Founder Author" />
+                            )}
+                        </Link>
                         <div className="flex items-center gap-1 text-yellow-500"><MdStar /> {(obra.rating || 0).toFixed(1)}</div>
                         <div className="flex items-center gap-1"><MdVisibility /> {obra.views || 0} Views</div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-4">
-                        {obra.categorias?.map((cat, i) => (
-                            <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs text-gray-300 font-bold uppercase">{cat}</span>
-                        ))}
+                        {obra.categorias?.map((cat, i) => (<span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs text-gray-300 font-bold uppercase">{cat}</span>))}
                     </div>
 
                     {obra.tags && obra.tags.length > 0 && (
@@ -188,50 +236,32 @@ export default function Obra() {
                                 <MdMenuBook /> {lastReadId ? "Continue Reading" : "Read Now"}
                             </Link>
                         )}
-
                         <button onClick={toggleBiblioteca} className={`px-6 py-2.5 rounded-full font-bold flex items-center gap-2 border-2 transition ${estaNaBiblioteca ? 'border-red-500 text-red-500' : 'border-gray-600 text-gray-300'}`}>
                             {estaNaBiblioteca ? <><MdBookmarkAdded /> Library</> : <><MdBookmarkBorder /> Add</>}
                         </button>
-                        
-                        {user?.uid === obra.autorId && (
-                            <Link to={`/editar-obra/${obra.id}`} className="ml-auto hidden md:flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition"><MdEdit /> Edit</Link>
-                        )}
+                        {isAuthor && <Link to={`/editar-obra/${obra.id}`} className="ml-auto hidden md:flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition"><MdEdit /> Edit</Link>}
                     </div>
                 </div>
             </div>
 
             <div className="mt-16">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><MdList className="text-primary" /> Chapters</h3>
-                
                 <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
                     {capitulos.map((cap, i) => {
                         const isLastRead = cap.id === lastReadId;
                         return (
-                            <Link 
-                                to={`/ler/${cap.id}`} 
-                                key={cap.id} 
-                                className={`flex items-center justify-between p-4 hover:bg-white/5 transition group ${isLastRead ? 'bg-primary/10 border-l-4 border-primary' : ''}`}
-                            >
+                            <Link to={`/ler/${cap.id}`} key={cap.id} className={`flex items-center justify-between p-4 hover:bg-white/5 transition group ${isLastRead ? 'bg-primary/10 border-l-4 border-primary' : ''}`}>
                                 <div className="flex items-center gap-4">
                                     <span className={`text-xs w-6 text-center ${isLastRead ? 'text-primary font-bold' : 'text-gray-600'}`}>#{i + 1}</span>
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <span className={`${isLastRead ? 'text-primary font-bold' : 'text-gray-200 group-hover:text-primary'}`}>
-                                                {cap.titulo}
-                                            </span>
-                                            {isLastRead && (
-                                                <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                                                    <MdVisibility /> Last Read
-                                                </span>
-                                            )}
+                                            <span className={`${isLastRead ? 'text-primary font-bold' : 'text-gray-200 group-hover:text-primary'}`}>{cap.titulo}</span>
+                                            {isLastRead && <span className="text-[10px] bg-primary text-white px-2 py-0.5 rounded-full font-bold flex items-center gap-1"><MdVisibility /> Last Read</span>}
                                         </div>
                                     </div>
                                 </div>
-                                
                                 <div className="flex items-center gap-4">
-                                    <span className="text-sm text-gray-500 hidden sm:block">
-                                        {cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}
-                                    </span>
+                                    <span className="text-sm text-gray-500 hidden sm:block">{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : '-'}</span>
                                     {isLastRead && <MdPlayArrow className="text-primary" />}
                                 </div>
                             </Link>

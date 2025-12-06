@@ -239,7 +239,6 @@ export default function Ler() {
         </div>
 
         {/* --- MENU DE CONFIGURAÇÕES (Comum a ambos) --- */}
-        {/* Ajustado para aparecer no centro/bottom no mobile e no lado no desktop */}
         {showSettings && (
             <>
                 {/* Mobile Overlay para fechar ao clicar fora */}
@@ -313,6 +312,7 @@ export default function Ler() {
                 {capitulo.titulo}
             </h1>
 
+            {/* CONTEÚDO DO CAPÍTULO */}
             <div 
                 id="chapter-content"
                 className={`
@@ -324,8 +324,7 @@ export default function Ler() {
                 dangerouslySetInnerHTML={{ __html: cleanContent }} 
             />
 
-            <AdBanner className={`my-16 border-none bg-transparent`} />
-
+            {/* 1. NOTA DO AUTOR (Se houver, aparece PRIMEIRO) */}
             {cleanNote && (
                 <div className={`mt-16 border-l-4 border-blue-500 p-6 rounded-r-lg ${currentTheme.secondaryBg}`}>
                     <h4 className="text-blue-500 font-bold mb-2 text-sm uppercase tracking-wide">Author Note</h4>
@@ -333,6 +332,11 @@ export default function Ler() {
                 </div>
             )}
 
+            {/* 2. ANÚNCIO (AGORA ABAIXO DA NOTA - POSIÇÃO ESTRATÉGICA) */}
+            {/* Margem superior grande para não colar no texto, mas perto da navegação */}
+            <AdBanner className={`mt-16 mb-8 border-none bg-transparent`} />
+
+            {/* REPORTAR */}
             <div className="flex justify-end mt-4 mb-2">
                 <button 
                     onClick={() => setShowReport(true)}
@@ -342,6 +346,7 @@ export default function Ler() {
                 </button>
             </div>
 
+            {/* NAVEGAÇÃO (BOTÕES PRÓXIMO/ANTERIOR) */}
             <div className={`flex justify-between items-center mt-8 pt-8 border-t ${currentTheme.border}`}>
                 {prevId ? (
                     <Link to={`/ler/${prevId}`} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all border ${currentTheme.secondaryBg} ${currentTheme.text} ${currentTheme.border} hover:border-blue-500 hover:-translate-x-1`}>
