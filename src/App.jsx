@@ -1,46 +1,69 @@
+import { useEffect, Suspense, lazy } from 'react'; // Adicione Suspense e lazy
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
 
-// Páginas Principais
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Obra from './pages/Obra';
-import Ler from './pages/Ler';
-import Dashboard from './pages/Dashboard';
-import Escrever from './pages/Escrever';
-import Perfil from './pages/Perfil';
-import PerfilPublico from './pages/PerfilPublico';
-import Biblioteca from './pages/Biblioteca';
-import Historico from './pages/Historico';
-import Notificacoes from './pages/Notificacoes';
-import HowItWorks from './pages/HowItWorks';
-import Admin from './pages/Admin';
+// --- IMPORTS DINÂMICOS (LAZY LOADING) ---
+// Substitua os imports estáticos por estes:
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const Obra = lazy(() => import('./pages/Obra'));
+const Ler = lazy(() => import('./pages/Ler'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Escrever = lazy(() => import('./pages/Escrever'));
+const Perfil = lazy(() => import('./pages/Perfil'));
+const PerfilPublico = lazy(() => import('./pages/PerfilPublico'));
+const Biblioteca = lazy(() => import('./pages/Biblioteca'));
+const Historico = lazy(() => import('./pages/Historico'));
+const Notificacoes = lazy(() => import('./pages/Notificacoes'));
+const HowItWorks = lazy(() => import('./pages/HowItWorks'));
+const Admin = lazy(() => import('./pages/Admin'));
+const EditarObra = lazy(() => import('./pages/EditarObra'));
+const EditarCapitulo = lazy(() => import('./pages/EditarCapitulo'));
+const Assinatura = lazy(() => import('./pages/Assinatura'));
+const Terms = lazy(() => import('./pages/Terms'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const Manutencao = lazy(() => import('./pages/Manutencao'));
+const Sorteio = lazy(() => import('./pages/Sorteio'));
 
-// Páginas de Edição
-import EditarObra from './pages/EditarObra';
-import EditarCapitulo from './pages/EditarCapitulo';
-
-// Assinatura
-import Assinatura from './pages/Assinatura';
-
-// Páginas Legais
-import Terms from './pages/Terms';
-import Privacy from './pages/Privacy';
-
-// Página de Manutenção (Novo Import)
-import Manutencao from './pages/Manutencao';
+// Componente de Loading Simples para a troca de página
+const LoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-[#121212]">
+    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
 
 function App() {
-  // --- CONTROLE DE MANUTENÇÃO ---
-  // Mude para TRUE quando quiser "fechar" o site para atualizações.
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      r && setInterval(() => {
+        r.update();
+        console.log('[PWA] Verificando atualizações...');
+      }, 60 * 60 * 1000); 
+    },
+  });
+
+  useEffect(() => {
+    if (needRefresh) {
+      updateServiceWorker(true);
+    }
+  }, [needRefresh, updateServiceWorker]);
+
   const EM_MANUTENCAO = false; 
 
   if (EM_MANUTENCAO) {
-    return <Manutencao />;
+    return (
+      <Suspense fallback={<div className="bg-[#121212] h-screen" />}>
+        <Manutencao />
+      </Suspense>
+    );
   }
 
   return (
@@ -51,44 +74,36 @@ function App() {
         <Toaster 
           position="top-center" 
           toastOptions={{
-            style: {
-              background: '#333',
-              color: '#fff',
-              border: '1px solid #4a90e2',
-            },
-            success: {
-              iconTheme: {
-                primary: '#4a90e2',
-                secondary: '#fff',
-              },
-            },
+            style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' },
+            success: { iconTheme: { primary: '#4a90e2', secondary: '#fff' } },
           }}
         />
 
-        <main>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/obra/:id" element={<Obra />} />
-            <Route path="/ler/:id" element={<Ler />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/escrever" element={<Escrever />} />
-            <Route path="/perfil" element={<Perfil />} />
-            <Route path="/usuario/:id" element={<PerfilPublico />} />
-            <Route path="/biblioteca" element={<Biblioteca />} />
-            <Route path="/historico" element={<Historico />} />
-            <Route path="/notificacoes" element={<Notificacoes />} />
-            <Route path="/how-it-works" element={<HowItWorks />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* Rota de Assinatura */}
-            <Route path="/assinatura" element={<Assinatura />} />
-            
-            <Route path="/editar-obra/:id" element={<EditarObra />} />
-            <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
-            
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-          </Routes>
+        <main className="min-h-screen">
+          {/* Envolva as rotas com Suspense */}
+          <Suspense fallback={<LoadingFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/obra/:id" element={<Obra />} />
+              <Route path="/ler/:id" element={<Ler />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/escrever" element={<Escrever />} />
+              <Route path="/perfil" element={<Perfil />} />
+              <Route path="/usuario/:id" element={<PerfilPublico />} />
+              <Route path="/biblioteca" element={<Biblioteca />} />
+              <Route path="/historico" element={<Historico />} />
+              <Route path="/notificacoes" element={<Notificacoes />} />
+              <Route path="/how-it-works" element={<HowItWorks />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/assinatura" element={<Assinatura />} />
+              <Route path="/editar-obra/:id" element={<EditarObra />} />
+              <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/sorteio" element={<Sorteio />} />
+            </Routes>
+          </Suspense>
         </main>
 
         <Footer />

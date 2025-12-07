@@ -41,15 +41,17 @@ export function AuthProvider({ children }) {
                     email: firebaseUser.email,
                     type: 'google',
                     role: dados.role || 'user',
-                    // Dados da Economia
                     coins: dados.coins || 0,
                     level: dados.level || 0,
                     isAdFree: dados.isAdFree || false,
                     isVip: dados.isVip || false,
-                    badges: dados.badges || [] // <--- NOVO
+                    badges: dados.badges || [],
+                    
+                    // --- GARANTINDO QUE OS NÚMEROS SEJAM LIDOS ---
+                    followersCount: dados.followersCount || 0,
+                    followingCount: dados.followingCount || 0
                 });
             } else {
-                // Novo usuário
                 setUser({
                     uid: uid,
                     name: firebaseUser.displayName || "Loading...",
@@ -60,7 +62,9 @@ export function AuthProvider({ children }) {
                     coins: 0,
                     level: 0,
                     isAdFree: false,
-                    badges: []
+                    badges: [],
+                    followersCount: 0,
+                    followingCount: 0
                 });
             }
             setLoadingAuth(false);
@@ -83,7 +87,6 @@ export function AuthProvider({ children }) {
       if(result.user) {
           const uid = result.user.uid;
           const userRef = doc(db, "usuarios", uid);
-          
           await setDoc(userRef, {
               uid: uid,
               nome: result.user.displayName,

@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { MdSearch, MdList, MdAutoAwesome, MdCheck } from 'react-icons/md';
+import { collection, query, where, orderBy, limit, getDocs, startAfter } from 'firebase/firestore';
+import { MdSearch, MdList, MdAutoAwesome, MdCheck, MdExpandMore } from 'react-icons/md';
 import StoryCard from '../components/StoryCard';
 import SkeletonCard from '../components/SkeletonCard';
 import Recomendacoes from '../components/Recomendacoes';
@@ -12,20 +12,29 @@ import { Helmet } from 'react-helmet-async';
 
 export default function Home() {
   const { user } = useContext(AuthContext);
+  
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false); // Estado para o botão "Carregar Mais"
   const [searchTerm, setSearchTerm] = useState('');
   
   const [category, setCategory] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   
   const [lastTags, setLastTags] = useState([]);
+  
+  // Paginação
+  const [lastDoc, setLastDoc] = useState(null); // Cursor para o Firestore saber onde parou
+  const [hasMore, setHasMore] = useState(true); // Se tem mais itens para carregar
+
+  const ITEMS_PER_PAGE = 12; // Limite baixo para economizar leituras
 
   const categoriesList = [
       "All", "Fantasy", "Sci-Fi", "Romance", "Horror", 
       "Adventure", "RPG", "Mystery", "Action", "Isekai", "FanFic"
   ];
 
+  // 1. Carregar Histórico do Usuário (Mantido, pois já usa limit 1)
   useEffect(() => {
     async function fetchUserHistory() {
       if (!user?.uid) return;
@@ -44,83 +53,110 @@ export default function Home() {
     fetchUserHistory();
   }, [user]);
 
-  // --- NOVA LÓGICA DE BUSCA (Debounce + Firestore Query) ---
+  // 2. Função Principal de Busca e Carregamento
   useEffect(() => {
-    const delayDebounce = setTimeout(async () => {
-      setLoading(true);
-      const storiesRef = collection(db, "obras");
-      
-      try {
-        let lista = [];
+    // Debounce para evitar muitas consultas enquanto digita
+    const delayDebounce = setTimeout(() => {
+        loadStories(true); // True = Resetar lista (nova busca)
+    }, 500);
 
-        // CASO 1: TEM TERMO DE BUSCA (Pesquisa no Banco)
+    return () => clearTimeout(delayDebounce);
+  }, [searchTerm, category]);
+
+  async function loadStories(isNewSearch = false) {
+      if (isNewSearch) {
+          setLoading(true);
+          setStories([]);
+          setLastDoc(null);
+          setHasMore(true);
+      } else {
+          setLoadingMore(true);
+      }
+
+      const storiesRef = collection(db, "obras");
+      let q;
+
+      try {
+        // CENÁRIO A: BUSCA POR TERMO (Título ou Tag)
+        // Nota: Busca complexa com paginação é difícil no NoSQL sem serviços externos (Algolia/Typesense).
+        // Aqui mantemos limit(20) fixo para busca textual para economizar e simplificar.
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase().trim();
             
-            // Busca por Título (Prefixo)
-            // Ex: Digitar "Har" encontra "Harry Potter"
-            const qTitle = query(
-                storiesRef, 
-                where("status", "==", "public"),
-                where("tituloBusca", ">=", term),
-                where("tituloBusca", "<=", term + "\uf8ff"),
-                limit(20)
-            );
+            // Busca Dupla (Título e Tags)
+            const qTitle = query(storiesRef, where("status", "==", "public"), where("tituloBusca", ">=", term), where("tituloBusca", "<=", term + "\uf8ff"), limit(20));
+            const qTags = query(storiesRef, where("status", "==", "public"), where("tags", "array-contains", term), limit(20));
 
-            // Busca por Tags (Exata)
-            // Ex: Digitar "Fantasy" encontra livros com a tag "Fantasy"
-            const qTags = query(
-                storiesRef,
-                where("status", "==", "public"),
-                where("tags", "array-contains", term),
-                limit(20)
-            );
+            const [snapTitle, snapTags] = await Promise.all([getDocs(qTitle), getDocs(qTags)]);
 
-            // Executa as duas buscas em paralelo
-            const [snapTitle, snapTags] = await Promise.all([
-                getDocs(qTitle),
-                getDocs(qTags)
-            ]);
-
-            // Junta os resultados sem duplicatas (usando Map pelo ID)
             const resultadosUnicos = new Map();
             snapTitle.forEach(doc => resultadosUnicos.set(doc.id, { id: doc.id, ...doc.data() }));
             snapTags.forEach(doc => resultadosUnicos.set(doc.id, { id: doc.id, ...doc.data() }));
 
-            lista = Array.from(resultadosUnicos.values());
+            let lista = Array.from(resultadosUnicos.values());
+
+            // Filtro de Categoria Client-Side (apenas para busca textual)
+            if (category && category !== "All") {
+                lista = lista.filter(item => item.categorias && item.categorias.includes(category));
+            }
+
+            setStories(lista);
+            setHasMore(false); // Desativa "Load More" na busca textual para simplificar
 
         } else {
-            // CASO 2: SEM BUSCA (Carrega os últimos 20)
-            const q = query(
-                storiesRef, 
-                where("status", "==", "public"), 
-                orderBy("dataCriacao", "desc"), 
-                limit(20)
-            );
+            // CENÁRIO B: FEED NORMAL (Com Paginação Otimizada)
+            let constraints = [
+                where("status", "==", "public"),
+                orderBy("dataCriacao", "desc"),
+                limit(ITEMS_PER_PAGE)
+            ];
+
+            // Filtro de Categoria Server-Side (Se não for "All")
+            if (category && category !== "All") {
+                // Adiciona filtro se categoria selecionada
+                // Nota: Requer índice "status + categorias + dataCriacao"
+                constraints = [
+                    where("status", "==", "public"),
+                    where("categorias", "array-contains", category), 
+                    orderBy("dataCriacao", "desc"),
+                    limit(ITEMS_PER_PAGE)
+                ];
+            }
+
+            // Se for "Carregar Mais", começa depois do último doc
+            if (!isNewSearch && lastDoc) {
+                constraints.push(startAfter(lastDoc));
+            }
+
+            q = query(storiesRef, ...constraints);
             const querySnapshot = await getDocs(q);
+
+            const lista = [];
             querySnapshot.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
+
+            // Atualiza cursor
+            const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+            setLastDoc(lastVisible);
+
+            // Verifica se acabou
+            if (querySnapshot.docs.length < ITEMS_PER_PAGE) {
+                setHasMore(false);
+            }
+
+            if (isNewSearch) {
+                setStories(lista);
+            } else {
+                setStories(prev => [...prev, ...lista]);
+            }
         }
-        
-        // Aplica o filtro de Categoria no resultado (Client-Side)
-        const listaFiltrada = lista.filter(item => {
-            const matchCat = (category && category !== "All") 
-                ? (item.categorias && item.categorias.includes(category)) 
-                : true;
-            return matchCat;
-        });
-        
-        setStories(listaFiltrada);
 
-      } catch (error) { 
-          console.error("Error searching:", error); 
-          // Se der erro de índice, avisa no console
-      } finally { 
-          setLoading(false); 
+      } catch (error) {
+          console.error("Erro ao buscar:", error);
+      } finally {
+          setLoading(false);
+          setLoadingMore(false);
       }
-    }, 500); // Espera 500ms o usuário parar de digitar antes de buscar
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchTerm, category]);
+  }
 
   return (
     <div className="pb-20 max-w-[1200px] mx-auto px-4" onClick={() => setShowFilter(false)}>
@@ -128,8 +164,6 @@ export default function Home() {
       <Helmet>
         <title>Amazing Humans | Read & Write Stories</title>
         <meta name="description" content="A sanctuary for imagination. Read thousands of stories for free." />
-        <meta property="og:title" content="Amazing Humans | Read & Write Stories" />
-        <meta property="og:image" content="/logo-ah.png" />
       </Helmet>
 
       <div className="mt-6">
@@ -168,7 +202,7 @@ export default function Home() {
                 </button>
 
                 {showFilter && (
-                    <div className="absolute right-0 top-12 w-48 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in origin-top-right">
+                    <div className="absolute right-0 top-12 w-48 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in origin-top-right max-h-60 overflow-y-auto">
                         <div className="px-4 py-2 border-b border-[#333] mb-1">
                             <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Select Category</span>
                         </div>
@@ -208,14 +242,14 @@ export default function Home() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8 place-items-start">
         {loading ? (
-            Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)
+            Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <SkeletonCard key={i} />)
         ) : (
             stories.length === 0 ? ( 
                 <div className="col-span-full w-full py-16 bg-[#1f1f1f] border border-[#333] rounded-lg text-center flex flex-col items-center justify-center gap-3">
                     <MdSearch size={40} className="text-gray-600" />
                     <p className="text-gray-400 font-medium">No stories found.</p>
-                    {category && (
-                        <button onClick={() => setCategory('')} className="text-primary text-sm hover:underline">Clear Filters</button>
+                    {(category || searchTerm) && (
+                        <button onClick={() => { setCategory(''); setSearchTerm(''); }} className="text-primary text-sm hover:underline">Clear Filters</button>
                     )}
                 </div>
             ) : (
@@ -227,6 +261,19 @@ export default function Home() {
             )
         )}
       </div>
+
+      {/* Botão Carregar Mais (Otimizado) */}
+      {!loading && hasMore && !searchTerm && (
+          <div className="mt-12 flex justify-center">
+              <button 
+                onClick={() => loadStories(false)} 
+                disabled={loadingMore}
+                className="px-8 py-3 bg-[#1f1f1f] hover:bg-[#252525] border border-[#333] rounded-full text-white font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                  {loadingMore ? 'Loading...' : <>Load More <MdExpandMore size={20} /></>}
+              </button>
+          </div>
+      )}
 
     </div>
   );

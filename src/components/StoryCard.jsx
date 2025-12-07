@@ -18,6 +18,7 @@ export default function StoryCard({ data }) {
         <img 
           src={capaUrl} 
           alt={data.titulo} 
+          loading="lazy" // <--- OTIMIZAÇÃO AQUI
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} 
         />

@@ -3,11 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
+"scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && firebase deploy && echo \"\n✅ Deploy Concluído! Acesse: https://amazinghumans.com.br\n\""
   },
   "dependencies": {
     "@tinymce/tinymce-react": "^6.3.0",

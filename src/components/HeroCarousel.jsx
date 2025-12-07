@@ -56,7 +56,7 @@ export default function HeroCarousel() {
         {/* Fallback se não tiver capa */}
         {!hasCover && (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20">
-                <img src="/logo-ah.png" alt="Logo" className="w-32 opacity-10 grayscale" />
+                <img src="/logo-ah.png" loading="lazy" alt="Logo" className="w-32 opacity-10 grayscale" />
             </div>
         )}
         
@@ -72,6 +72,7 @@ export default function HeroCarousel() {
         <div className="hidden md:block w-48 aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 relative z-10 shrink-0 transform group-hover:-translate-y-2 transition-transform duration-500 bg-[#222]">
             <img 
                 src={hasCover ? item.capa : '/logo-ah.png'} 
+                loading="lazy" // <--- OTIMIZAÇÃO AQUI
                 className={`w-full h-full object-cover ${!hasCover ? 'p-8 opacity-50' : ''}`}
                 alt={item.titulo}
                 onError={(e) => { e.target.src = '/logo-ah.png'; e.target.classList.add('p-8', 'opacity-50'); }}

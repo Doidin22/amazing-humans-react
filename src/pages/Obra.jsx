@@ -6,7 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdMonetizationOn, MdSend, MdVerified 
+  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdMonetizationOn, MdSend, MdVerified, MdBlock 
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
@@ -40,7 +40,6 @@ export default function Obra() {
 
         const dadosObra = { id: snapshot.id, ...snapshot.data() };
         
-        // Busca dados do autor (Nome e Badges)
         if (dadosObra.autorId) {
             const userDoc = await getDoc(doc(db, "usuarios", dadosObra.autorId));
             if (userDoc.exists()) {
@@ -129,10 +128,12 @@ export default function Obra() {
       }
   }
 
+  // Verifica se é fanfic (case insensitive)
+  const isFanfic = obra?.categorias?.some(c => c.toLowerCase() === 'fanfic') || obra?.tags?.some(t => t.toLowerCase() === 'fanfic');
+  const isAuthor = user?.uid === obra?.autorId;
+
   if (loading) return <SkeletonObra />;
   const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read on Amazing Humans.';
-  
-  const isAuthor = user?.uid === obra.autorId;
 
   return (
     <div className="min-h-screen pb-20 relative">
@@ -148,19 +149,25 @@ export default function Obra() {
         <div className="max-w-6xl mx-auto px-4 relative z-10 pt-10">
             <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-12">
                 
-                {/* CAPA + DOAÇÃO */}
+                {/* CAPA + PAINEL DE DOAÇÃO */}
                 <div className="w-full md:w-64 lg:w-72 shrink-0 mx-auto md:mx-0">
                     <div className="relative aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 bg-[#222]">
                         <img src={obra.capa || '/logo-ah.png'} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} alt={obra.titulo}/>
                     </div>
                     
-                    {/* WIDGET DOAÇÃO */}
+                    {/* WIDGET DOAÇÃO (COM LÓGICA DE FANFIC) */}
                     <div className="mt-4 p-4 bg-[#1f1f1f] rounded-xl border border-white/5 text-center">
                         <p className="text-yellow-500 font-bold text-sm mb-2 flex items-center justify-center gap-1">
                             <MdMonetizationOn size={18} /> {obra.monthly_coins || 0} Monthly Coins
                         </p>
                         
-                        {isAuthor ? (
+                        {isFanfic ? (
+                            <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-xs p-3 rounded mt-2 flex flex-col items-center gap-1">
+                                <MdBlock size={18} />
+                                <span className="font-bold">Monetization Disabled</span>
+                                <span className="text-[10px] opacity-70">Fanfics cannot receive coins due to copyright rules.</span>
+                            </div>
+                        ) : isAuthor ? (
                             <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 text-xs p-2 rounded mt-2">
                                 You are the author. You cannot vote on your own story.
                             </div>
@@ -190,7 +197,7 @@ export default function Obra() {
                     </div>
                 </div>
 
-                {/* INFO */}
+                {/* INFO DA OBRA */}
                 <div className="flex-1 flex flex-col">
                     <div className="flex justify-between items-start">
                         <h1 className="text-3xl md:text-5xl font-serif font-bold text-white mb-3 leading-tight">{obra.titulo}</h1>
@@ -201,7 +208,6 @@ export default function Obra() {
                         <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary transition-colors">
                             <MdPerson /> 
                             {obra.autor || "Unknown"}
-                            {/* EXIBE O SELO SE TIVER */}
                             {obra.autorBadges?.includes('pioneer') && (
                                 <MdVerified className="text-yellow-400" title="Founder Author" />
                             )}
@@ -244,6 +250,7 @@ export default function Obra() {
                 </div>
             </div>
 
+            {/* LISTA DE CAPÍTULOS */}
             <div className="mt-16">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><MdList className="text-primary" /> Chapters</h3>
                 <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">

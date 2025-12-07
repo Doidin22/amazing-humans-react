@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity, MdMonetizationOn 
+  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity, MdMonetizationOn, MdCasino 
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
@@ -102,6 +102,12 @@ export default function Header() {
                     <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile & Wallet</Link>
                     <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="drawer-link"><MdBookmarks size={20} /> Library</Link>
                     <Link to="/escrever" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Write</Link>
+                    
+                    {/* LINK NOVO: SORTEIO (MOBILE) */}
+                    <Link to="/sorteio" onClick={() => setShowDrawer(false)} className="drawer-link text-yellow-500">
+                        <MdCasino size={20} /> Monthly Lottery
+                    </Link>
+
                     <Link to="/notificacoes" onClick={() => setShowDrawer(false)} className="drawer-link flex justify-between">
                         <span className="flex items-center gap-3"><MdNotifications size={20} /> Notifications</span>
                         {notifCount > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{notifCount}</span>}
@@ -168,6 +174,12 @@ export default function Header() {
                               <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> Dashboard</Link>
                               <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
                               <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
+                              
+                              {/* LINK NOVO: SORTEIO (DESKTOP) */}
+                              <Link to="/sorteio" className="dropdown-item text-yellow-400 hover:bg-yellow-500/10">
+                                  <MdCasino /> Lottery
+                              </Link>
+
                               <div className="h-px bg-white/5 my-1"></div>
                               <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> Logout</button>
                            </div>
