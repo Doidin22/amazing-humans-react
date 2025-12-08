@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react'; // Adicione Suspense e lazy
+import { useEffect, Suspense, lazy } from 'react'; 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -6,9 +6,9 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 
 // --- IMPORTS DINÂMICOS (LAZY LOADING) ---
-// Substitua os imports estáticos por estes:
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
 const Obra = lazy(() => import('./pages/Obra'));
@@ -24,13 +24,10 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Admin = lazy(() => import('./pages/Admin'));
 const EditarObra = lazy(() => import('./pages/EditarObra'));
 const EditarCapitulo = lazy(() => import('./pages/EditarCapitulo'));
-const Assinatura = lazy(() => import('./pages/Assinatura'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Manutencao = lazy(() => import('./pages/Manutencao'));
-const Sorteio = lazy(() => import('./pages/Sorteio'));
 
-// Componente de Loading Simples para a troca de página
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#121212]">
     <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -42,14 +39,18 @@ function App() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegisteredSW(swUrl, r) {
+    onRegistered(r) {
+      // Checa por atualizações a cada hora
       r && setInterval(() => {
         r.update();
-        console.log('[PWA] Verificando atualizações...');
-      }, 60 * 60 * 1000); 
+      }, 60 * 60 * 1000);
+    },
+    onRegisterError(error) {
+      console.log('SW registration error', error);
     },
   });
 
+  // Se o plugin detectar necessidade de refresh (raro com autoUpdate, mas possível), atualiza
   useEffect(() => {
     if (needRefresh) {
       updateServiceWorker(true);
@@ -69,6 +70,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <ScrollToTop />
         <Header />
         
         <Toaster 
@@ -80,7 +82,6 @@ function App() {
         />
 
         <main className="min-h-screen">
-          {/* Envolva as rotas com Suspense */}
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/" element={<Home />} />
@@ -96,12 +97,10 @@ function App() {
               <Route path="/notificacoes" element={<Notificacoes />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/admin" element={<Admin />} />
-              <Route path="/assinatura" element={<Assinatura />} />
               <Route path="/editar-obra/:id" element={<EditarObra />} />
               <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
-              <Route path="/sorteio" element={<Sorteio />} />
             </Routes>
           </Suspense>
         </main>

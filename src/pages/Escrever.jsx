@@ -6,7 +6,6 @@ import {
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-// Adicionei MdInfoOutline e MdWarning nos imports
 import { MdEdit, MdBook, MdCheckCircle, MdCancel, MdClose, MdInfoOutline, MdWarning } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
@@ -33,6 +32,7 @@ export default function Escrever() {
   const [notaAutor, setNotaAutor] = useState('');
   const [loadingPost, setLoadingPost] = useState(false);
 
+  // Lista fixa de categorias
   const genresList = ['Fantasy','Sci-Fi','Romance','Horror','Adventure','RPG','Mystery','Action','Isekai','FanFic'];
 
   useEffect(() => {
@@ -90,6 +90,14 @@ export default function Escrever() {
     } catch (error) { console.error("Error notifying:", error); }
   }
 
+  // --- FUNÇÃO AUXILIAR PARA CONTAR PALAVRAS ---
+  function countWords(htmlString) {
+      if (!htmlString) return 0;
+      // Remove tags HTML e substitui múltiplos espaços por um único
+      const text = htmlString.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      return text.length === 0 ? 0 : text.split(' ').length;
+  }
+
   async function handlePublicar() {
     if (!user) return toast.error("You must be logged in!");
     
@@ -100,6 +108,15 @@ export default function Escrever() {
     }
     
     if(!tituloCapitulo || !conteudo) return toast.error("Please fill in Chapter Title and Content.");
+    
+    // --- VALIDAÇÃO DE PALAVRAS (NOVA REGRA) ---
+    const wordCount = countWords(conteudo);
+    if (wordCount < 500) {
+        return toast.error(`Chapter too short! Minimum 500 words required. (Current: ${wordCount})`);
+    }
+    if (wordCount > 15000) {
+        return toast.error(`Chapter too long! Maximum 15,000 words allowed. (Current: ${wordCount})`);
+    }
     
     setLoadingPost(true);
     const toastId = toast.loading("Publishing...");
@@ -120,11 +137,7 @@ export default function Escrever() {
                 dataCriacao: serverTimestamp(), 
                 tituloBusca: tituloObra.toLowerCase(), 
                 views: 0, rating: 0, votes: 0, 
-                status: 'public',
-                
-                // Sem campos de preço/premium
-                tipo: 'free',
-                preco: 0
+                status: 'public'
             });
             idFinalObra = docRef.id; nomeFinalObra = tituloObra;
         } else {
@@ -158,7 +171,15 @@ export default function Escrever() {
   }
 
   const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
-  const editorConfig = { height: 400, menubar: false, plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount', toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat', skin: 'oxide-dark', content_css: 'dark', body_class: 'my-editor-content' };
+  const editorConfig = { 
+    height: 400, 
+    menubar: false, 
+    plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount', 
+    toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat', 
+    skin: 'oxide-dark', 
+    content_css: 'dark', 
+    body_class: 'my-editor-content' 
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -184,7 +205,6 @@ export default function Escrever() {
                     <div className="bg-[#1f1f1f] border border-[#333] p-6 rounded-xl">
                         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><MdBook className="text-yellow-500" /> Book Details</h3>
                         
-                        {/* --- NOVO AVISO DE SEGURANÇA E REGRAS --- */}
                         <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg mb-6">
                             <h4 className="text-blue-400 font-bold text-xs uppercase flex items-center gap-2 mb-3">
                                 <MdInfoOutline size={16} /> Important Guidelines
@@ -210,7 +230,6 @@ export default function Escrever() {
                                 </li>
                             </ul>
                         </div>
-                        {/* --- FIM DO AVISO --- */}
 
                         <div className="space-y-4">
                             <div>
@@ -281,7 +300,14 @@ export default function Escrever() {
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chapter Title</label>
                             <input type="text" value={tituloCapitulo} onChange={(e)=>setTituloCapitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-green-500 outline-none font-bold text-lg" />
                         </div>
+                        
                         <div>
+                            <div className="flex justify-between mb-1">
+                                <label className="block text-xs font-bold text-gray-500 uppercase">Content</label>
+                                <span className={`text-xs font-bold ${countWords(conteudo) < 500 ? 'text-red-400' : 'text-green-400'}`}>
+                                    {countWords(conteudo)} words (Min: 500)
+                                </span>
+                            </div>
                             <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{...editorConfig, height: 600}} onEditorChange={(content) => setConteudo(content)} />
                         </div>
 

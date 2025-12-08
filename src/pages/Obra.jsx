@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { db, functions } from '../services/firebaseConnection';
+import { db } from '../services/firebaseConnection';
 import { doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdMonetizationOn, MdSend, MdVerified, MdBlock 
+  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdVerified 
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
 import Reviews from '../components/Reviews'; 
+import RatingWidget from '../components/RatingWidget'; // <--- IMPORTADO DE VOLTA
+import SmartImage from '../components/SmartImage';
+import AdBanner from '../components/AdBanner';
 import DOMPurify from 'dompurify';
 import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async'; 
@@ -26,11 +28,8 @@ export default function Obra() {
   const [estaNaBiblioteca, setEstaNaBiblioteca] = useState(false);
   const [idBiblioteca, setIdBiblioteca] = useState(null);
   const [showReport, setShowReport] = useState(false);
-  const [lastReadId, setLastReadId] = useState(null);
+  const [lastReadId, setLastReadId] = useState(null); // Indica se já leu algo
   
-  const [voting, setVoting] = useState(false);
-  const [donationAmount, setDonationAmount] = useState(10); 
-
   useEffect(() => {
     async function loadObra() {
       try {
@@ -56,10 +55,13 @@ export default function Obra() {
         capsSnapshot.forEach((doc) => listaCaps.push({ id: doc.id, ...doc.data() }));
         setCapitulos(listaCaps);
 
+        // Verifica histórico de leitura
         if (user?.uid) {
             const histRef = doc(db, "historico", `${user.uid}_${id}`);
             const histSnap = await getDoc(histRef);
-            if (histSnap.exists()) { setLastReadId(histSnap.data().lastChapterId); }
+            if (histSnap.exists()) { 
+                setLastReadId(histSnap.data().lastChapterId); 
+            }
         }
       } catch (error) { console.log(error); } finally { setLoading(false); }
     }
@@ -95,51 +97,56 @@ export default function Obra() {
     } catch (error) { toast.error("Error updating library"); }
   }
 
-  async function handleVote() {
-      if(!user) return toast.error("Login to vote.");
-      
-      const amount = parseInt(donationAmount);
-      if(!amount || amount < 1) return toast.error("Minimum donation is 1 coin.");
-      
-      if(user.coins < amount) return toast.error(`Insufficient coins. You have ${user.coins}.`);
-      if(obra.autorId === user.uid) return toast.error("You cannot donate to your own story.");
-
-      setVoting(true);
-      const voteFunc = httpsCallable(functions, 'voteStory');
-      const toastId = toast.loading(`Donating ${amount} coins...`);
-
-      try {
-          const result = await voteFunc({ obraId: id, amountCoins: amount });
-          
-          if(result.data.success) {
-              toast.success("Thank you for your support!", { id: toastId });
-              setObra(prev => ({ 
-                  ...prev, 
-                  monthly_coins: (prev.monthly_coins || 0) + amount,
-                  total_coins: (prev.total_coins || 0) + amount 
-              }));
-          } else {
-              toast.error(result.data.message || "Failed.", { id: toastId });
-          }
-      } catch(e) {
-          toast.error("Transaction failed.", { id: toastId });
-      } finally {
-          setVoting(false);
-      }
-  }
-
-  // Verifica se é fanfic (case insensitive)
-  const isFanfic = obra?.categorias?.some(c => c.toLowerCase() === 'fanfic') || obra?.tags?.some(t => t.toLowerCase() === 'fanfic');
   const isAuthor = user?.uid === obra?.autorId;
 
   if (loading) return <SkeletonObra />;
   const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read on Amazing Humans.';
+
+  const schemaData = {
+    "@context": "https://schema.org",
+    "@type": "Book",
+    "name": obra?.titulo,
+    "author": {
+      "@type": "Person",
+      "name": obra?.autor
+    },
+    "description": cleanSinopse,
+    "image": obra?.capa,
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": obra?.rating || "0",
+      "reviewCount": obra?.votes || "0"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Amazing Humans",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://amazing-humans-react.web.app/logo-ah.png"
+      }
+    },
+    "inLanguage": "en"
+  };
 
   return (
     <div className="min-h-screen pb-20 relative">
         <Helmet>
             <title>{obra.titulo} | Amazing Humans</title>
             <meta name="description" content={cleanSinopse} />
+            
+            <meta property="og:type" content="book" />
+            <meta property="og:title" content={obra.titulo} />
+            <meta property="og:description" content={cleanSinopse} />
+            <meta property="og:image" content={obra.capa} />
+            
+            <meta name="twitter:card" content="summary_large_image" />
+            <meta name="twitter:title" content={obra.titulo} />
+            <meta name="twitter:description" content={cleanSinopse} />
+            <meta name="twitter:image" content={obra.capa} />
+
+            <script type="application/ld+json">
+                {JSON.stringify(schemaData)}
+            </script>
         </Helmet>
 
         <ReportModal isOpen={showReport} onClose={() => setShowReport(false)} targetId={id} targetType="book" targetName={obra.titulo} />
@@ -149,51 +156,14 @@ export default function Obra() {
         <div className="max-w-6xl mx-auto px-4 relative z-10 pt-10">
             <div className="flex flex-col md:flex-row gap-8 lg:gap-12 mb-12">
                 
-                {/* CAPA + PAINEL DE DOAÇÃO */}
+                {/* CAPA */}
                 <div className="w-full md:w-64 lg:w-72 shrink-0 mx-auto md:mx-0">
                     <div className="relative aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 bg-[#222]">
-                        <img src={obra.capa || '/logo-ah.png'} className="w-full h-full object-cover" onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} alt={obra.titulo}/>
-                    </div>
-                    
-                    {/* WIDGET DOAÇÃO (COM LÓGICA DE FANFIC) */}
-                    <div className="mt-4 p-4 bg-[#1f1f1f] rounded-xl border border-white/5 text-center">
-                        <p className="text-yellow-500 font-bold text-sm mb-2 flex items-center justify-center gap-1">
-                            <MdMonetizationOn size={18} /> {obra.monthly_coins || 0} Monthly Coins
-                        </p>
-                        
-                        {isFanfic ? (
-                            <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-xs p-3 rounded mt-2 flex flex-col items-center gap-1">
-                                <MdBlock size={18} />
-                                <span className="font-bold">Monetization Disabled</span>
-                                <span className="text-[10px] opacity-70">Fanfics cannot receive coins due to copyright rules.</span>
-                            </div>
-                        ) : isAuthor ? (
-                            <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 text-xs p-2 rounded mt-2">
-                                You are the author. You cannot vote on your own story.
-                            </div>
-                        ) : (
-                            <>
-                                <p className="text-xs text-gray-500 mb-3">Support this story to help it win!</p>
-                                <div className="flex gap-2 justify-center items-center">
-                                    <input 
-                                        type="number" 
-                                        min="1"
-                                        value={donationAmount}
-                                        onChange={(e) => setDonationAmount(e.target.value)}
-                                        className="w-20 bg-[#121212] border border-[#333] text-white text-sm rounded-lg px-2 py-1.5 focus:border-yellow-500 outline-none text-center"
-                                        placeholder="10"
-                                    />
-                                    <button 
-                                        onClick={handleVote} 
-                                        disabled={voting} 
-                                        className="bg-yellow-600 hover:bg-yellow-500 text-white border border-yellow-500/50 px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1 shadow-lg shadow-yellow-500/10 disabled:opacity-50"
-                                    >
-                                        <MdSend size={14} /> Donate
-                                    </button>
-                                </div>
-                                <p className="text-[10px] text-gray-600 mt-2">1 Coin = 1 Vote</p>
-                            </>
-                        )}
+                        <SmartImage 
+                            src={obra.capa} 
+                            alt={obra.titulo} 
+                            className="w-full h-full object-cover" 
+                        />
                     </div>
                 </div>
 
@@ -250,8 +220,12 @@ export default function Obra() {
                 </div>
             </div>
 
+            {/* --- ÁREA DE ANÚNCIOS --- */}
+            <div className="md:hidden my-6"><AdBanner /></div>
+            <div className="hidden md:block my-8"><AdBanner /></div>
+
             {/* LISTA DE CAPÍTULOS */}
-            <div className="mt-16">
+            <div className="mt-16 md:mt-8">
                 <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-2"><MdList className="text-primary" /> Chapters</h3>
                 <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
                     {capitulos.map((cap, i) => {
@@ -276,6 +250,14 @@ export default function Obra() {
                     })}
                 </div>
             </div>
+
+            {/* --- WIDGET DE AVALIAÇÃO (ESTRELAS) --- */}
+            {/* Só aparece se o usuário estiver logado E já tiver lido algum capítulo (lastReadId) */}
+            {user && lastReadId && (
+                <div className="max-w-2xl mx-auto mt-16 mb-8">
+                    <RatingWidget obraId={id} />
+                </div>
+            )}
 
             <Reviews obraId={id} obraTitulo={obra.titulo} autorId={obra.autorId} />
             {obra.categorias && <div className="mt-20"><Recomendacoes tags={obra.categorias} currentId={id} title="Similar Stories" /></div>}

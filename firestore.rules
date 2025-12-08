@@ -22,9 +22,9 @@ service cloud.firestore {
     // 1. USUÁRIOS
     match /usuarios/{userId} {
       allow read: if true;
-      // Permite update se for o dono, MAS NÃO PERMITE alterar 'coins', 'level', 'role', 'isAdFree' diretamente
+      // Removida proteção de coins/level
       allow update: if isLoggedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'coins', 'level', 'isAdFree', 'banned']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'banned']);
       allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
@@ -32,10 +32,8 @@ service cloud.firestore {
     match /obras/{obraId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId') || isAdmin(); 
-      // Impede que o autor altere manualmente as moedas que o livro ganhou
-      allow update: if isOwner('autorId') 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['monthly_coins', 'total_coins']);
+      allow delete: if isOwner('autorId') || isAdmin();
+      allow update: if isOwner('autorId');
     }
 
     // 3. CAPÍTULOS
@@ -67,5 +65,8 @@ service cloud.firestore {
     match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } 
     match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
     match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
+    
+    // Stats (Apenas leitura pública se necessário, ou escrita via Cloud Functions apenas)
+    match /stats/{docId} { allow read: if true; allow write: if false; }
   }
 }

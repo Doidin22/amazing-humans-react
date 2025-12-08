@@ -3,6 +3,8 @@ import { db } from '../services/firebaseConnection';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { Link } from 'react-router-dom';
 import { MdPlayArrow, MdStar, MdInfoOutline } from 'react-icons/md';
+import SmartImage from './SmartImage'; // Importar SmartImage
+import SkeletonHero from './SkeletonHero'; // Importar o novo Skeleton
 
 export default function HeroCarousel() {
   const [featured, setFeatured] = useState([]);
@@ -23,7 +25,7 @@ export default function HeroCarousel() {
         snap.forEach(d => lista.push({ id: d.id, ...d.data() }));
         setFeatured(lista);
       } catch (e) {
-        console.error("Erro carousel:", e);
+        console.error("Hero Error:", e);
       } finally {
         setLoading(false);
       }
@@ -39,28 +41,31 @@ export default function HeroCarousel() {
     return () => clearInterval(timer);
   }, [featured]);
 
-  if (loading || featured.length === 0) return null;
+  // Se estiver carregando, mostra o esqueleto ao invés de null (evita pulo na tela)
+  if (loading) return <SkeletonHero />;
+  
+  // Se carregou e não tem nada, retorna null
+  if (featured.length === 0) return null;
 
   const item = featured[current];
   const hasCover = item.capa && item.capa.startsWith('http');
   const bgImage = hasCover ? `url("${item.capa}")` : 'none';
 
   return (
-    <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl mb-12 group bg-[#111] border border-white/5">
+    <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl mb-12 group bg-[#111] border border-white/5 animate-fade-in">
       
       {/* Background Image (Blurred) */}
       <div 
         className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105 opacity-40"
         style={{ backgroundImage: bgImage }}
       >
-        {/* Fallback se não tiver capa */}
         {!hasCover && (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20">
-                <img src="/logo-ah.png" loading="lazy" alt="Logo" className="w-32 opacity-10 grayscale" />
+                <img src="/logo-ah.png" alt="Logo" className="w-32 opacity-10 grayscale" />
             </div>
         )}
         
-        {/* Gradientes de sobreposição para leitura do texto */}
+        {/* Gradientes de sobreposição */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent"></div>
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent"></div>
       </div>
@@ -68,19 +73,17 @@ export default function HeroCarousel() {
       {/* Conteúdo */}
       <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 flex flex-col md:flex-row items-end md:items-center gap-8">
         
-        {/* Capa Menor (Poster) */}
+        {/* Capa Menor (Poster) com SmartImage */}
         <div className="hidden md:block w-48 aspect-[2/3] rounded-lg shadow-2xl overflow-hidden border border-white/10 relative z-10 shrink-0 transform group-hover:-translate-y-2 transition-transform duration-500 bg-[#222]">
-            <img 
-                src={hasCover ? item.capa : '/logo-ah.png'} 
-                loading="lazy" // <--- OTIMIZAÇÃO AQUI
-                className={`w-full h-full object-cover ${!hasCover ? 'p-8 opacity-50' : ''}`}
+            <SmartImage 
+                src={item.capa} 
                 alt={item.titulo}
-                onError={(e) => { e.target.src = '/logo-ah.png'; e.target.classList.add('p-8', 'opacity-50'); }}
+                className="w-full h-full object-cover"
             />
         </div>
 
         {/* Textos */}
-        <div className="flex-1 max-w-2xl relative z-10 animate-fade-in">
+        <div className="flex-1 max-w-2xl relative z-10">
             <div className="flex items-center gap-2 mb-3">
                 <span className="bg-secondary text-black text-[10px] font-bold px-2 py-0.5 rounded uppercase">Top Rated</span>
                 <span className="flex items-center gap-1 text-secondary text-xs font-bold"><MdStar /> {item.rating ? item.rating.toFixed(1) : 'N/A'}</span>
@@ -112,6 +115,7 @@ export default function HeroCarousel() {
                 key={idx} 
                 onClick={() => setCurrent(idx)}
                 className={`h-1.5 rounded-full transition-all duration-300 ${current === idx ? 'w-8 bg-primary' : 'w-2 bg-gray-600 hover:bg-gray-400'}`}
+                aria-label={`Go to slide ${idx + 1}`}
             />
         ))}
       </div>

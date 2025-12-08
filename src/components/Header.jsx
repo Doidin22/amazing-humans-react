@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore'; 
@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity, MdMonetizationOn, MdCasino 
+  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity 
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
@@ -14,7 +14,12 @@ export default function Header() {
   const { signed, user, logout } = useContext(AuthContext); 
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
+  
+  // Estados de Notificação
   const [notifCount, setNotifCount] = useState(0); 
+  const [animateBell, setAnimateBell] = useState(false); // Controla a animação
+  const prevCountRef = useRef(0); // Guarda o valor anterior para comparação
+
   const [scrolled, setScrolled] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
 
@@ -27,10 +32,36 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // --- LÓGICA DE NOTIFICAÇÃO EM TEMPO REAL ---
   useEffect(() => {
     if (!user?.uid) return;
-    const q = query(collection(db, "notificacoes"), where("paraId", "==", user.uid), where("lida", "==", false), limit(20));
-    const unsubscribe = onSnapshot(q, (snapshot) => setNotifCount(snapshot.size));
+    
+    // Escuta notificações não lidas
+    const q = query(
+        collection(db, "notificacoes"), 
+        where("paraId", "==", user.uid), 
+        where("lida", "==", false), 
+        limit(20)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const count = snapshot.size;
+        
+        // Se o número aumentou (nova notificação), dispara a animação
+        if (count > prevCountRef.current) {
+            setAnimateBell(true);
+            // Remove a classe de animação após 1s para poder animar de novo no futuro
+            setTimeout(() => setAnimateBell(false), 1000);
+            
+            // Opcional: Tocar um som suave
+            // const audio = new Audio('/notification.mp3');
+            // audio.play().catch(() => {});
+        }
+        
+        setNotifCount(count);
+        prevCountRef.current = count;
+    });
+
     return () => unsubscribe();
   }, [user]);
 
@@ -67,6 +98,26 @@ export default function Header() {
 
   return (
     <>
+      {/* Styles para a animação do sino */}
+      <style>{`
+        @keyframes bell-shake {
+          0% { transform: rotate(0); }
+          15% { transform: rotate(15deg); }
+          30% { transform: rotate(-15deg); }
+          45% { transform: rotate(10deg); }
+          60% { transform: rotate(-10deg); }
+          75% { transform: rotate(5deg); }
+          85% { transform: rotate(-5deg); }
+          100% { transform: rotate(0); }
+        }
+        .animate-bell {
+          animation: bell-shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
+          color: #4a90e2 !important; /* Fica azul durante a animação */
+        }
+        .drawer-link { @apply flex items-center gap-3 text-gray-400 py-3 hover:text-white border-b border-white/5 transition-colors text-sm font-medium px-2; } 
+        .dropdown-item { @apply px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors; }
+      `}</style>
+
       {/* Mobile Drawer */}
       {showDrawer && <div className="fixed inset-0 bg-black/60 z-[1000] backdrop-blur-sm" onClick={() => setShowDrawer(false)}></div>}
       
@@ -88,26 +139,17 @@ export default function Header() {
                             <img src={getAvatarUrl()} alt="User" className="w-10 h-10 rounded-full border border-primary object-cover" onError={(e) => handleImgError(e, 'avatar')} /> 
                             <div className="overflow-hidden">
                                 <p className="text-white font-bold truncate text-sm">{user.name}</p>
-                                <p className="text-[10px] text-yellow-500 font-bold uppercase">Lvl {user.level || 0}</p>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-1 bg-black/30 p-2 rounded text-xs text-yellow-400 font-bold border border-yellow-500/20 justify-center">
-                            <MdMonetizationOn /> {user.coins || 0} Coins
                         </div>
                     </div>
                     
                     {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> Admin Panel</Link>}
 
                     <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> Home</Link>
-                    <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile & Wallet</Link>
+                    <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile</Link>
                     <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="drawer-link"><MdBookmarks size={20} /> Library</Link>
                     <Link to="/escrever" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Write</Link>
                     
-                    {/* LINK NOVO: SORTEIO (MOBILE) */}
-                    <Link to="/sorteio" onClick={() => setShowDrawer(false)} className="drawer-link text-yellow-500">
-                        <MdCasino size={20} /> Monthly Lottery
-                    </Link>
-
                     <Link to="/notificacoes" onClick={() => setShowDrawer(false)} className="drawer-link flex justify-between">
                         <span className="flex items-center gap-3"><MdNotifications size={20} /> Notifications</span>
                         {notifCount > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{notifCount}</span>}
@@ -145,14 +187,12 @@ export default function Header() {
                ) : (
                  <div className="flex items-center gap-6 border-l border-white/10 pl-6">
                    
-                   {/* MOEDAS (DESKTOP) */}
-                   <div className="flex items-center gap-1 text-yellow-400 font-bold bg-white/5 px-3 py-1 rounded-full border border-white/10" title="Your Coins">
-                        <MdMonetizationOn /> {user.coins || 0}
-                   </div>
-
-                   <Link to="/notificacoes" className="text-gray-400 hover:text-white relative transition-colors">
+                   {/* ÍCONE DE NOTIFICAÇÃO COM ANIMAÇÃO */}
+                   <Link to="/notificacoes" className={`relative transition-colors ${animateBell ? 'animate-bell' : 'text-gray-400 hover:text-white'}`}>
                      <MdNotifications size={24} />
-                     {notifCount > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0a0a0a]"></span>}
+                     {notifCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0a0a0a] animate-bounce"></span>
+                     )}
                    </Link>
 
                    <div className="relative group">
@@ -167,7 +207,6 @@ export default function Header() {
                                   <p className="text-white font-bold truncate text-sm">{user.name}</p>
                                   <div className="flex justify-between items-center mt-1">
                                       <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role}</p>
-                                      <p className="text-[10px] text-yellow-500 font-bold uppercase">Level {user.level || 0}</p>
                                   </div>
                               </div>
                               {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> Admin Panel</Link>}
@@ -175,11 +214,6 @@ export default function Header() {
                               <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
                               <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
                               
-                              {/* LINK NOVO: SORTEIO (DESKTOP) */}
-                              <Link to="/sorteio" className="dropdown-item text-yellow-400 hover:bg-yellow-500/10">
-                                  <MdCasino /> Lottery
-                              </Link>
-
                               <div className="h-px bg-white/5 my-1"></div>
                               <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> Logout</button>
                            </div>
@@ -190,7 +224,6 @@ export default function Header() {
              </div>
          </div>
       </header>
-      <style>{`.drawer-link { @apply flex items-center gap-3 text-gray-400 py-3 hover:text-white border-b border-white/5 transition-colors text-sm font-medium px-2; } .dropdown-item { @apply px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors; }`}</style>
     </>
   );
 }

@@ -16,7 +16,7 @@ export default function AdBanner({ className }) {
   }, [hasAds]);
 
   if (!hasAds()) {
-      return null; // Não renderiza nada para usuários VIP/Level 100
+      return null; 
   }
 
   return (
@@ -33,7 +33,7 @@ export default function AdBanner({ className }) {
       </ins>
       
       <div className="w-full h-24 bg-[#222] border border-dashed border-[#444] rounded flex items-center justify-center text-gray-500 text-xs">
-        Ads help support Amazing Humans. Reach Lvl 100 to remove them.
+        Ads help keep Amazing Humans free for everyone.
       </div>
     </div>
   );

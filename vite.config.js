@@ -1,10 +1,16 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { VitePWA } from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+import viteCompression from 'vite-plugin-compression';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
   plugins: [
     react(),
+    viteCompression({
+      algorithm: 'gzip',
+      ext: '.gz',
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['logo-ah.png', 'robots.txt'],
@@ -21,21 +27,53 @@ export default defineConfig({
           { src: '/logo-ah.png', sizes: '192x192', type: 'image/png' },
           { src: '/logo-ah.png', sizes: '512x512', type: 'image/png' }
         ]
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        skipWaiting: true, 
+        clientsClaim: true,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.destination === 'image',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            },
+          },
+          {
+            urlPattern: ({ request }) => request.destination === 'font',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fonts-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          }
+        ]
       }
-    })
+    }),
+    // Visualizer configurado para NÃO abrir sozinho
+    visualizer({
+      open: false,      // <--- MUDANÇA AQUI: Impede de abrir a aba no navegador
+      gzipSize: true,
+      brotliSize: true,
+      filename: 'stats.html', // O arquivo ainda será criado na raiz se você quiser ver depois
+    }),
   ],
   build: {
-    // Aumenta o limite de aviso de chunk (opcional, apenas para limpar o console)
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
-        // Separa bibliotecas grandes em arquivos diferentes para cache eficiente
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
-          ui: ['react-icons', 'react-hot-toast', 'dompurify']
+        manualChunks(id) {
+          // Mantém a estratégia segura que evitou a tela preta
+          if (id.includes('tinymce')) {
+            return 'editor-lib';
+          }
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         }
       }
     }
   }
-})
+});

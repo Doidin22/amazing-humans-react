@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { MdStar } from 'react-icons/md';
+import SmartImage from './SmartImage'; // Certifique-se de que este arquivo existe na mesma pasta
 
 export default function StoryCard({ data }) {
-  // Verifica se a capa existe, senão usa o logo do site
-  const capaUrl = (data.capa && data.capa.length > 5) ? data.capa : '/logo-ah.png';
+  // O SmartImage já lida com o fallback da imagem, não precisamos da lógica manual aqui
 
   return (
     <Link to={`/obra/${data.id}`} className="group flex flex-col w-full text-decoration-none relative" title={data.titulo}>
@@ -15,12 +15,11 @@ export default function StoryCard({ data }) {
         {/* Overlay Gradiente no Hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
         
-        <img 
-          src={capaUrl} 
+        {/* AQUI ESTÁ A MUDANÇA: Usamos SmartImage em vez de img */}
+        <SmartImage 
+          src={data.capa} 
           alt={data.titulo} 
-          loading="lazy" // <--- OTIMIZAÇÃO AQUI
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          onError={(e) => { e.target.onerror = null; e.target.src = '/logo-ah.png'; }} 
+          className="w-full h-full group-hover:scale-110 transition-transform duration-500"
         />
 
         {/* Rating Badge Flutuante */}

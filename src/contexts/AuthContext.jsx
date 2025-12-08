@@ -41,15 +41,10 @@ export function AuthProvider({ children }) {
                     email: firebaseUser.email,
                     type: 'google',
                     role: dados.role || 'user',
-                    coins: dados.coins || 0,
-                    level: dados.level || 0,
-                    isAdFree: dados.isAdFree || false,
-                    isVip: dados.isVip || false,
                     badges: dados.badges || [],
-                    
-                    // --- GARANTINDO QUE OS NÚMEROS SEJAM LIDOS ---
                     followersCount: dados.followersCount || 0,
-                    followingCount: dados.followingCount || 0
+                    followingCount: dados.followingCount || 0,
+                    leituras: dados.contador_leituras || 0
                 });
             } else {
                 setUser({
@@ -59,12 +54,10 @@ export function AuthProvider({ children }) {
                     email: firebaseUser.email,
                     type: 'google',
                     role: 'user',
-                    coins: 0,
-                    level: 0,
-                    isAdFree: false,
                     badges: [],
                     followersCount: 0,
-                    followingCount: 0
+                    followingCount: 0,
+                    leituras: 0
                 });
             }
             setLoadingAuth(false);
@@ -87,6 +80,7 @@ export function AuthProvider({ children }) {
       if(result.user) {
           const uid = result.user.uid;
           const userRef = doc(db, "usuarios", uid);
+          // Cria o user apenas se não existir, ou atualiza dados básicos
           await setDoc(userRef, {
               uid: uid,
               nome: result.user.displayName,
@@ -113,10 +107,9 @@ export function AuthProvider({ children }) {
     return user?.role === 'admin';
   }
 
+  // Se quiser manter anúncios sempre ativos ou remover completamente a lógica:
   function hasAds() {
-      if (!user) return true;
-      if (user.isAdFree || user.level >= 100 || user.isVip) return false;
-      return true;
+      return true; // Sempre exibe anúncios já que não há plano pago/nível
   }
 
   return (
