@@ -32,6 +32,24 @@ export function AuthProvider({ children }) {
                     return; 
                 }
 
+                // --- PROTEÇÃO CONTRA ERRO DE DATA (VIP) ---
+                let vipDate = null;
+                try {
+                    if (dados.vipUntil) {
+                        // Se for Timestamp do Firebase
+                        if (typeof dados.vipUntil.toDate === 'function') {
+                            vipDate = dados.vipUntil.toDate();
+                        } 
+                        // Se for String ou Date normal (edição manual)
+                        else {
+                            vipDate = new Date(dados.vipUntil);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Erro ao processar data VIP:", err);
+                    vipDate = null; // Falha segura, não trava o app
+                }
+
                 const avatarFinal = dados.foto || firebaseUser.photoURL || generateAvatar(uid);
 
                 setUser({
@@ -44,9 +62,18 @@ export function AuthProvider({ children }) {
                     badges: dados.badges || [],
                     followersCount: dados.followersCount || 0,
                     followingCount: dados.followingCount || 0,
-                    leituras: dados.contador_leituras || 0
+                    leituras: dados.contador_leituras || 0,
+                    
+                    // --- CAMPOS NOVOS (Com proteção de string vazia) ---
+                    website: dados.website || '',
+                    twitter: dados.twitter || '',
+                    instagram: dados.instagram || '',
+                    patreon: dados.patreon || '',
+                    paypal: dados.paypal || '',
+                    vipUntil: vipDate
                 });
             } else {
+                // Usuário novo
                 setUser({
                     uid: uid,
                     name: firebaseUser.displayName || "Loading...",
@@ -57,7 +84,8 @@ export function AuthProvider({ children }) {
                     badges: [],
                     followersCount: 0,
                     followingCount: 0,
-                    leituras: 0
+                    leituras: 0,
+                    website: '', twitter: '', instagram: '', patreon: '', paypal: '', vipUntil: null
                 });
             }
             setLoadingAuth(false);
@@ -80,17 +108,16 @@ export function AuthProvider({ children }) {
       if(result.user) {
           const uid = result.user.uid;
           const userRef = doc(db, "usuarios", uid);
-          // Cria o user apenas se não existir, ou atualiza dados básicos
+          // Usa merge para não apagar dados existentes
           await setDoc(userRef, {
               uid: uid,
               nome: result.user.displayName,
-              foto: result.user.photoURL, 
               email: result.user.email
           }, { merge: true });
       }
     } catch (error) {
       console.error("Google Login Error", error);
-      toast.error("Error logging in with Google");
+      toast.error("Error logging in");
     }
   }
 
@@ -107,13 +134,42 @@ export function AuthProvider({ children }) {
     return user?.role === 'admin';
   }
 
-  // Se quiser manter anúncios sempre ativos ou remover completamente a lógica:
+  // --- LÓGICA DE ANÚNCIOS ---
   function hasAds() {
-      return true; // Sempre exibe anúncios já que não há plano pago/nível
+      if (!user) return true; 
+
+      // 1. Verifica Nível 100
+      const currentLevel = Math.floor((user.leituras || 0) / 20) + 1;
+      if (currentLevel >= 100) {
+          return false;
+      }
+
+      // 2. Verifica Assinatura VIP
+      if (user.vipUntil) {
+          const hoje = new Date();
+          // Verifica se a data é válida antes de comparar
+          if (user.vipUntil instanceof Date && !isNaN(user.vipUntil)) {
+              if (user.vipUntil > hoje) {
+                  return false;
+              }
+          }
+      }
+
+      return true;
+  }
+
+  async function grantVip(days) {
+      if(!user?.uid) return;
+      const date = new Date();
+      date.setDate(date.getDate() + days);
+      
+      const userRef = doc(db, "usuarios", user.uid);
+      await setDoc(userRef, { vipUntil: date }, { merge: true });
+      toast.success(`VIP active for ${days} days!`);
   }
 
   return (
-    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isAdmin, hasAds }}>
+    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isAdmin, hasAds, grantVip }}>
       {children}
     </AuthContext.Provider>
   );

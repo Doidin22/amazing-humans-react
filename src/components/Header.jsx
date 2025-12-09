@@ -6,7 +6,8 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity 
+  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity,
+  MdDiamond // <--- Ícone do VIP
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
@@ -17,8 +18,8 @@ export default function Header() {
   
   // Estados de Notificação
   const [notifCount, setNotifCount] = useState(0); 
-  const [animateBell, setAnimateBell] = useState(false); // Controla a animação
-  const prevCountRef = useRef(0); // Guarda o valor anterior para comparação
+  const [animateBell, setAnimateBell] = useState(false); 
+  const prevCountRef = useRef(0);
 
   const [scrolled, setScrolled] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -32,11 +33,10 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // --- LÓGICA DE NOTIFICAÇÃO EM TEMPO REAL ---
+  // Notificações em Tempo Real
   useEffect(() => {
     if (!user?.uid) return;
     
-    // Escuta notificações não lidas
     const q = query(
         collection(db, "notificacoes"), 
         where("paraId", "==", user.uid), 
@@ -46,18 +46,10 @@ export default function Header() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const count = snapshot.size;
-        
-        // Se o número aumentou (nova notificação), dispara a animação
         if (count > prevCountRef.current) {
             setAnimateBell(true);
-            // Remove a classe de animação após 1s para poder animar de novo no futuro
             setTimeout(() => setAnimateBell(false), 1000);
-            
-            // Opcional: Tocar um som suave
-            // const audio = new Audio('/notification.mp3');
-            // audio.play().catch(() => {});
         }
-        
         setNotifCount(count);
         prevCountRef.current = count;
     });
@@ -98,7 +90,6 @@ export default function Header() {
 
   return (
     <>
-      {/* Styles para a animação do sino */}
       <style>{`
         @keyframes bell-shake {
           0% { transform: rotate(0); }
@@ -112,7 +103,7 @@ export default function Header() {
         }
         .animate-bell {
           animation: bell-shake 0.8s cubic-bezier(.36,.07,.19,.97) both;
-          color: #4a90e2 !important; /* Fica azul durante a animação */
+          color: #4a90e2 !important;
         }
         .drawer-link { @apply flex items-center gap-3 text-gray-400 py-3 hover:text-white border-b border-white/5 transition-colors text-sm font-medium px-2; } 
         .dropdown-item { @apply px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-3 transition-colors; }
@@ -127,6 +118,12 @@ export default function Header() {
           </div>
 
           <div className="flex flex-col gap-1 p-4 pb-20">
+              
+              {/* BOTÃO VIP (MOBILE) - DESTAQUE NO TOPO */}
+              <Link to="/assinatura" onClick={() => setShowDrawer(false)} className="mx-2 mb-4 p-3 rounded-xl bg-gradient-to-r from-yellow-600/20 to-yellow-400/20 border border-yellow-500/30 flex items-center justify-center gap-2 text-yellow-500 font-bold tracking-wide shadow-lg">
+                  <MdDiamond size={20} /> BECOME A VIP
+              </Link>
+
               <div className="mx-2 mb-6 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 shadow-inner">
                   <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm"><MdPhoneIphone /> <span>Install App</span></div>
                   <button onClick={handleInstallClick} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg transition-all active:scale-95">Install Now</button>
@@ -180,6 +177,15 @@ export default function Header() {
              </div>
 
              <div className="hidden lg:flex items-center gap-6">
+               
+               {/* BOTÃO VIP (DESKTOP) - DOURADO E BRILHANTE */}
+               <Link 
+                 to="/assinatura" 
+                 className="flex items-center gap-2 bg-gradient-to-r from-yellow-600 to-yellow-400 hover:from-yellow-500 hover:to-yellow-300 text-black px-5 py-2 rounded-full font-bold text-xs transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] hover:shadow-[0_0_20px_rgba(234,179,8,0.5)] transform hover:scale-105"
+               >
+                 <MdDiamond size={16} /> Go VIP
+               </Link>
+
                <a href="https://buymeacoffee.com/rlokin222" target="_blank" className="flex items-center gap-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-4 py-1.5 rounded-full font-bold text-xs transition-all"><FaCoffee size={14} /> Support</a>
 
                {!signed ? (
@@ -187,7 +193,6 @@ export default function Header() {
                ) : (
                  <div className="flex items-center gap-6 border-l border-white/10 pl-6">
                    
-                   {/* ÍCONE DE NOTIFICAÇÃO COM ANIMAÇÃO */}
                    <Link to="/notificacoes" className={`relative transition-colors ${animateBell ? 'animate-bell' : 'text-gray-400 hover:text-white'}`}>
                      <MdNotifications size={24} />
                      {notifCount > 0 && (
@@ -213,6 +218,7 @@ export default function Header() {
                               <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> Dashboard</Link>
                               <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
                               <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
+                              <Link to="/assinatura" className="dropdown-item text-yellow-500 hover:bg-yellow-500/10"><MdDiamond /> VIP Membership</Link>
                               
                               <div className="h-px bg-white/5 my-1"></div>
                               <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> Logout</button>

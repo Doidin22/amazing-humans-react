@@ -24,6 +24,8 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Admin = lazy(() => import('./pages/Admin'));
 const EditarObra = lazy(() => import('./pages/EditarObra'));
 const EditarCapitulo = lazy(() => import('./pages/EditarCapitulo'));
+// ADICIONADO AQUI: Import da página de Assinatura
+const Assinatura = lazy(() => import('./pages/Assinatura')); 
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Manutencao = lazy(() => import('./pages/Manutencao'));
@@ -40,17 +42,15 @@ function App() {
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
-      // Checa por atualizações a cada hora
       r && setInterval(() => {
         r.update();
-      }, 60 * 60 * 1000);
+      }, 60 * 60 * 1000); 
     },
     onRegisterError(error) {
       console.log('SW registration error', error);
     },
   });
 
-  // Se o plugin detectar necessidade de refresh (raro com autoUpdate, mas possível), atualiza
   useEffect(() => {
     if (needRefresh) {
       updateServiceWorker(true);
@@ -97,6 +97,10 @@ function App() {
               <Route path="/notificacoes" element={<Notificacoes />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/admin" element={<Admin />} />
+              
+              {/* ADICIONADO AQUI: Rota da Assinatura */}
+              <Route path="/assinatura" element={<Assinatura />} /> 
+              
               <Route path="/editar-obra/:id" element={<EditarObra />} />
               <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
               <Route path="/terms" element={<Terms />} />
