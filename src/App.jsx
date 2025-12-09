@@ -7,6 +7,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import CacheProvider from './contexts/CacheContext';
 
 // --- IMPORTS DINÂMICOS (LAZY LOADING) ---
 const Home = lazy(() => import('./pages/Home'));
@@ -24,7 +25,6 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Admin = lazy(() => import('./pages/Admin'));
 const EditarObra = lazy(() => import('./pages/EditarObra'));
 const EditarCapitulo = lazy(() => import('./pages/EditarCapitulo'));
-// ADICIONADO AQUI: Import da página de Assinatura
 const Assinatura = lazy(() => import('./pages/Assinatura')); 
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
@@ -69,49 +69,51 @@ function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <ScrollToTop />
-        <Header />
-        
-        <Toaster 
-          position="top-center" 
-          toastOptions={{
-            style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' },
-            success: { iconTheme: { primary: '#4a90e2', secondary: '#fff' } },
-          }}
-        />
+      {/* CacheProvider adicionado aqui para persistir os dados entre as rotas */}
+      <CacheProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <Header />
+          
+          <Toaster 
+            position="top-center" 
+            toastOptions={{
+              style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' },
+              success: { iconTheme: { primary: '#4a90e2', secondary: '#fff' } },
+            }}
+          />
 
-        <main className="min-h-screen">
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/obra/:id" element={<Obra />} />
-              <Route path="/ler/:id" element={<Ler />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/escrever" element={<Escrever />} />
-              <Route path="/perfil" element={<Perfil />} />
-              <Route path="/usuario/:id" element={<PerfilPublico />} />
-              <Route path="/biblioteca" element={<Biblioteca />} />
-              <Route path="/historico" element={<Historico />} />
-              <Route path="/notificacoes" element={<Notificacoes />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/admin" element={<Admin />} />
-              
-              {/* ADICIONADO AQUI: Rota da Assinatura */}
-              <Route path="/assinatura" element={<Assinatura />} /> 
-              
-              <Route path="/editar-obra/:id" element={<EditarObra />} />
-              <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/privacy" element={<Privacy />} />
-            </Routes>
-          </Suspense>
-        </main>
+          <main className="min-h-screen">
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/obra/:id" element={<Obra />} />
+                <Route path="/ler/:id" element={<Ler />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/escrever" element={<Escrever />} />
+                <Route path="/perfil" element={<Perfil />} />
+                <Route path="/usuario/:id" element={<PerfilPublico />} />
+                <Route path="/biblioteca" element={<Biblioteca />} />
+                <Route path="/historico" element={<Historico />} />
+                <Route path="/notificacoes" element={<Notificacoes />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/admin" element={<Admin />} />
+                
+                <Route path="/assinatura" element={<Assinatura />} /> 
+                
+                <Route path="/editar-obra/:id" element={<EditarObra />} />
+                <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+              </Routes>
+            </Suspense>
+          </main>
 
-        <Footer />
-        
-      </BrowserRouter>
+          <Footer />
+          
+        </BrowserRouter>
+      </CacheProvider>
     </AuthProvider>
   );
 }

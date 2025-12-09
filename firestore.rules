@@ -19,7 +19,6 @@ service cloud.firestore {
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == "admin";
     }
 
-    // Regra Segura para Incrementar Views (Apenas views, e apenas +1)
     function isViewIncrement() {
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
                && request.resource.data.views == resource.data.views + 1;
@@ -33,12 +32,11 @@ service cloud.firestore {
       allow create: if isLoggedIn() && request.auth.uid == userId;
     }
     
-    // 2. OBRAS (LIVROS)
+    // 2. OBRAS
     match /obras/{obraId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
       allow delete: if isOwner('autorId') || isAdmin();
-      // Permite update se for dono OU se for apenas um incremento de visualização por usuário logado
       allow update: if isOwner('autorId') || (isLoggedIn() && isViewIncrement());
     }
 
@@ -63,16 +61,24 @@ service cloud.firestore {
       allow delete: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // 6. HISTÓRICO (REGRA CORRIGIDA E SIMPLIFICADA)
+    match /historico/{docId} { 
+       // Permite ler/escrever se o ID do documento começar com o UID do usuário.
+       // Ex: "USER123_LIVRO456" começa com "USER123"
+       allow read, write: if isLoggedIn() && docId.matches(request.auth.uid + "_.*");
+    }
+
     // Outras coleções
     match /comentarios/{docId} { allow read: if true; allow write: if isLoggedIn(); }
-    match /historico/{docId} { allow read, write: if isLoggedIn() && request.auth.uid == resource.data.userId; }
     match /notificacoes/{docId} { allow read, write: if isLoggedIn(); }
     match /biblioteca/{docId} { allow read, write: if isLoggedIn(); }
     match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } 
     match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
     match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
     
-    // Stats
-    match /stats/{docId} { allow read: if true; allow write: if false; }
+    match /stats/{docId} { 
+      allow read: if true;
+      allow write: if false; 
+    }
   }
 }
