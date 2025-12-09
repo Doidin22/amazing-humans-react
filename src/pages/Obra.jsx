@@ -193,7 +193,6 @@ export default function Obra() {
   // --- RENDERIZAÇÃO SEGURA ---
   if (loading) return <SkeletonObra />;
   
-  // FIX CRÍTICO: Se parou de carregar mas 'obra' ainda é null, mostra erro em vez de quebrar a página
   if (!obra) return (
     <div className="min-h-screen flex items-center justify-center text-white">
         <div className="text-center">
@@ -206,7 +205,6 @@ export default function Obra() {
   const isAuthor = user?.uid === obra.autorId;
   const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read on Amazing Humans.';
 
-  // Schema fixo
   const schemaData = {
     "@context": "https://schema.org",
     "@type": "Book",
@@ -278,9 +276,13 @@ export default function Obra() {
                 </div>
             </div>
 
-            {/* ADS */}
-            <div className="md:hidden my-6"><AdBanner /></div>
-            <div className="hidden md:block my-8"><AdBanner /></div>
+            {/* ADS - ATUALIZADO: Passando tags */}
+            <div className="md:hidden my-6">
+                <AdBanner tags={obra.categorias} />
+            </div>
+            <div className="hidden md:block my-8">
+                <AdBanner tags={obra.categorias} />
+            </div>
 
             {/* CAPÍTULOS */}
             <div className="mt-16 md:mt-8">

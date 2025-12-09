@@ -6,6 +6,7 @@ import {
   persistentMultipleTabManager 
 } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
+import { getStorage } from "firebase/storage"; // <--- 1. Importe isso
 
 const firebaseConfig = {
   apiKey: "AIzaSyCExW9WyhaKidmp3SM2jzt68UFyFQYspv8",
@@ -19,7 +20,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// --- ATUALIZAÇÃO: Nova forma de ativar persistência (remove o aviso amarelo) ---
 const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
@@ -27,6 +27,8 @@ const db = initializeFirestore(app, {
 });
 
 const functions = getFunctions(app);
+const storage = getStorage(app); // <--- 2. Inicialize aqui
 const provider = new GoogleAuthProvider();
 
-export { auth, db, provider, functions };
+// <--- 3. Exporte aqui
+export { auth, db, provider, functions, storage };

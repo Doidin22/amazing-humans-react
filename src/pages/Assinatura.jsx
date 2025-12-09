@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdCheck, MdDiamond, MdClose, MdVerified, MdFace } from 'react-icons/md'; // MdFace é mais seguro
+import { MdCheck, MdDiamond, MdClose, MdVerified, MdFace, MdLocalOffer } from 'react-icons/md'; // Adicionado MdLocalOffer
 import { FaPaypal, FaCreditCard } from 'react-icons/fa';
 
 export default function Assinatura() {
@@ -44,11 +44,41 @@ export default function Assinatura() {
                 <span className="text-yellow-400 font-bold text-xs ml-2 uppercase bg-yellow-500/10 px-2 py-1 rounded border border-yellow-500/20">2 Months Included!</span>
             </div>
             <p className="text-xs text-gray-400 mb-8">Pay $2.00 once for 60 days. Then $3.00/mo.</p>
+            
             <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-white font-bold"><div className="p-1 rounded-full bg-blue-500 text-white"><MdCheck size={14} /></div>Remove All Ads</li>
-                <li className="flex items-center gap-3 text-gray-200"><div className="p-1 rounded-full bg-blue-500/20 text-blue-400"><MdVerified size={14} /></div><span><strong className="text-white">Exclusive Profile Badges</strong><br/><span className="text-xs text-gray-500 font-normal">Get the Golden Supporter Badge.</span></span></li>
-                <li className="flex items-center gap-3 text-gray-200"><div className="p-1 rounded-full bg-purple-500/20 text-purple-400"><MdFace size={14} /></div><span><strong className="text-white">Custom Stickers</strong><br/><span className="text-xs text-gray-500 font-normal">Unlock 20+ unique stickers.</span></span></li>
+                <li className="flex items-center gap-3 text-white font-bold">
+                    <div className="p-1 rounded-full bg-blue-500 text-white"><MdCheck size={14} /></div>
+                    Remove All Ads
+                </li>
+                
+                {/* Benefício 1: Badges */}
+                <li className="flex items-center gap-3 text-gray-200">
+                    <div className="p-1 rounded-full bg-blue-500/20 text-blue-400"><MdVerified size={14} /></div>
+                    <span>
+                        <strong className="text-white">Exclusive Profile Badges</strong><br/>
+                        <span className="text-xs text-gray-500 font-normal">Get the Golden Supporter Badge.</span>
+                    </span>
+                </li>
+
+                {/* Benefício 2: Stickers */}
+                <li className="flex items-center gap-3 text-gray-200">
+                    <div className="p-1 rounded-full bg-purple-500/20 text-purple-400"><MdFace size={14} /></div>
+                    <span>
+                        <strong className="text-white">Custom Stickers</strong><br/>
+                        <span className="text-xs text-gray-500 font-normal">Unlock 20+ unique stickers.</span>
+                    </span>
+                </li>
+
+                {/* NOVO BENEFÍCIO: Desconto em Anúncios */}
+                <li className="flex items-center gap-3 text-gray-200">
+                    <div className="p-1 rounded-full bg-green-500/20 text-green-400"><MdLocalOffer size={14} /></div>
+                    <span>
+                        <strong className="text-white">50% OFF on Ads</strong><br/>
+                        <span className="text-xs text-gray-500 font-normal">Promote your stories for half the price.</span>
+                    </span>
+                </li>
             </ul>
+
             <button onClick={() => handleSubscribe("VIP Promo")} className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg transition-all transform hover:scale-105">Get VIP Access</button>
             <p className="text-center text-[10px] text-gray-500 mt-4">Secure payment via PayPal or Card.</p>
         </div>
