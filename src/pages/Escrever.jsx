@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
-  collection, addDoc, serverTimestamp, query, where, getDocs, doc, writeBatch
+  collection, addDoc, serverTimestamp, query, where, getDocs, doc, writeBatch, updateDoc, increment // <--- FIX: Added imports
 } from 'firebase/firestore';
 import { Editor } from '@tinymce/tinymce-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -32,7 +32,7 @@ export default function Escrever() {
   const [notaAutor, setNotaAutor] = useState('');
   const [loadingPost, setLoadingPost] = useState(false);
 
-  // Lista fixa de categorias
+  // Fixed list of categories
   const genresList = ['Fantasy','Sci-Fi','Romance','Horror','Adventure','RPG','Mystery','Action','Isekai','FanFic'];
 
   useEffect(() => {
@@ -90,10 +90,10 @@ export default function Escrever() {
     } catch (error) { console.error("Error notifying:", error); }
   }
 
-  // --- FUNÇÃO AUXILIAR PARA CONTAR PALAVRAS ---
+  // --- HELPER FUNCTION TO COUNT WORDS ---
   function countWords(htmlString) {
       if (!htmlString) return 0;
-      // Remove tags HTML e substitui múltiplos espaços por um único
+      // Remove HTML tags and replace multiple spaces
       const text = htmlString.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
       return text.length === 0 ? 0 : text.split(' ').length;
   }
@@ -109,7 +109,7 @@ export default function Escrever() {
     
     if(!tituloCapitulo || !conteudo) return toast.error("Please fill in Chapter Title and Content.");
     
-    // --- VALIDAÇÃO DE PALAVRAS (NOVA REGRA) ---
+    // --- WORD COUNT VALIDATION ---
     const wordCount = countWords(conteudo);
     if (wordCount < 500) {
         return toast.error(`Chapter too short! Minimum 500 words required. (Current: ${wordCount})`);
@@ -137,7 +137,8 @@ export default function Escrever() {
                 dataCriacao: serverTimestamp(), 
                 tituloBusca: tituloObra.toLowerCase(), 
                 views: 0, rating: 0, votes: 0, 
-                status: 'public'
+                status: 'public',
+                totalChapters: 0 // <--- FIX: Initialize counter for new books
             });
             idFinalObra = docRef.id; nomeFinalObra = tituloObra;
         } else {
@@ -155,6 +156,13 @@ export default function Escrever() {
             autorId: user.uid, 
             data: serverTimestamp(), 
             views: 0
+        });
+
+        // <--- FIX: UPDATE BOOK COUNTER AND LAST UPDATED DATE --->
+        const bookRef = doc(db, 'obras', idFinalObra);
+        await updateDoc(bookRef, {
+            totalChapters: increment(1), // Atomic increment
+            lastUpdated: serverTimestamp()
         });
         
         await enviarNotificacoes(nomeFinalObra, tituloCapitulo, capRef.id);
