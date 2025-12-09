@@ -4,11 +4,19 @@ import { db } from '../services/firebaseConnection';
 import { doc, updateDoc, collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore'; 
 import { 
     MdSave, MdEdit, MdPerson, MdLink, MdClose, MdImage, 
-    MdVerified, MdPeople, MdPersonAdd, MdLibraryBooks, MdTimeline, MdAutoStories 
+    MdVerified, MdPeople, MdPersonAdd, MdLibraryBooks, MdTimeline, MdAutoStories,
+    MdDiamond // IMPORTANTE: Adicionado para o ícone VIP
 } from 'react-icons/md';
 import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa';
 import StoryCard from '../components/StoryCard';
 import toast from 'react-hot-toast';
+
+// Função auxiliar para evitar links quebrados
+const formatUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `https://${url}`;
+};
 
 export default function Perfil() {
   const { user } = useContext(AuthContext);
@@ -92,7 +100,9 @@ export default function Perfil() {
                     <div className="flex flex-col items-center w-full mb-4">
                         <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
                             {user?.name}
-                            {user?.badges?.includes('pioneer') && <MdVerified className="text-yellow-400 text-xl" />}
+                            {/* CORREÇÃO: Exibe o ícone VIP se user.isVip for true */}
+                            {user?.isVip && <MdDiamond className="text-yellow-400 text-xl drop-shadow-md" title="VIP Member" />}
+                            {user?.badges?.includes('pioneer') && <MdVerified className="text-blue-400 text-xl" title="Pioneer" />}
                         </h2>
                         <span className="text-primary font-bold text-xs uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">Lvl {currentLevel} Reader</span>
                     </div>
@@ -100,14 +110,15 @@ export default function Perfil() {
                     {!isEditing && (
                         <div className="flex flex-col gap-4 mb-6 w-full px-4">
                             <div className="flex justify-center gap-4">
-                                {user?.website && <a href={user.website} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
-                                {user?.twitter && <a href={user.twitter} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
-                                {user?.instagram && <a href={user.instagram} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
+                                {/* CORREÇÃO: Usa formatUrl para garantir links válidos */}
+                                {user?.website && <a href={formatUrl(user.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
+                                {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
+                                {user?.instagram && <a href={formatUrl(user.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
                             </div>
                             {(user?.patreon || user?.paypal) && (
                                 <div className="flex gap-2 justify-center mt-2 border-t border-white/5 pt-4">
-                                    {user.patreon && <a href={user.patreon} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20"><FaPatreon /> Support</a>}
-                                    {user.paypal && <a href={user.paypal} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20"><FaPaypal /> Donate</a>}
+                                    {user.patreon && <a href={formatUrl(user.patreon)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20"><FaPatreon /> Support</a>}
+                                    {user.paypal && <a href={formatUrl(user.paypal)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20"><FaPaypal /> Donate</a>}
                                 </div>
                             )}
                         </div>
@@ -132,7 +143,7 @@ export default function Perfil() {
                             </div>
                         </div>
                     )}
-
+                    {/* Resto do componente permanece igual */}
                     <div className="w-full mt-2 space-y-4">
                         <div className="w-full px-2">
                             <div className="flex justify-between text-[10px] text-gray-400 mb-1 uppercase font-bold">

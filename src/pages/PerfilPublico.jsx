@@ -4,9 +4,16 @@ import { db } from '../services/firebaseConnection';
 import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore'; 
 import { AuthContext } from '../contexts/AuthContext';
 import StoryCard from '../components/StoryCard';
-import { MdVerified, MdPersonAdd, MdCheck, MdPeople, MdAutoStories, MdTimeline } from 'react-icons/md';
-import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa'; // <--- ÍCONES
+import { MdVerified, MdPersonAdd, MdCheck, MdPeople, MdAutoStories, MdTimeline, MdDiamond } from 'react-icons/md'; // Added MdDiamond
+import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa'; 
 import toast from 'react-hot-toast';
+
+// Função auxiliar para evitar links quebrados
+const formatUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `https://${url}`;
+};
 
 export default function PerfilPublico() {
   const { id } = useParams();
@@ -18,13 +25,32 @@ export default function PerfilPublico() {
   
   const [isFollowing, setIsFollowing] = useState(false);
   const [loadingFollow, setLoadingFollow] = useState(false);
+  
+  // Novo estado para VIP
+  const [isVip, setIsVip] = useState(false);
 
   useEffect(() => {
     async function loadData() {
         try {
             const userDoc = await getDoc(doc(db, "usuarios", id));
             if(userDoc.exists()) {
-                setPerfil({ id: userDoc.id, ...userDoc.data() });
+                const data = userDoc.data();
+                setPerfil({ id: userDoc.id, ...data });
+
+                // Lógica de verificação VIP para Perfil Público
+                if(data.vipUntil) {
+                    let vipDate = null;
+                    try {
+                        if(typeof data.vipUntil.toDate === 'function') {
+                            vipDate = data.vipUntil.toDate();
+                        } else {
+                            vipDate = new Date(data.vipUntil);
+                        }
+                        if(vipDate > new Date()) {
+                            setIsVip(true);
+                        }
+                    } catch(e) { console.error("Erro data VIP", e); }
+                }
             }
 
             const q = query(collection(db, "obras"), where("autorId", "==", id), where("status", "==", "public"));
@@ -87,7 +113,9 @@ export default function PerfilPublico() {
 
                     <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
                         {perfil.nome}
-                        {perfil.badges?.includes('pioneer') && <MdVerified className="text-yellow-400" title="Founder Author" />}
+                        {/* CORREÇÃO: Exibe o ícone VIP se isVip for true */}
+                        {isVip && <MdDiamond className="text-yellow-400 drop-shadow-md" title="VIP User" />}
+                        {perfil.badges?.includes('pioneer') && <MdVerified className="text-blue-400" title="Founder Author" />}
                     </h2>
                     
                     <div className="flex gap-2 mb-4 justify-center">
@@ -97,23 +125,23 @@ export default function PerfilPublico() {
 
                     {/* REDES SOCIAIS E APOIO */}
                     <div className="flex flex-col gap-4 mb-6 w-full px-4">
-                        {/* Redes */}
+                        {/* Redes - Usando formatUrl para garantir funcionalidade */}
                         <div className="flex justify-center gap-4">
-                            {perfil.website && <a href={perfil.website} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
-                            {perfil.twitter && <a href={perfil.twitter} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
-                            {perfil.instagram && <a href={perfil.instagram} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
+                            {perfil.website && <a href={formatUrl(perfil.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
+                            {perfil.twitter && <a href={formatUrl(perfil.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
+                            {perfil.instagram && <a href={formatUrl(perfil.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
                         </div>
 
-                        {/* Botões de Doação (Se existirem) */}
+                        {/* Botões de Doação - Verificação dupla para evitar renderização vazia */}
                         {(perfil.patreon || perfil.paypal) && (
                             <div className="flex gap-2 justify-center mt-2 pt-4 border-t border-white/5">
                                 {perfil.patreon && (
-                                    <a href={perfil.patreon} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20">
+                                    <a href={formatUrl(perfil.patreon)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20">
                                         <FaPatreon /> Support
                                     </a>
                                 )}
                                 {perfil.paypal && (
-                                    <a href={perfil.paypal} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20">
+                                    <a href={formatUrl(perfil.paypal)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20">
                                         <FaPaypal /> Donate
                                     </a>
                                 )}
