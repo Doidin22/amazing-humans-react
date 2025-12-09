@@ -3,12 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { db } from '../services/firebaseConnection';
 import { 
   doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp, 
-  limit, startAfter 
+  limit, getCountFromServer 
 } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 import { 
   MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder, 
-  MdInfoOutline, MdVisibility, MdList, MdLabel, MdFlag, MdPlayArrow, MdVerified, MdNavigateNext, MdNavigateBefore
+  MdInfoOutline, MdVisibility, MdList, MdFlag, MdPlayArrow, MdVerified, MdNavigateNext, MdNavigateBefore
 } from 'react-icons/md';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
@@ -21,79 +21,119 @@ import toast from 'react-hot-toast';
 import { Helmet } from 'react-helmet-async'; 
 import ReportModal from '../components/ReportModal';
 
-// Constantes ficam FORA do componente
+// Constantes
 const CHAPTERS_PER_PAGE = 10;
 
 export default function Obra() {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
 
-  // --- TODOS OS STATES (HOOKS) DEVEM FICAR AQUI DENTRO ---
+  // States
   const [obra, setObra] = useState(null);
-  
-  // Paginação e Controle
   const [capitulos, setCapitulos] = useState([]); 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [hasMoreDocs, setHasMoreDocs] = useState(true); // O hook deve estar AQUI
+  const [hasMoreDocs, setHasMoreDocs] = useState(true);
   const [chaptersCache, setChaptersCache] = useState({}); 
-  const [lastDocsMap, setLastDocsMap] = useState({}); 
   const [loadingCaps, setLoadingCaps] = useState(false);
-
-  // Estados Gerais
   const [loading, setLoading] = useState(true);
   const [estaNaBiblioteca, setEstaNaBiblioteca] = useState(false);
   const [idBiblioteca, setIdBiblioteca] = useState(null);
   const [showReport, setShowReport] = useState(false);
   const [lastReadId, setLastReadId] = useState(null);
   
-  // --- EFEITO: Carregar Obra ---
+  // --- CARREGAMENTO PRINCIPAL ---
   useEffect(() => {
-    async function loadObra() {
+    let isMounted = true;
+
+    async function loadObraAndChapters() {
       try {
+        // 1. Busca Dados da Obra
         const docRef = doc(db, "obras", id);
         const snapshot = await getDoc(docRef);
-        if (!snapshot.exists()) { toast.error("Book not found!"); setLoading(false); return; }
+        
+        if (!snapshot.exists()) { 
+           if(isMounted) { toast.error("Book not found!"); setLoading(false); }
+           return; 
+        }
 
         const dadosObra = { id: snapshot.id, ...snapshot.data() };
         
-        // Cálculo visual de páginas
-        const totalCaps = dadosObra.totalChapters || 0;
-        setTotalPages(totalCaps > 0 ? Math.ceil(totalCaps / CHAPTERS_PER_PAGE) : 1);
-
+        // Dados do Autor
         if (dadosObra.autorId) {
-            const userDoc = await getDoc(doc(db, "usuarios", dadosObra.autorId));
-            if (userDoc.exists()) {
-                const uData = userDoc.data();
-                dadosObra.autor = uData.nome;
-                dadosObra.autorBadges = uData.badges || [];
-            }
+            try {
+                const userDoc = await getDoc(doc(db, "usuarios", dadosObra.autorId));
+                if (userDoc.exists()) {
+                    const uData = userDoc.data();
+                    dadosObra.autor = uData.nome;
+                    dadosObra.autorBadges = uData.badges || [];
+                }
+            } catch (err) { console.log("Erro ao carregar autor", err); }
         }
-        setObra(dadosObra);
         
-        // Carrega primeiros capítulos
-        loadChapters(1);
+        if(isMounted) {
+            // Calcula total de páginas visualmente
+            const totalCaps = dadosObra.totalChapters || 0;
+            setTotalPages(totalCaps > 0 ? Math.ceil(totalCaps / CHAPTERS_PER_PAGE) : 1);
+            setObra(dadosObra);
+        }
 
-        // Verifica Histórico
+        // 2. Lógica de Histórico (Isolada para não quebrar a tela se falhar)
+        let targetPage = 1;
+        
         if (user?.uid) {
-            const histRef = doc(db, "historico", `${user.uid}_${id}`);
-            const histSnap = await getDoc(histRef);
-            if (histSnap.exists()) { 
-                setLastReadId(histSnap.data().lastChapterId); 
+            try {
+                const histRef = doc(db, "historico", `${user.uid}_${id}`);
+                const histSnap = await getDoc(histRef);
+                
+                if (histSnap.exists()) { 
+                    const savedLastReadId = histSnap.data().lastChapterId;
+                    if(isMounted) setLastReadId(savedLastReadId); 
+
+                    // Tenta calcular a página exata
+                    const capRef = doc(db, "capitulos", savedLastReadId);
+                    const capSnap = await getDoc(capRef);
+                    
+                    if (capSnap.exists()) {
+                        const capData = capSnap.data();
+                        // Conta quantos caps existem antes deste
+                        const qCount = query(
+                            collection(db, "capitulos"),
+                            where("obraId", "==", id),
+                            where("data", "<", capData.data) 
+                        );
+                        const countSnap = await getCountFromServer(qCount);
+                        const countBefore = countSnap.data().count;
+                        targetPage = Math.floor(countBefore / CHAPTERS_PER_PAGE) + 1;
+                    }
+                }
+            } catch (histErr) {
+                console.warn("Erro ao calcular histórico (ignorando):", histErr);
+                // Se der erro no histórico, mantém targetPage = 1 e segue a vida
             }
         }
-      } catch (error) { console.log(error); } finally { setLoading(false); }
+
+        // 3. Carrega os capítulos da página definida (1 ou a do histórico)
+        if(isMounted) await fetchChapters(targetPage);
+
+      } catch (error) { 
+          console.error("Erro fatal ao carregar obra:", error); 
+      } finally { 
+          if(isMounted) setLoading(false); 
+      }
     }
-    loadObra();
+
+    loadObraAndChapters();
+
+    return () => { isMounted = false; };
   }, [id, user]);
 
-  // --- FUNÇÃO: Carregar Capítulos ---
-  async function loadChapters(targetPage) {
-      // 1. Verifica Cache
-      if (chaptersCache[targetPage]) {
-          setCapitulos(chaptersCache[targetPage]);
-          setPage(targetPage);
-          setHasMoreDocs(chaptersCache[targetPage].length === CHAPTERS_PER_PAGE); 
+  // --- FUNÇÃO DE BUSCA DE CAPÍTULOS (Reutilizável) ---
+  async function fetchChapters(pageNumber) {
+      if (chaptersCache[pageNumber]) {
+          setCapitulos(chaptersCache[pageNumber]);
+          setPage(pageNumber);
+          setHasMoreDocs(chaptersCache[pageNumber].length === CHAPTERS_PER_PAGE);
           return;
       }
 
@@ -101,75 +141,64 @@ export default function Obra() {
       try {
         const capsRef = collection(db, "capitulos");
         
-        // Query base
-        let q = query(
+        // Busca sempre do início até o fim da página desejada para garantir ordem
+        // (Isso evita problemas de cursor se o usuário pular páginas)
+        const limitDocs = pageNumber * CHAPTERS_PER_PAGE;
+        
+        const q = query(
             capsRef, 
             where("obraId", "==", id), 
             orderBy("data", "asc"), 
-            limit(CHAPTERS_PER_PAGE)
+            limit(limitDocs)
         );
-
-        // Se não for pág 1, usa cursor
-        if (targetPage > 1) {
-            const prevPageLastDoc = lastDocsMap[targetPage - 1];
-            if (prevPageLastDoc) {
-                q = query(q, startAfter(prevPageLastDoc));
-            } else {
-                loadChapters(1); // Fallback
-                return;
-            }
-        }
 
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
-            const listaCaps = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            let listaCaps = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
             
-            // Verifica se a página veio cheia (indica que pode haver mais)
-            const isFullPage = querySnapshot.docs.length === CHAPTERS_PER_PAGE;
-            setHasMoreDocs(isFullPage);
+            // Verifica se tem mais documentos além desta página
+            // (Se pedimos 30 e vieram 30, assumimos que pode ter mais. Se vieram 24, acabou.)
+            setHasMoreDocs(listaCaps.length === limitDocs);
 
-            // Atualiza Cache e Cursor
-            setChaptersCache(prev => ({ ...prev, [targetPage]: listaCaps }));
-            const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-            setLastDocsMap(prev => ({ ...prev, [targetPage]: lastDoc }));
+            // Fatia apenas os capítulos da página atual
+            const startIndex = (pageNumber - 1) * CHAPTERS_PER_PAGE;
+            const pageCaps = listaCaps.slice(startIndex, startIndex + CHAPTERS_PER_PAGE);
 
-            setCapitulos(listaCaps);
-            setPage(targetPage);
+            setChaptersCache(prev => ({ ...prev, [pageNumber]: pageCaps }));
+            setCapitulos(pageCaps);
+            setPage(pageNumber);
         } else {
-            if(targetPage === 1) setCapitulos([]);
+            setCapitulos([]);
             setHasMoreDocs(false);
         }
 
       } catch (err) {
-          console.error("Error loading chapters:", err);
-          // Omitindo toast de erro para evitar spam na UI se for erro de índice
+          console.error("Erro ao buscar capítulos:", err);
+          toast.error("Error loading chapters.");
       } finally {
           setLoadingCaps(false);
       }
   }
 
-  const handleNextPage = () => {
-      if (hasMoreDocs) loadChapters(page + 1);
-  };
-
-  const handlePrevPage = () => {
-      if (page > 1) loadChapters(page - 1);
-  };
+  const handleNextPage = () => fetchChapters(page + 1);
+  const handlePrevPage = () => { if (page > 1) fetchChapters(page - 1); };
 
   // --- EFEITO: Checar Biblioteca ---
   useEffect(() => {
     async function checkLibrary() {
       if (!user?.uid || !id) return;
-      const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid), where("obraId", "==", id));
-      const snapLib = await getDocs(qLib);
-      if (!snapLib.empty) { setEstaNaBiblioteca(true); setIdBiblioteca(snapLib.docs[0].id); } 
-      else { setEstaNaBiblioteca(false); setIdBiblioteca(null); }
+      try {
+        const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid), where("obraId", "==", id));
+        const snapLib = await getDocs(qLib);
+        if (!snapLib.empty) { setEstaNaBiblioteca(true); setIdBiblioteca(snapLib.docs[0].id); } 
+        else { setEstaNaBiblioteca(false); setIdBiblioteca(null); }
+      } catch(e) { console.log("Erro library", e); }
     }
     checkLibrary();
   }, [id, user]);
 
-  // --- FUNÇÃO: Toggle Biblioteca ---
+  // --- TOGGLE LIBRARY ---
   async function toggleBiblioteca() {
     if(!user) return toast.error("Login required.");
     try {
@@ -188,11 +217,9 @@ export default function Obra() {
     } catch (error) { toast.error("Error updating library"); }
   }
 
-  // --- RENDER ---
-  const isAuthor = user?.uid === obra?.autorId;
-
   if (loading) return <SkeletonObra />;
-  
+
+  const isAuthor = user?.uid === obra?.autorId;
   const cleanSinopse = obra.sinopse ? obra.sinopse.replace(/<[^>]*>?/gm, '').substring(0, 160) + '...' : 'Read on Amazing Humans.';
 
   const schemaData = {
@@ -202,11 +229,7 @@ export default function Obra() {
     "author": { "@type": "Person", "name": obra?.autor },
     "description": cleanSinopse,
     "image": obra?.capa,
-    "publisher": {
-      "@type": "Organization",
-      "name": "Amazing Humans",
-      "logo": { "@type": "ImageObject", "url": "https://amazing-humans-react.web.app/logo-ah.png" }
-    }
+    "publisher": { "@type": "Organization", "name": "Amazing Humans", "logo": { "@type": "ImageObject", "url": "https://amazing-humans-react.web.app/logo-ah.png" } }
   };
 
   return (
@@ -258,7 +281,7 @@ export default function Obra() {
                     </div>
 
                     <div className="flex flex-wrap gap-4 items-center">
-                        <Link to={`/ler/${lastReadId || (capitulos[0]?.id)}`} className={`btn-primary px-8 py-3 rounded-full text-lg shadow-xl hover:scale-105 transition-transform flex items-center gap-2 ${(!capitulos.length && !lastReadId) ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <Link to={`/ler/${lastReadId || (capitulos.length > 0 ? capitulos[0].id : '')}`} className={`btn-primary px-8 py-3 rounded-full text-lg shadow-xl hover:scale-105 transition-transform flex items-center gap-2 ${(!capitulos.length && !lastReadId) ? 'opacity-50 pointer-events-none' : ''}`}>
                             <MdMenuBook /> {lastReadId ? "Continue Reading" : "Read Now"}
                         </Link>
                         
@@ -285,8 +308,9 @@ export default function Obra() {
                    <div className="p-8 text-center text-gray-500">Loading chapters...</div>
                 ) : (
                     <div className="bg-[#1a1a1a] border border-white/5 rounded-xl overflow-hidden divide-y divide-white/5">
-                        {capitulos.map((cap, i) => {
+                        {capitulos.length > 0 ? capitulos.map((cap, i) => {
                             const isLastRead = cap.id === lastReadId;
+                            // Correção do índice: (PáginaAtual - 1) * ItensPorPagina + IndiceDoLoop + 1
                             const absoluteIndex = ((page - 1) * CHAPTERS_PER_PAGE) + (i + 1);
                             
                             return (
@@ -304,8 +328,11 @@ export default function Obra() {
                                     </div>
                                 </Link>
                             );
-                        })}
-                        {capitulos.length === 0 && <div className="p-6 text-center text-gray-500 text-sm">No chapters released yet.</div>}
+                        }) : (
+                             <div className="p-6 text-center text-gray-500 text-sm">
+                                 {page > 1 ? "No more chapters here." : "No chapters released yet."}
+                             </div>
+                        )}
                     </div>
                 )}
 
@@ -328,7 +355,7 @@ export default function Obra() {
 
                         <button 
                             onClick={handleNextPage} 
-                            disabled={!hasMoreDocs || loadingCaps}
+                            disabled={loadingCaps || !hasMoreDocs}
                             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-primary hover:bg-primary/80 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
                         >
                             Next <MdNavigateNext size={20} />

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { db, functions } from '../services/firebaseConnection'; 
-import { httpsCallable } from 'firebase/functions'; 
+import { db } from '../services/firebaseConnection'; 
 import { 
   doc, getDoc, collection, query, where, orderBy, limit, getDocs, 
-  setDoc, serverTimestamp 
+  setDoc, serverTimestamp, updateDoc, increment 
 } from 'firebase/firestore';
 import DOMPurify from 'dompurify';
 import { 
@@ -89,6 +88,7 @@ export default function Ler() {
         const data = docSnap.data();
         setCapitulo({ id: docSnap.id, ...data });
 
+        // LOGICA DE CONTAGEM E HISTÓRICO
         if (user?.uid) {
             const historyRef = doc(db, "historico", `${user.uid}_${data.obraId}`);
             // Salva histórico de forma "fire and forget" para não travar a UI
@@ -101,10 +101,14 @@ export default function Ler() {
                 accessedAt: serverTimestamp()
             }, { merge: true });
 
-            // Chama Cloud Function para contar leitura (seguro)
+            // Incrementar contador de visualizações na Obra (Correção de Bug)
             try {
-                const registerReading = httpsCallable(functions, 'registerReading');
-                registerReading({ obraId: data.obraId, capituloId: docSnap.id });
+                const obraRef = doc(db, "obras", data.obraId);
+                // Utiliza increment(1) direto no Firestore, exigindo a regra de segurança atualizada
+                updateDoc(obraRef, { views: increment(1) }).catch(err => {
+                    // Ignora erro de permissão silenciosamente para não atrapalhar leitura
+                    console.warn("Analytics update failed (non-fatal)", err);
+                });
             } catch(e) { console.log("Analytics error", e); }
         }
 

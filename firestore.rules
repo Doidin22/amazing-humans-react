@@ -19,10 +19,15 @@ service cloud.firestore {
              get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role == "admin";
     }
 
+    // Regra Segura para Incrementar Views (Apenas views, e apenas +1)
+    function isViewIncrement() {
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+               && request.resource.data.views == resource.data.views + 1;
+    }
+
     // 1. USUÁRIOS
     match /usuarios/{userId} {
       allow read: if true;
-      // Removida proteção de coins/level
       allow update: if isLoggedIn() && request.auth.uid == userId 
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'banned']);
       allow create: if isLoggedIn() && request.auth.uid == userId;
@@ -33,7 +38,8 @@ service cloud.firestore {
       allow read: if true;
       allow create: if willBeOwner('autorId');
       allow delete: if isOwner('autorId') || isAdmin();
-      allow update: if isOwner('autorId');
+      // Permite update se for dono OU se for apenas um incremento de visualização por usuário logado
+      allow update: if isOwner('autorId') || (isLoggedIn() && isViewIncrement());
     }
 
     // 3. CAPÍTULOS
@@ -66,7 +72,7 @@ service cloud.firestore {
     match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
     match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
     
-    // Stats (Apenas leitura pública se necessário, ou escrita via Cloud Functions apenas)
+    // Stats
     match /stats/{docId} { allow read: if true; allow write: if false; }
   }
 }
