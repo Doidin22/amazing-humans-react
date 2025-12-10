@@ -1,15 +1,17 @@
 const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const logger = require("firebase-functions/logger");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 initializeApp();
 const db = getFirestore();
 
-// --- ANALYTICS & OTHERS ---
+// ======================================================
+// 1. ANALYTICS & SISTEMA
+// ======================================================
 
-// Registra leitura e incrementa contadores
-exports.registerReading = onCall(async (request) => {
+exports.registerReading = onCall({ cors: true }, async (request) => {
     if (!request.auth) return { success: false };
     const { obraId, capituloId } = request.data;
     const uid = request.auth.uid;
@@ -20,22 +22,16 @@ exports.registerReading = onCall(async (request) => {
             const doc = await t.get(viewRef);
             if(doc.exists()) return;
             
-            // Registra que o usuário leu este capitulo
             t.set(viewRef, { userId: uid, obraId, capituloId, data: FieldValue.serverTimestamp() });
-            
-            // Incrementa view na obra
             t.update(db.collection('obras').doc(obraId), { views: FieldValue.increment(1) });
-            
-            // Incrementa contador pessoal do usuário (para badges/stats simples)
             t.update(db.collection('usuarios').doc(uid), { contador_leituras: FieldValue.increment(1) });
         });
         return { success: true };
     } catch(e) { return { success: false }; }
 });
 
-// Atualiza a média de estrelas (Rating) quando uma avaliação é feita
 exports.updateBookRating = onDocumentWritten("avaliacoes/{docId}", async (event) => {
-    const data = event.data.after.data();
+    const data = event.data?.after?.data();
     if (!data) return;
     const snapshot = await db.collection("avaliacoes").where("obraId", "==", data.obraId).get();
     let soma = 0, total = 0;
@@ -43,10 +39,12 @@ exports.updateBookRating = onDocumentWritten("avaliacoes/{docId}", async (event)
     return db.collection("obras").doc(data.obraId).update({ rating: total ? soma/total : 0, votes: total });
 });
 
-// Dá o badge de "Pioneer" para os primeiros 100 autores
 exports.grantFounderBadge = onDocumentCreated("obras/{obraId}", async (event) => {
-    const autorId = event.data.data().autorId;
+    const data = event.data?.data();
+    if(!data) return;
+    const autorId = data.autorId;
     if(!autorId) return;
+    
     const statsRef = db.collection('stats').doc('authors_counter');
     await db.runTransaction(async (t) => {
         const stats = await t.get(statsRef);
@@ -60,7 +58,6 @@ exports.grantFounderBadge = onDocumentCreated("obras/{obraId}", async (event) =>
     });
 });
 
-// Atualiza contadores de seguidores
 exports.manageFollowers = onDocumentWritten("seguidores/{docId}", async (event) => {
     if (!event.data.after.exists && !event.data.before.exists) return;
     const isNew = !event.data.before.exists;

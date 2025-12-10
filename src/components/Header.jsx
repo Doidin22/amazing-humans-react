@@ -6,8 +6,7 @@ import { Link } from 'react-router-dom';
 import { 
   MdMenu, MdNotifications, MdPerson, MdEditNote, 
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdInfoOutline, MdPhoneIphone, MdSecurity,
-  MdDiamond // <--- Ícone do VIP
+  MdHome, MdClose, MdInfoOutline, MdSecurity
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
@@ -22,7 +21,6 @@ export default function Header() {
   const prevCountRef = useRef(0);
 
   const [scrolled, setScrolled] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState(null);
 
   const toggleDropdown = () => setShowDropdown(!showDropdown);
   const toggleDrawer = () => setShowDrawer(!showDrawer);
@@ -56,21 +54,6 @@ export default function Header() {
 
     return () => unsubscribe();
   }, [user]);
-
-  useEffect(() => {
-    const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  const handleInstallClick = () => {
-    if (installPrompt) {
-      installPrompt.prompt();
-      installPrompt.userChoice.then((choiceResult) => { if (choiceResult.outcome === 'accepted') setInstallPrompt(null); });
-    } else {
-      alert("To install: \niOS: Share > Add to Home Screen\nAndroid: Menu > Install App");
-    }
-  };
 
   const getAvatarUrl = () => {
     if (user?.avatar && user.avatar.length > 5) return user.avatar;
@@ -118,17 +101,6 @@ export default function Header() {
           </div>
 
           <div className="flex flex-col gap-1 p-4 pb-20">
-              
-              {/* BOTÃO VIP (MOBILE) - DESTAQUE NO TOPO */}
-              <Link to="/assinatura" onClick={() => setShowDrawer(false)} className="mx-2 mb-4 p-3 rounded-xl bg-gradient-to-r from-yellow-600/20 to-yellow-400/20 border border-yellow-500/30 flex items-center justify-center gap-2 text-yellow-500 font-bold tracking-wide shadow-lg">
-                  <MdDiamond size={20} /> BECOME A VIP
-              </Link>
-
-              <div className="mx-2 mb-6 p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 shadow-inner">
-                  <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-sm"><MdPhoneIphone /> <span>Install App</span></div>
-                  <button onClick={handleInstallClick} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold shadow-lg transition-all active:scale-95">Install Now</button>
-              </div>
-
               {signed ? (
                 <>
                     <div className="flex flex-col gap-2 mb-6 p-3 bg-white/5 rounded-xl border border-white/5 mx-2">
@@ -141,6 +113,9 @@ export default function Header() {
                     </div>
                     
                     {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> Admin Panel</Link>}
+
+                    {/* --- Link do Dashboard no Mobile --- */}
+                    <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Dashboard</Link>
 
                     <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> Home</Link>
                     <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile</Link>
@@ -178,14 +153,6 @@ export default function Header() {
 
              <div className="hidden lg:flex items-center gap-6">
                
-               {/* BOTÃO VIP (DESKTOP) - DOURADO E BRILHANTE */}
-               <Link 
-                 to="/assinatura" 
-                 className="flex items-center gap-2 bg-gradient-to-r from-yellow-600 to-yellow-400 hover:from-yellow-500 hover:to-yellow-300 text-black px-5 py-2 rounded-full font-bold text-xs transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] hover:shadow-[0_0_20px_rgba(234,179,8,0.5)] transform hover:scale-105"
-               >
-                 <MdDiamond size={16} /> Go VIP
-               </Link>
-
                <a href="https://buymeacoffee.com/rlokin222" target="_blank" className="flex items-center gap-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-4 py-1.5 rounded-full font-bold text-xs transition-all"><FaCoffee size={14} /> Support</a>
 
                {!signed ? (
@@ -218,7 +185,6 @@ export default function Header() {
                               <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> Dashboard</Link>
                               <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
                               <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
-                              <Link to="/assinatura" className="dropdown-item text-yellow-500 hover:bg-yellow-500/10"><MdDiamond /> VIP Membership</Link>
                               
                               <div className="h-px bg-white/5 my-1"></div>
                               <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> Logout</button>
