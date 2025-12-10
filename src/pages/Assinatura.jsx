@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useContext } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { functions } from '../services/firebaseConnection';
@@ -5,6 +6,11 @@ import { httpsCallable } from 'firebase/functions';
 import { MdCheck, MdDiamond, MdClose, MdVerified, MdFace, MdLocalOffer } from 'react-icons/md';
 import { FaPaypal, FaCreditCard, FaStripe } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+=======
+import React from 'react';
+import { MdCheck, MdDiamond, MdClose, MdVerified, MdFace, MdLocalOffer } from 'react-icons/md'; // Adicionado MdLocalOffer
+import { FaPaypal, FaCreditCard } from 'react-icons/fa';
+>>>>>>> b7236764c4138fdd645fca09756e6b9c7614f320
 
 export default function Assinatura() {
   const { user } = useContext(AuthContext);
@@ -90,6 +96,11 @@ export default function Assinatura() {
                     <div className="p-1 rounded-full bg-blue-500 text-white"><MdCheck size={14} /></div>
                     Remove All Ads
                 </li>
+<<<<<<< HEAD
+=======
+                
+                {/* Benefício 1: Badges */}
+>>>>>>> b7236764c4138fdd645fca09756e6b9c7614f320
                 <li className="flex items-center gap-3 text-gray-200">
                     <div className="p-1 rounded-full bg-blue-500/20 text-blue-400"><MdVerified size={14} /></div>
                     <span>
@@ -97,6 +108,11 @@ export default function Assinatura() {
                         <span className="text-xs text-gray-500 font-normal">Get the Golden Supporter Badge.</span>
                     </span>
                 </li>
+<<<<<<< HEAD
+=======
+
+                {/* Benefício 2: Stickers */}
+>>>>>>> b7236764c4138fdd645fca09756e6b9c7614f320
                 <li className="flex items-center gap-3 text-gray-200">
                     <div className="p-1 rounded-full bg-purple-500/20 text-purple-400"><MdFace size={14} /></div>
                     <span>
@@ -104,6 +120,11 @@ export default function Assinatura() {
                         <span className="text-xs text-gray-500 font-normal">Unlock 20+ unique stickers.</span>
                     </span>
                 </li>
+<<<<<<< HEAD
+=======
+
+                {/* NOVO BENEFÍCIO: Desconto em Anúncios */}
+>>>>>>> b7236764c4138fdd645fca09756e6b9c7614f320
                 <li className="flex items-center gap-3 text-gray-200">
                     <div className="p-1 rounded-full bg-green-500/20 text-green-400"><MdLocalOffer size={14} /></div>
                     <span>
@@ -113,6 +134,7 @@ export default function Assinatura() {
                 </li>
             </ul>
 
+<<<<<<< HEAD
             {/* STRIPE BUTTON */}
             <button onClick={() => handleSubscribe("vip")} className="w-full py-4 rounded-xl font-bold bg-[#635bff] hover:bg-[#534ac2] text-white shadow-lg flex items-center justify-center gap-2 mb-3 transition-all transform hover:scale-105">
                 <FaStripe size={24} /> Get VIP Access
@@ -128,6 +150,10 @@ export default function Assinatura() {
             </div>
 
             <p className="text-center text-[10px] text-gray-500 mt-4">Secure payment via Stripe.</p>
+=======
+            <button onClick={() => handleSubscribe("VIP Promo")} className="w-full py-4 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg transition-all transform hover:scale-105">Get VIP Access</button>
+            <p className="text-center text-[10px] text-gray-500 mt-4">Secure payment via PayPal or Card.</p>
+>>>>>>> b7236764c4138fdd645fca09756e6b9c7614f320
         </div>
       </div>
 
