@@ -2,6 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- FUNÇÕES AUXILIARES ---
     function isLoggedIn() {
       return request.auth != null;
     }
@@ -61,14 +62,19 @@ service cloud.firestore {
       allow delete: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    // 6. HISTÓRICO (REGRA CORRIGIDA E SIMPLIFICADA)
+    // 6. HISTÓRICO
     match /historico/{docId} { 
-       // Permite ler/escrever se o ID do documento começar com o UID do usuário.
-       // Ex: "USER123_LIVRO456" começa com "USER123"
        allow read, write: if isLoggedIn() && docId.matches(request.auth.uid + "_.*");
     }
 
-    // Outras coleções
+    // 7. ANÚNCIOS (NOVO - Regra adicionada corretamente)
+    match /anuncios/{anuncioId} {
+      allow read: if true;
+      allow create: if isLoggedIn();
+      allow update, delete: if isLoggedIn() && request.auth.uid == resource.data.userId;
+    }
+
+    // OUTRAS COLEÇÕES
     match /comentarios/{docId} { allow read: if true; allow write: if isLoggedIn(); }
     match /notificacoes/{docId} { allow read, write: if isLoggedIn(); }
     match /biblioteca/{docId} { allow read, write: if isLoggedIn(); }

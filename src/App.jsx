@@ -9,13 +9,14 @@ import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import CacheProvider from './contexts/CacheContext';
 
-// --- IMPORTS DINÂMICOS (LAZY LOADING) ---
+// --- IMPORTS DINÂMICOS ---
 const Home = lazy(() => import('./pages/Home'));
 const Login = lazy(() => import('./pages/Login'));
 const Obra = lazy(() => import('./pages/Obra'));
 const Ler = lazy(() => import('./pages/Ler'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Escrever = lazy(() => import('./pages/Escrever'));
+const CriarAnuncio = lazy(() => import('./pages/CriarAnuncio')); // <--- NOVO
 const Perfil = lazy(() => import('./pages/Perfil'));
 const PerfilPublico = lazy(() => import('./pages/PerfilPublico'));
 const Biblioteca = lazy(() => import('./pages/Biblioteca'));
@@ -37,52 +38,20 @@ const LoadingFallback = () => (
 );
 
 function App() {
-  const {
-    needRefresh: [needRefresh, setNeedRefresh],
-    updateServiceWorker,
-  } = useRegisterSW({
-    onRegistered(r) {
-      r && setInterval(() => {
-        r.update();
-      }, 60 * 60 * 1000); 
-    },
-    onRegisterError(error) {
-      console.log('SW registration error', error);
-    },
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
+    onRegistered(r) { r && setInterval(() => { r.update(); }, 60 * 60 * 1000); }
   });
 
-  useEffect(() => {
-    if (needRefresh) {
-      updateServiceWorker(true);
-    }
-  }, [needRefresh, updateServiceWorker]);
-
-  const EM_MANUTENCAO = false; 
-
-  if (EM_MANUTENCAO) {
-    return (
-      <Suspense fallback={<div className="bg-[#121212] h-screen" />}>
-        <Manutencao />
-      </Suspense>
-    );
-  }
+  useEffect(() => { if (needRefresh) updateServiceWorker(true); }, [needRefresh, updateServiceWorker]);
 
   return (
     <AuthProvider>
-      {/* CacheProvider adicionado aqui para persistir os dados entre as rotas */}
       <CacheProvider>
         <BrowserRouter>
           <ScrollToTop />
           <Header />
+          <Toaster position="top-center" toastOptions={{ style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' } }} />
           
-          <Toaster 
-            position="top-center" 
-            toastOptions={{
-              style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' },
-              success: { iconTheme: { primary: '#4a90e2', secondary: '#fff' } },
-            }}
-          />
-
           <main className="min-h-screen">
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
@@ -92,6 +61,7 @@ function App() {
                 <Route path="/ler/:id" element={<Ler />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/escrever" element={<Escrever />} />
+                <Route path="/criar-anuncio" element={<CriarAnuncio />} /> {/* <--- ROTA NOVA */}
                 <Route path="/perfil" element={<Perfil />} />
                 <Route path="/usuario/:id" element={<PerfilPublico />} />
                 <Route path="/biblioteca" element={<Biblioteca />} />
@@ -99,9 +69,7 @@ function App() {
                 <Route path="/notificacoes" element={<Notificacoes />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/admin" element={<Admin />} />
-                
                 <Route path="/assinatura" element={<Assinatura />} /> 
-                
                 <Route path="/editar-obra/:id" element={<EditarObra />} />
                 <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
                 <Route path="/terms" element={<Terms />} />
@@ -109,9 +77,7 @@ function App() {
               </Routes>
             </Suspense>
           </main>
-
           <Footer />
-          
         </BrowserRouter>
       </CacheProvider>
     </AuthProvider>
