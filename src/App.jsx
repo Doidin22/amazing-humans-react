@@ -1,4 +1,4 @@
-import { useEffect, Suspense, lazy } from 'react'; 
+import { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -16,7 +16,7 @@ const Obra = lazy(() => import('./pages/Obra'));
 const Ler = lazy(() => import('./pages/Ler'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Escrever = lazy(() => import('./pages/Escrever'));
-const CriarAnuncio = lazy(() => import('./pages/CriarAnuncio')); // <--- NOVO
+
 const Perfil = lazy(() => import('./pages/Perfil'));
 const PerfilPublico = lazy(() => import('./pages/PerfilPublico'));
 const Biblioteca = lazy(() => import('./pages/Biblioteca'));
@@ -26,10 +26,10 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks'));
 const Admin = lazy(() => import('./pages/Admin'));
 const EditarObra = lazy(() => import('./pages/EditarObra'));
 const EditarCapitulo = lazy(() => import('./pages/EditarCapitulo'));
-const Assinatura = lazy(() => import('./pages/Assinatura')); 
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Manutencao = lazy(() => import('./pages/Manutencao'));
+const Subscription = lazy(() => import('./pages/Subscription'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#121212]">
@@ -51,7 +51,7 @@ function App() {
           <ScrollToTop />
           <Header />
           <Toaster position="top-center" toastOptions={{ style: { background: '#333', color: '#fff', border: '1px solid #4a90e2' } }} />
-          
+
           <main className="min-h-screen">
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
@@ -61,7 +61,7 @@ function App() {
                 <Route path="/ler/:id" element={<Ler />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/escrever" element={<Escrever />} />
-                <Route path="/criar-anuncio" element={<CriarAnuncio />} /> {/* <--- ROTA NOVA */}
+
                 <Route path="/perfil" element={<Perfil />} />
                 <Route path="/usuario/:id" element={<PerfilPublico />} />
                 <Route path="/biblioteca" element={<Biblioteca />} />
@@ -69,11 +69,11 @@ function App() {
                 <Route path="/notificacoes" element={<Notificacoes />} />
                 <Route path="/how-it-works" element={<HowItWorks />} />
                 <Route path="/admin" element={<Admin />} />
-                <Route path="/assinatura" element={<Assinatura />} /> 
                 <Route path="/editar-obra/:id" element={<EditarObra />} />
                 <Route path="/editar-capitulo/:id" element={<EditarCapitulo />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
+                <Route path="/subscription" element={<Subscription />} />
               </Routes>
             </Suspense>
           </main>

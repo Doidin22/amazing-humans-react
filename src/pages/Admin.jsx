@@ -3,12 +3,13 @@ import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { 
     collection, query, orderBy, getDocs, doc, deleteDoc, updateDoc, 
-    where, getCountFromServer, limit 
+    where, getCountFromServer, limit, arrayUnion, arrayRemove 
 } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
     MdDelete, MdCheck, MdWarning, MdSecurity, MdOpenInNew, 
-    MdPeople, MdMenuBook, MdBarChart, MdSearch, MdBlock, MdVerified, MdSupervisedUserCircle 
+    MdPeople, MdMenuBook, MdBarChart, MdSearch, MdBlock, MdVerified, 
+    MdSupervisedUserCircle, MdVisibility, MdVisibilityOff, MdClose, MdEditDocument
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
@@ -24,6 +25,11 @@ export default function Admin() {
   // States para User Management
   const [userSearch, setUserSearch] = useState('');
   const [foundUsers, setFoundUsers] = useState([]);
+  
+  // States para Modal de Conteúdo do Usuário
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userWorks, setUserWorks] = useState([]);
+  const [loadingWorks, setLoadingWorks] = useState(false);
 
   useEffect(() => {
     if (loadingAuth) return;
@@ -95,21 +101,15 @@ export default function Admin() {
       e.preventDefault();
       if(!userSearch.trim()) return;
       
-      // Busca simples por nome (Firestore não tem busca 'contains' nativa fácil, então usaremos startAt/endAt ou client-side filter se a base for pequena. 
-      // Para produção, idealmente busca-se por Email exato ou ID).
-      // Aqui faremos uma busca por email exato ou listagem de ultimos.
-      
       try {
-          const q = query(
-              collection(db, "usuarios"), 
-              where("email", "==", userSearch.trim())
-          );
+          // Busca por Email exato
+          const q = query(collection(db, "usuarios"), where("email", "==", userSearch.trim()));
           const snap = await getDocs(q);
           let users = [];
           snap.forEach(d => users.push({ id: d.id, ...d.data() }));
           
+          // Busca "contains" (simulada) por nome se não achar por email
           if(users.length === 0) {
-              // Tenta buscar por nome (muito básico)
               const qName = query(collection(db, "usuarios"), orderBy("nome"), limit(50));
               const snapName = await getDocs(qName);
               snapName.forEach(d => {
@@ -120,8 +120,7 @@ export default function Admin() {
               });
           }
           
-          // Remove duplicatas
-          users = users.filter((v,i,a)=>a.findIndex(v2=>(v2.id===v.id))===i);
+          users = users.filter((v,i,a)=>a.findIndex(v2=>(v2.id===v.id))===i); // Remove duplicatas
           setFoundUsers(users);
           
           if(users.length === 0) toast("No user found.");
@@ -139,31 +138,88 @@ export default function Admin() {
       if(!window.confirm(`Are you sure you want to ${action} ${targetUser.nome}?`)) return;
 
       try {
-          await updateDoc(doc(db, "usuarios", targetUser.id), { 
-              banned: !isBanned 
-          });
-          
-          // Atualiza lista local
+          await updateDoc(doc(db, "usuarios", targetUser.id), { banned: !isBanned });
           setFoundUsers(foundUsers.map(u => u.id === targetUser.id ? {...u, banned: !isBanned} : u));
           toast.success(`User ${action}ned successfully.`);
-      } catch(error) {
-          toast.error("Action failed.");
-      }
+      } catch(error) { toast.error("Action failed."); }
   }
 
   async function toggleAdminRole(targetUser) {
-      if(!window.confirm(`Make ${targetUser.nome} an ADMIN?`)) return;
+      const isAdminAlready = targetUser.role === 'admin';
+      const action = isAdminAlready ? "Revoke Admin from" : "Promote to Admin";
+      const newRole = isAdminAlready ? 'user' : 'admin';
+
+      if(!window.confirm(`${action} ${targetUser.nome}?`)) return;
       try {
-          await updateDoc(doc(db, "usuarios", targetUser.id), { role: 'admin' });
-          setFoundUsers(foundUsers.map(u => u.id === targetUser.id ? {...u, role: 'admin'} : u));
-          toast.success("User promoted to Admin.");
+          await updateDoc(doc(db, "usuarios", targetUser.id), { role: newRole });
+          setFoundUsers(foundUsers.map(u => u.id === targetUser.id ? {...u, role: newRole} : u));
+          toast.success(`Success: ${action} ${targetUser.nome}`);
       } catch(error) { toast.error("Failed."); }
+  }
+
+  async function toggleVerifyUser(targetUser) {
+      const isVerified = targetUser.badges?.includes('verified');
+      const action = isVerified ? "Remove Verification" : "Verify User";
+      
+      try {
+          const userRef = doc(db, "usuarios", targetUser.id);
+          if (isVerified) {
+              await updateDoc(userRef, { badges: arrayRemove('verified') });
+          } else {
+              await updateDoc(userRef, { badges: arrayUnion('verified') });
+          }
+          
+          // Atualiza lista local
+          const updatedBadges = isVerified 
+            ? (targetUser.badges || []).filter(b => b !== 'verified')
+            : [...(targetUser.badges || []), 'verified'];
+
+          setFoundUsers(foundUsers.map(u => u.id === targetUser.id ? {...u, badges: updatedBadges} : u));
+          toast.success(`${action} successful.`);
+      } catch(error) { toast.error("Failed to update badge."); }
+  }
+
+  // --- GERENCIAMENTO DE CONTEÚDO DO USUÁRIO ---
+
+  async function openUserContent(targetUser) {
+      setSelectedUser(targetUser);
+      setLoadingWorks(true);
+      try {
+          const q = query(collection(db, "obras"), where("autorId", "==", targetUser.id));
+          const snap = await getDocs(q);
+          let works = [];
+          snap.forEach(d => works.push({ id: d.id, ...d.data() }));
+          setUserWorks(works);
+      } catch(error) {
+          toast.error("Error loading user works.");
+      } finally {
+          setLoadingWorks(false);
+      }
+  }
+
+  async function toggleWorkVisibility(work) {
+      const isBanned = work.status === 'banned';
+      const newStatus = isBanned ? 'public' : 'banned';
+      try {
+          await updateDoc(doc(db, "obras", work.id), { status: newStatus });
+          setUserWorks(userWorks.map(w => w.id === work.id ? {...w, status: newStatus} : w));
+          toast.success(`Work ${isBanned ? 'Restored' : 'Hidden/Banned'}`);
+      } catch(e) { toast.error("Error updating work."); }
+  }
+
+  async function deleteWork(workId) {
+      if(!window.confirm("DELETE this story permanently? This cannot be undone.")) return;
+      try {
+          await deleteDoc(doc(db, "obras", workId));
+          setUserWorks(userWorks.filter(w => w.id !== workId));
+          toast.success("Story deleted.");
+      } catch(e) { toast.error("Error deleting story."); }
   }
 
   if (loading || loadingAuth) return <div className="loading-spinner"></div>;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 min-h-screen">
+    <div className="max-w-6xl mx-auto px-4 py-10 min-h-screen relative">
         
         {/* HEADER */}
         <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
@@ -270,26 +326,100 @@ export default function Admin() {
                                         {u.nome} 
                                         {u.role === 'admin' && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdSecurity size={10} /> Admin</span>}
                                         {u.banned && <span className="bg-gray-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdBlock size={10} /> Banned</span>}
+                                        {u.badges?.includes('verified') && <MdVerified className="text-blue-400" title="Verified" />}
                                     </h4>
                                     <p className="text-gray-500 text-sm">{u.email}</p>
                                     <p className="text-gray-600 text-xs mt-1">ID: {u.id}</p>
                                 </div>
                             </div>
-                            <div className="flex gap-3">
-                                {u.role !== 'admin' && (
-                                    <button onClick={() => toggleAdminRole(u)} className="text-xs font-bold text-gray-400 hover:text-white border border-[#444] px-3 py-2 rounded hover:bg-[#333] flex items-center gap-1">
-                                        <MdSupervisedUserCircle /> Make Admin
+                            
+                            <div className="flex flex-col gap-2 items-end">
+                                <div className="flex gap-2">
+                                    <button 
+                                        onClick={() => openUserContent(u)}
+                                        className="text-xs font-bold text-gray-300 hover:text-white border border-[#444] px-3 py-2 rounded hover:bg-[#333] flex items-center gap-1"
+                                    >
+                                        <MdEditDocument /> Manage Content
                                     </button>
-                                )}
-                                <button 
-                                    onClick={() => toggleBanUser(u)} 
-                                    className={`text-xs font-bold px-4 py-2 rounded flex items-center gap-1 transition-colors ${u.banned ? 'bg-green-600 text-white hover:bg-green-500' : 'bg-red-600/20 text-red-500 border border-red-500/50 hover:bg-red-600 hover:text-white'}`}
-                                >
-                                    {u.banned ? <><MdCheck /> Unban User</> : <><MdBlock /> Ban User</>}
-                                </button>
+                                    
+                                    <button 
+                                        onClick={() => toggleVerifyUser(u)} 
+                                        className={`text-xs font-bold px-3 py-2 rounded flex items-center gap-1 transition-colors border ${u.badges?.includes('verified') ? 'border-blue-500/50 text-blue-400 hover:bg-blue-500/10' : 'border-gray-600 text-gray-400 hover:text-white'}`}
+                                    >
+                                        <MdVerified /> {u.badges?.includes('verified') ? 'Unverify' : 'Verify'}
+                                    </button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button onClick={() => toggleAdminRole(u)} className={`text-xs font-bold border border-[#444] px-3 py-2 rounded hover:bg-[#333] flex items-center gap-1 ${u.role === 'admin' ? 'text-red-400' : 'text-gray-400'}`}>
+                                        <MdSupervisedUserCircle /> {u.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => toggleBanUser(u)} 
+                                        className={`text-xs font-bold px-4 py-2 rounded flex items-center gap-1 transition-colors ${u.banned ? 'bg-green-600 text-white hover:bg-green-500' : 'bg-red-600/20 text-red-500 border border-red-500/50 hover:bg-red-600 hover:text-white'}`}
+                                    >
+                                        {u.banned ? <><MdCheck /> Unban User</> : <><MdBlock /> Ban User</>}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))}
+                </div>
+            </div>
+        )}
+
+        {/* --- MODAL DE GERENCIAMENTO DE CONTEÚDO --- */}
+        {selectedUser && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <div className="bg-[#1a1a1a] w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                    <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#222]">
+                        <h3 className="text-white font-bold text-lg flex items-center gap-2"><MdEditDocument /> Managing: {selectedUser.nome}</h3>
+                        <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/10"><MdClose size={24} /></button>
+                    </div>
+                    
+                    <div className="p-4 overflow-y-auto flex-1">
+                        {loadingWorks ? (
+                            <div className="text-center py-10"><div className="loading-spinner"></div></div>
+                        ) : userWorks.length === 0 ? (
+                            <div className="text-center py-10 text-gray-500 italic">User has no published works.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {userWorks.map(work => (
+                                    <div key={work.id} className="bg-[#121212] p-3 rounded-lg border border-[#333] flex justify-between items-center">
+                                        <div className="flex gap-3">
+                                            <img src={work.capa} className="w-10 h-14 object-cover rounded bg-[#333]" alt="Cover" />
+                                            <div>
+                                                <h4 className="text-white font-bold text-sm line-clamp-1">{work.titulo}</h4>
+                                                <div className="flex gap-2 mt-1">
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${work.status === 'banned' ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}`}>
+                                                        {work.status}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-500 flex items-center gap-1"><MdVisibility /> {work.views || 0}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => toggleWorkVisibility(work)}
+                                                className={`p-2 rounded-lg border transition-colors ${work.status === 'banned' ? 'border-green-500/30 text-green-500 hover:bg-green-500/10' : 'border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10'}`}
+                                                title={work.status === 'banned' ? "Restore / Unhide" : "Hide / Shadowban"}
+                                            >
+                                                {work.status === 'banned' ? <MdVisibility /> : <MdVisibilityOff />}
+                                            </button>
+                                            <button 
+                                                onClick={() => deleteWork(work.id)}
+                                                className="p-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"
+                                                title="Delete Permanently"
+                                            >
+                                                <MdDelete />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         )}

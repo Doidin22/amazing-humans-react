@@ -3,9 +3,9 @@ import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { doc, updateDoc, collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore'; 
 import { 
-    MdSave, MdEdit, MdPerson, MdLink, MdClose, MdImage, 
+    MdEdit, MdPerson, MdLink, MdClose, MdImage, 
     MdVerified, MdPeople, MdPersonAdd, MdLibraryBooks, MdTimeline, MdAutoStories,
-    MdDiamond // IMPORTANTE: Adicionado para o ícone VIP
+    MdDiamond 
 } from 'react-icons/md';
 import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa';
 import StoryCard from '../components/StoryCard';
@@ -29,10 +29,8 @@ export default function Perfil() {
   const [libraryCount, setLibraryCount] = useState(0);
   const [loadingObras, setLoadingObras] = useState(true);
 
+  // Mantive apenas 'leituras' para as estatísticas gerais, removi cálculos de nível
   const leituras = user?.leituras || 0;
-  const currentLevel = Math.floor(leituras / 20) + 1;
-  const nextLevelLeituras = currentLevel * 20;
-  const progress = ((leituras % 20) / 20) * 100;
 
   useEffect(() => {
     async function loadData() {
@@ -86,6 +84,7 @@ export default function Perfil() {
     <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
         <div className="flex flex-col md:flex-row gap-8 items-start">
             
+            {/* COLUNA DA ESQUERDA (Info do Usuário) */}
             <div className="w-full md:w-1/3 flex flex-col gap-6">
                 <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center relative overflow-hidden border border-white/5 bg-[#1a1a1a]">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-900/10 opacity-50 -z-10"></div>
@@ -100,17 +99,15 @@ export default function Perfil() {
                     <div className="flex flex-col items-center w-full mb-4">
                         <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
                             {user?.name}
-                            {/* CORREÇÃO: Exibe o ícone VIP se user.isVip for true */}
                             {user?.isVip && <MdDiamond className="text-yellow-400 text-xl drop-shadow-md" title="VIP Member" />}
                             {user?.badges?.includes('pioneer') && <MdVerified className="text-blue-400 text-xl" title="Pioneer" />}
                         </h2>
-                        <span className="text-primary font-bold text-xs uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full border border-primary/20">Lvl {currentLevel} Reader</span>
+                        {/* REMOVIDO: Span do Nível */}
                     </div>
 
                     {!isEditing && (
                         <div className="flex flex-col gap-4 mb-6 w-full px-4">
                             <div className="flex justify-center gap-4">
-                                {/* CORREÇÃO: Usa formatUrl para garantir links válidos */}
                                 {user?.website && <a href={formatUrl(user.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
                                 {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
                                 {user?.instagram && <a href={formatUrl(user.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
@@ -143,17 +140,11 @@ export default function Perfil() {
                             </div>
                         </div>
                     )}
-                    {/* Resto do componente permanece igual */}
+
                     <div className="w-full mt-2 space-y-4">
-                        <div className="w-full px-2">
-                            <div className="flex justify-between text-[10px] text-gray-400 mb-1 uppercase font-bold">
-                                <span>{leituras} Reads</span>
-                                <span>Next: {nextLevelLeituras}</span>
-                            </div>
-                            <div className="w-full h-2 bg-[#111] rounded-full overflow-hidden border border-[#333]">
-                                <div className="h-full bg-gradient-to-r from-blue-600 to-purple-600" style={{ width: `${progress}%` }}></div>
-                            </div>
-                        </div>
+                        {/* REMOVIDO: Barra de Progresso e Nível */}
+                        
+                        {/* Seguidores / Seguindo */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col items-center">
                                 <span className="text-xl font-bold text-white">{user?.followersCount || 0}</span>
@@ -167,7 +158,7 @@ export default function Perfil() {
                     </div>
                 </div>
 
-                <div className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl">
+                <div className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl w-full">
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2"><MdTimeline className="text-green-500" /> Reader Stats</h3>
                     <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
@@ -182,6 +173,7 @@ export default function Perfil() {
                 </div>
             </div>
 
+            {/* COLUNA DA DIREITA (Obras) */}
             <div className="w-full md:w-2/3">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2"><MdPerson className="text-primary" /> My Works</h2>
