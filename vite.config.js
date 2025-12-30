@@ -6,7 +6,9 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      jsxRuntime: 'automatic',
+    }),
     viteCompression({
       algorithm: 'gzip',
       ext: '.gz',
@@ -30,7 +32,7 @@ export default defineConfig({
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        skipWaiting: true, 
+        skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
           {

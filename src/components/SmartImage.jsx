@@ -1,34 +1,53 @@
 import React, { useState } from 'react';
 import { MdImageNotSupported } from 'react-icons/md';
 
-export default function SmartImage({ src, alt, className, ...props }) {
+// --- CONFIGURAÇÃO CLOUDINARY ---
+const getOptimizedUrl = (url, width) => {
+    if (!url) return '';
+    if (url.includes('base64')) return url; 
+    if (url.includes('cloudinary')) return url; // Já otimizada
+    if (url.startsWith('/')) return url; // Imagem local
+
+    // SEU CLOUD NAME CONFIGURADO AQUI
+    const cloudName = 'dovuk0ozg'; 
+    
+    // Configurações: auto format (f_auto), auto quality (q_auto), largura fixa, crop limit
+    return `https://res.cloudinary.com/${cloudName}/image/fetch/f_auto,q_auto,w_${width},c_limit/${url}`;
+};
+
+export default function SmartImage({ src, alt, className, width = 500, ...props }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
+  // Gera a URL otimizada
+  const finalSrc = getOptimizedUrl(src, width);
+
   const handleLoad = () => setLoaded(true);
   const handleError = () => {
+      // Se der erro no Cloudinary (ex: URL inválida), tenta carregar a original como fallback
+      if (!error) {
+          console.warn("Cloudinary error, trying original:", src);
+      }
       setError(true);
-      setLoaded(true); // Para remover o skeleton
+      setLoaded(true); 
   };
 
   return (
     <div className={`relative overflow-hidden bg-[#222] ${className}`}>
       
-      {/* 1. Skeleton de Carregamento (pisca enquanto baixa) */}
+      {/* Skeleton (Pisca enquanto carrega) */}
       {!loaded && (
         <div className="absolute inset-0 bg-gradient-to-r from-[#222] via-[#333] to-[#222] animate-pulse z-10" />
       )}
 
-      {/* 2. Estado de Erro */}
-      {error ? (
+      {/* Se der erro total, mostra ícone */}
+      {error && !src ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 bg-[#1a1a1a]">
             <MdImageNotSupported size={24} />
-            <span className="text-[10px] uppercase mt-1 font-bold">No Image</span>
         </div>
       ) : (
-        /* 3. A Imagem Real */
         <img 
-            src={src || '/logo-ah.png'} 
+            src={error ? src : finalSrc} // Se der erro na otimizada, usa a original
             alt={alt} 
             loading="lazy"
             onLoad={handleLoad}

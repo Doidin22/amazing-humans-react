@@ -28,25 +28,40 @@ service cloud.firestore {
     // 1. USUÁRIOS
     match /usuarios/{userId} {
       allow read: if true;
-      allow update: if isLoggedIn() && request.auth.uid == userId 
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'banned']);
+      
+      // CRIAÇÃO: O próprio usuário pode criar seu documento ao logar
       allow create: if isLoggedIn() && request.auth.uid == userId;
+
+      // ATUALIZAÇÃO: 
+      // 1. Admin pode editar tudo (banir, promover, verificar).
+      // 2. Dono pode editar, EXCETO campos sensíveis (role, banned, badges).
+      allow update: if isAdmin() || (
+                      isLoggedIn() 
+                      && request.auth.uid == userId 
+                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'banned', 'badges', 'isVip', 'vipUntil'])
+                    );
     }
     
     // 2. OBRAS
     match /obras/{obraId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId') || isAdmin();
-      allow update: if isOwner('autorId') || (isLoggedIn() && isViewIncrement());
+      
+      // Admin pode deletar ou O Dono pode deletar
+      allow delete: if isAdmin() || isOwner('autorId');
+      
+      // Admin pode atualizar (para banir/ocultar) OU Dono pode atualizar OU Incremento de visualização
+      allow update: if isAdmin() || isOwner('autorId') || (isLoggedIn() && isViewIncrement());
     }
 
     // 3. CAPÍTULOS
     match /capitulos/{capId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
-      allow delete: if isOwner('autorId') || isAdmin(); 
-      allow update: if isOwner('autorId');
+      
+      // Admin tem permissão total para moderar
+      allow delete: if isAdmin() || isOwner('autorId'); 
+      allow update: if isAdmin() || isOwner('autorId');
     }
 
     // 4. REPORTS
@@ -67,24 +82,59 @@ service cloud.firestore {
        allow read, write: if isLoggedIn() && docId.matches(request.auth.uid + "_.*");
     }
 
-    // 7. ANÚNCIOS (NOVO - Regra adicionada corretamente)
+    // 7. ANÚNCIOS
     match /anuncios/{anuncioId} {
       allow read: if true;
       allow create: if isLoggedIn();
-      allow update, delete: if isLoggedIn() && request.auth.uid == resource.data.userId;
+      // Admin pode apagar anúncios impróprios, Dono pode editar
+      allow update, delete: if isAdmin() || (isLoggedIn() && request.auth.uid == resource.data.userId);
     }
 
-    // OUTRAS COLEÇÕES
-    match /comentarios/{docId} { allow read: if true; allow write: if isLoggedIn(); }
-    match /notificacoes/{docId} { allow read, write: if isLoggedIn(); }
-    match /biblioteca/{docId} { allow read, write: if isLoggedIn(); }
-    match /avaliacoes/{docId} { allow read, write: if isLoggedIn(); } 
-    match /seguidores/{docId} { allow read, write: if isLoggedIn(); }
-    match /visualizacoes_capitulos/{docId} { allow read, write: if isLoggedIn(); }
+    // OUTRAS COLEÇÕES (Admin adicionado para moderação geral)
+    match /comentarios/{docId} { 
+      allow read: if true; 
+      allow create: if isLoggedIn() && request.resource.data.autorId == request.auth.uid;
+      allow delete: if isAdmin() || (isLoggedIn() && request.auth.uid == resource.data.autorId);
+      allow update: if false; // Comentários não são editáveis por design, deletar e recriar
+    }
+    
+    // Notificações: Apenas o destinatário pode ler/marcar como lida. Qualquer um pode criar (enviar notificação).
+    match /notificacoes/{docId} { 
+      allow read, update, delete: if isLoggedIn() && resource.data.paraId == request.auth.uid;
+      allow create: if isLoggedIn(); // Sistema ou usuários podem criar notificações
+    }
+    
+    // Biblioteca: Apenas o dono da biblioteca pode ver/editar
+    match /biblioteca/{docId} { 
+      allow list: if isLoggedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isLoggedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isLoggedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Avaliações: Apenas o autor da avaliação
+    match /avaliacoes/{docId} { 
+      allow read: if true;
+      allow write: if isLoggedIn() && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+    } 
+    
+    // Seguidores: Leitura pública (para contagens), Escrita apenas pelos envolvidos (embora create seja pelo follower)
+    match /seguidores/{docId} { 
+      allow read: if true;
+      // Criação: Apenas se eu sou o "follower"
+      allow create: if isLoggedIn() && request.resource.data.followerId == request.auth.uid;
+      // Exclusão: Se eu sou o follower (unfollow) ou o followed (remover seguidor)
+      allow delete: if isLoggedIn() && (resource.data.followerId == request.auth.uid || resource.data.followedId == request.auth.uid);
+    }
+    
+    match /visualizacoes_capitulos/{docId} { 
+        allow create: if isLoggedIn();
+        allow read: if isLoggedIn() && resource.data.userId == request.auth.uid;
+    }
     
     match /stats/{docId} { 
       allow read: if true;
-      allow write: if false; 
+      allow write: if false; // Apenas servidor (Functions) ou Admin via console direto
     }
   }
 }

@@ -4,7 +4,7 @@ import { db } from '../services/firebaseConnection';
 import { collection, query, where, getDocs, doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore'; 
 import { AuthContext } from '../contexts/AuthContext';
 import StoryCard from '../components/StoryCard';
-import { MdVerified, MdPersonAdd, MdCheck, MdPeople, MdAutoStories, MdTimeline, MdDiamond } from 'react-icons/md'; // Added MdDiamond
+import { MdVerified, MdPersonAdd, MdCheck, MdPeople, MdAutoStories, MdTimeline, MdDiamond } from 'react-icons/md';
 import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa'; 
 import toast from 'react-hot-toast';
 
@@ -97,7 +97,7 @@ export default function PerfilPublico() {
   if(!perfil) return <div className="text-center text-white py-20">User not found.</div>;
 
   const leituras = perfil.contador_leituras || 0;
-  const currentLevel = Math.floor(leituras / 20) + 1;
+  // REMOVIDO: const currentLevel = Math.floor(leituras / 20) + 1;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
@@ -113,26 +113,23 @@ export default function PerfilPublico() {
 
                     <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
                         {perfil.nome}
-                        {/* CORREÇÃO: Exibe o ícone VIP se isVip for true */}
                         {isVip && <MdDiamond className="text-yellow-400 drop-shadow-md" title="VIP User" />}
                         {perfil.badges?.includes('pioneer') && <MdVerified className="text-blue-400" title="Founder Author" />}
                     </h2>
                     
                     <div className="flex gap-2 mb-4 justify-center">
                         <span className="text-gray-400 text-xs font-bold uppercase bg-white/5 px-3 py-1 rounded border border-white/10">{perfil.role || 'User'}</span>
-                        <span className="text-primary font-bold text-xs uppercase bg-primary/10 px-3 py-1 rounded border border-primary/20">Lvl {currentLevel} Reader</span>
+                        {/* REMOVIDO: Span do Nível */}
                     </div>
 
                     {/* REDES SOCIAIS E APOIO */}
                     <div className="flex flex-col gap-4 mb-6 w-full px-4">
-                        {/* Redes - Usando formatUrl para garantir funcionalidade */}
                         <div className="flex justify-center gap-4">
                             {perfil.website && <a href={formatUrl(perfil.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
                             {perfil.twitter && <a href={formatUrl(perfil.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
                             {perfil.instagram && <a href={formatUrl(perfil.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
                         </div>
 
-                        {/* Botões de Doação - Verificação dupla para evitar renderização vazia */}
                         {(perfil.patreon || perfil.paypal) && (
                             <div className="flex gap-2 justify-center mt-2 pt-4 border-t border-white/5">
                                 {perfil.patreon && (

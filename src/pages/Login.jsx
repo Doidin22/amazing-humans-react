@@ -10,25 +10,21 @@ export default function Login() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh', padding: 20 }}>
-      <div style={{ background: '#1f1f1f', padding: '40px', borderRadius: '10px', border: '1px solid #333', textAlign: 'center', maxWidth: '400px', width: '100%' }}>
-        
-        <div style={{ marginBottom: 30 }}>
-             <img src="/logo-ah.png" alt="Logo" style={{ width: 80, marginBottom: 10 }} />
-             <h1 style={{ color: 'white', fontSize: '1.5rem', margin: 0 }}>Welcome Back</h1>
-             <p style={{ color: '#777', fontSize: '0.9rem' }}>Access your account</p>
+    <div className="flex justify-center items-center h-[80vh] p-5">
+      <div className="bg-[#1f1f1f] p-10 rounded-xl border border-[#333] text-center max-w-[400px] w-full">
+
+        <div className="mb-8">
+          <img src="/logo-ah.png" alt="Logo" className="w-20 mb-2.5 mx-auto" />
+          <h1 className="text-white text-2xl m-0">Welcome Back</h1>
+          <p className="text-[#777] text-sm">Access your account</p>
         </div>
 
-        <button 
-            onClick={signInGoogle} 
-            style={{ 
-                width: '100%', padding: '12px', borderRadius: '8px', border: 'none', 
-                background: 'white', color: '#333', fontWeight: 'bold', fontSize: '1rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, cursor: 'pointer', marginBottom: 20
-            }}
+        <button
+          onClick={signInGoogle}
+          className="w-full p-3 rounded-lg border-none bg-white text-[#333] font-bold text-base flex items-center justify-center gap-2.5 cursor-pointer mb-5"
         >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" style={{width: 20}}/>
-            Sign in with Google
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5" />
+          Sign in with Google
         </button>
 
       </div>
