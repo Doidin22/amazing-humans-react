@@ -65,23 +65,41 @@ export default function Home() {
       let q;
       let constraints = [where("status", "==", "public"), limit(ITEMS_PER_PAGE)];
 
-      // LÓGICA DE BUSCA
+// LÓGICA DE BUSCA
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
-        // Nota: Busca textual simples no Firestore não suporta paginação perfeita com startAfter do jeito padrão
-        // Para simplificar e economizar, na busca textual trazemos um lote único ou usamos lógica específica
-        // Aqui faremos uma busca de Título (limitada a 1 pagina para economizar na busca complexa)
-        const qTitle = query(storiesRef, where("status", "==", "public"), where("tituloBusca", ">=", term), where("tituloBusca", "<=", term + "\uf8ff"), limit(50));
-        const snap = await getDocs(qTitle);
+        
+        let qSearch = query(
+            storiesRef, 
+            where("status", "==", "public"), 
+            where("searchKeywords", "array-contains", term),
+            limit(50)
+        );
+
+        // Se tiver categoria selecionada, podemos tentar filtrar (exige índice composto no Firebase)
+        // Se der erro de índice no console, o Firebase vai gerar um link para você clicar e criar.
+        if (category !== 'All') {
+             qSearch = query(
+                storiesRef, 
+                where("status", "==", "public"), 
+                where("searchKeywords", "array-contains", term),
+                where("categorias", "array-contains", category), 
+                limit(50)
+            );
+        }
+
+        const snap = await getDocs(qSearch);
         let items = [];
         snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        
+        // Se usar o filtro duplo acima (searchKeywords + categorias),
+        // o filtro manual abaixo não é mais necessário, mas serve de fallback.
+        if (category !== 'All' && items.length > 0) {
+             items = items.filter(i => i.categorias?.includes(category));
+        }
 
-        // Filtro de categoria em memória para busca textual
-        if (category !== 'All') items = items.filter(i => i.categorias?.includes(category));
-
-        return { items, nextCursor: null }; // Sem paginação na busca textual para evitar complexidade/custo
+        return { items, nextCursor: null };
       }
-
       // LÓGICA DE FEED (PAGINADO)
       constraints.push(orderBy("dataCriacao", "desc"));
 

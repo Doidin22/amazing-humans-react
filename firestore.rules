@@ -21,24 +21,30 @@ service cloud.firestore {
     }
 
     function isViewIncrement() {
+        // Permite apenas incrementar o campo 'views' em exatas 1 unidade
         return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
                && request.resource.data.views == resource.data.views + 1;
     }
 
-    // 1. USUÁRIOS
+    // ==========================================================
+    // 1. USUÁRIOS (AQUI ESTÁ A CORREÇÃO DE SEGURANÇA)
+    // ==========================================================
     match /usuarios/{userId} {
       allow read: if true;
       
       // CRIAÇÃO: O próprio usuário pode criar seu documento ao logar
       allow create: if isLoggedIn() && request.auth.uid == userId;
-
-      // ATUALIZAÇÃO: 
-      // 1. Admin pode editar tudo (banir, promover, verificar).
-      // 2. Dono pode editar, EXCETO campos sensíveis (role, banned, badges).
-      allow update: if isAdmin() || (
+      
+      // ATUALIZAÇÃO SEGURA (ALLOWLIST):
+      // 1. Admin pode editar tudo.
+      // 2. Dono só pode editar campos específicos (nome, foto, bio, links).
+      // Isso impede que ele altere 'role', 'vipUntil', 'banned' ou qualquer campo futuro.
+      allow update: if isAdmin() ||
+                    (
                       isLoggedIn() 
                       && request.auth.uid == userId 
-                      && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'banned', 'badges', 'isVip', 'vipUntil'])
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nome', 'foto', 'bio', 'website', 'twitter', 'instagram', 'patreon', 'paypal'])
                     );
     }
     
@@ -90,15 +96,15 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isLoggedIn() && request.auth.uid == resource.data.userId);
     }
 
-    // OUTRAS COLEÇÕES (Admin adicionado para moderação geral)
+    // OUTRAS COLEÇÕES
     match /comentarios/{docId} { 
-      allow read: if true; 
+      allow read: if true;
       allow create: if isLoggedIn() && request.resource.data.autorId == request.auth.uid;
       allow delete: if isAdmin() || (isLoggedIn() && request.auth.uid == resource.data.autorId);
-      allow update: if false; // Comentários não são editáveis por design, deletar e recriar
+      allow update: if false; // Comentários não são editáveis por design
     }
     
-    // Notificações: Apenas o destinatário pode ler/marcar como lida. Qualquer um pode criar (enviar notificação).
+    // Notificações: Apenas o destinatário pode ler/marcar como lida.
     match /notificacoes/{docId} { 
       allow read, update, delete: if isLoggedIn() && resource.data.paraId == request.auth.uid;
       allow create: if isLoggedIn(); // Sistema ou usuários podem criar notificações
@@ -112,13 +118,13 @@ service cloud.firestore {
       allow update, delete: if isLoggedIn() && resource.data.userId == request.auth.uid;
     }
     
-    // Avaliações: Apenas o autor da avaliação
+    // Avaliações
     match /avaliacoes/{docId} { 
       allow read: if true;
       allow write: if isLoggedIn() && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
     } 
     
-    // Seguidores: Leitura pública (para contagens), Escrita apenas pelos envolvidos (embora create seja pelo follower)
+    // Seguidores
     match /seguidores/{docId} { 
       allow read: if true;
       // Criação: Apenas se eu sou o "follower"

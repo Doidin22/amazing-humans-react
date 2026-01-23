@@ -292,3 +292,43 @@ exports.notifyNewChapter = onDocumentCreated("capitulos/{capituloId}", async (ev
     await Promise.all(promises);
     console.log("All notifications sent successfully.");
 });
+
+// ======================================================
+// 3. BUSCA INTELIGENTE (Novo)
+// ======================================================
+
+// Função auxiliar para gerar tokens de busca (ex: "Casa" -> ["c", "ca", "cas", "casa"])
+const createSearchTokens = (text) => {
+    if (!text) return [];
+    const words = text.toLowerCase().split(/[^\w\d\p{L}]+/u); // Quebra por espaços e pontuação
+    const uniqueTokens = new Set();
+
+    words.forEach(word => {
+        if (word.length < 2) return; // Ignora letras soltas
+        // Gera todos os prefixos da palavra
+        for (let i = 2; i <= word.length; i++) {
+            uniqueTokens.add(word.substring(0, i));
+        }
+    });
+
+    return Array.from(uniqueTokens);
+};
+
+exports.indexStoryForSearch = onDocumentWritten("obras/{obraId}", async (event) => {
+    const after = event.data?.after;
+    if (!after || !after.exists) return; // Obra deletada
+
+    const data = after.data();
+    const previousData = event.data?.before?.data() || {};
+
+    // Evita loop infinito: só roda se o título mudou ou se ainda não tem tokens
+    if (data.titulo === previousData.titulo && data.searchKeywords) return;
+
+    const tokens = createSearchTokens(data.titulo);
+
+    // Salva o índice no próprio documento
+    return after.ref.update({ 
+        searchKeywords: tokens,
+        tituloBusca: data.titulo.toLowerCase() // Mantém compatibilidade
+    });
+});
