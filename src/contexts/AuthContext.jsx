@@ -8,14 +8,10 @@ export const AuthContext = createContext({});
 
 export function useAuth() {
   const context = React.useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
 
-
-// Função auxiliar para avatar
 function generateAvatar(seed) {
   const safeSeed = encodeURIComponent(seed || 'default');
   return `https://api.dicebear.com/9.x/notionists/svg?seed=${safeSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
@@ -29,8 +25,7 @@ export function AuthProvider({ children }) {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
-
-        // O segredo está aqui: ler os campos novos do banco em tempo real
+        
         const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), async (docSnap) => {
           if (docSnap.exists()) {
             const dados = docSnap.data();
@@ -43,46 +38,27 @@ export function AuthProvider({ children }) {
               return;
             }
 
-            // --- Lógica VIP ---
-            let vipDate = null;
-            let isVip = false;
-            try {
-              if (dados.vipUntil) {
-                if (typeof dados.vipUntil.toDate === 'function') {
-                  vipDate = dados.vipUntil.toDate();
-                } else {
-                  vipDate = new Date(dados.vipUntil);
-                }
-                if (vipDate > new Date()) {
-                  isVip = true;
-                }
-              }
-            } catch (err) {
-              console.error("Erro data VIP:", err);
-            }
-
             const avatarFinal = dados.foto || firebaseUser.photoURL || generateAvatar(uid);
 
-            // ATUALIZANDO O ESTADO DO USUÁRIO COM OS NOVOS CAMPOS
             setUser({
               uid: uid,
               name: dados.nome || firebaseUser.displayName,
               avatar: avatarFinal,
               email: firebaseUser.email,
               role: dados.role || 'user',
+              
+              // --- NOVOS CAMPOS DE ECONOMIA ---
+              coins: dados.coins || 0,
+              subscriptionType: dados.subscriptionType || 'free', // 'free', 'reader', 'author'
+              subscriptionStatus: dados.subscriptionStatus || 'inactive', // 'active', 'past_due'
+              referralCode: dados.referralCode || '',
+              
+              // Mantendo compatibilidade com código antigo
               badges: dados.badges || [],
               followersCount: dados.followersCount || 0,
-              followingCount: dados.followingCount || 0,
               leituras: dados.contador_leituras || 0,
-
-              // --- AQUI ESTÁ A CORREÇÃO: Lendo os campos do banco ---
-              website: dados.website || '',
-              twitter: dados.twitter || '',
-              instagram: dados.instagram || '',
-              patreon: dados.patreon || '', // Essencial para o Patreon aparecer
-              paypal: dados.paypal || '',   // Essencial para o PayPal aparecer
-              vipUntil: vipDate,
-              isVip: isVip
+              website: dados.website || '', twitter: dados.twitter || '', instagram: dados.instagram || '',
+              patreon: dados.patreon || '', paypal: dados.paypal || ''
             });
           } else {
             // Usuário novo
@@ -92,24 +68,19 @@ export function AuthProvider({ children }) {
               avatar: firebaseUser.photoURL || generateAvatar(uid),
               email: firebaseUser.email,
               role: 'user',
-              badges: [],
-              followersCount: 0,
-              leituras: 0,
-              website: '', twitter: '', instagram: '', patreon: '', paypal: '',
-              isVip: false
+              coins: 0,
+              subscriptionType: 'free',
+              subscriptionStatus: 'inactive'
             });
           }
           setLoadingAuth(false);
         });
-
         return () => unsubscribeFirestore();
-
       } else {
         setUser(null);
         setLoadingAuth(false);
       }
     });
-
     return () => unsubscribeAuth();
   }, []);
 
@@ -118,6 +89,7 @@ export function AuthProvider({ children }) {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
         const uid = result.user.uid;
+        // Merge true para não sobrescrever dados existentes (como moedas)
         await setDoc(doc(db, "usuarios", uid), {
           uid: uid,
           nome: result.user.displayName,
@@ -125,7 +97,7 @@ export function AuthProvider({ children }) {
         }, { merge: true });
       }
     } catch (error) {
-      console.error("Erro Login Google", error);
+      console.error(error);
       toast.error("Erro ao fazer login");
     }
   }
@@ -135,15 +107,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const isAdmin = React.useCallback(() => {
-    return user?.role === 'admin';
-  }, [user]);
+  const isAdmin = React.useCallback(() => user?.role === 'admin', [user]);
 
+  // --- LÓGICA ATUALIZADA DE ANÚNCIOS ---
   const hasAds = React.useCallback(() => {
     if (!user) return true;
+    // Se a assinatura estiver ativa (seja leitor ou autor), remove anúncios
+    if (user.subscriptionStatus === 'active') return false;
+    
+    // Regra antiga de nível (opcional, pode manter ou tirar)
     const currentLevel = Math.floor((user.leituras || 0) / 20) + 1;
     if (currentLevel >= 100) return false;
-    if (user.isVip) return false;
+    
     return true;
   }, [user]);
 

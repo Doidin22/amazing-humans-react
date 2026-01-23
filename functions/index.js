@@ -7,59 +7,9 @@ const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestor
 initializeApp();
 const db = getFirestore();
 
-// --- CONFIGURAÇÃO DO STRIPE ---
-// Chave de Teste
-// Stripe initialization moved inside functions to prevent deployment errors
-
-
 // ======================================================
-// 1. ANALYTICS & SISTEMA
+// 1. ANALYTICS & SISTEMA (ANTIGOS RESTAURADOS)
 // ======================================================
-
-exports.createStripeCheckoutSession = onCall({ cors: true }, async (request) => {
-    // Initialize Stripe inside the function to avoid deployment errors if env is missing
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-
-    // MOCK MODE: If no key is provided, return a mock session to allow UI testing
-    if (!stripeKey) {
-        console.warn("No STRIPE_SECRET_KEY found. Running in MOCK mode.");
-        return { sessionId: 'mock_session_12345' };
-    }
-
-    const stripe = require('stripe')(stripeKey);
-
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'The user must be authenticated.');
-    }
-
-    const { priceId, successUrl, cancelUrl } = request.data;
-    const uid = request.auth.uid;
-
-    if (!priceId) {
-        throw new HttpsError('invalid-argument', 'Price ID is required.');
-    }
-
-    try {
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'subscription',
-            line_items: [
-                {
-                    price: priceId,
-                    quantity: 1,
-                },
-            ],
-            client_reference_id: uid, // Associate session with Firebase user ID
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-        });
-
-        return { sessionId: session.id };
-    } catch (error) {
-        console.error('Stripe error:', error);
-        throw new HttpsError('internal', 'Unable to create checkout session.');
-    }
-});
 
 exports.registerReading = onCall({ cors: true }, async (request) => {
     if (!request.auth) return { success: false };
@@ -120,116 +70,6 @@ exports.manageFollowers = onDocumentWritten("seguidores/{docId}", async (event) 
     await b.commit();
 });
 
-// ======================================================
-// 2. PAGAMENTOS STRIPE (Funções Novas)
-// ======================================================
-
-// Cria o link de pagamento
-exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
-    logger.info("Function createStripeCheckout called.");
-
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'User must be logged in.');
-    }
-
-    const { type, docId, amount, successUrl, cancelUrl } = request.data;
-    const userId = request.auth.uid;
-    const userEmail = request.auth.token.email;
-
-    logger.info(`Starting checkout for user: ${userId}, type: ${type}`);
-
-    try {
-        const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-        let sessionData = {
-            payment_method_types: ['card'],
-            mode: 'payment',
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            customer_email: userEmail,
-            client_reference_id: userId,
-            metadata: { type, docId, userId },
-            line_items: []
-        };
-
-        if (type === 'ad') {
-            sessionData.line_items.push({
-                price_data: {
-                    currency: 'brl',
-                    product_data: { name: 'Ad Campaign', description: `Campaign ID: ${docId}` },
-                    unit_amount: Math.round(amount * 100),
-                },
-                quantity: 1,
-            });
-        } else if (type === 'vip') {
-            sessionData.line_items.push({
-                price_data: {
-                    currency: 'brl',
-                    product_data: { name: 'VIP Premium Upgrade', description: '60 Days Access + Badges' },
-                    unit_amount: 200,
-                },
-                quantity: 1,
-            });
-        }
-
-        const session = await stripe.checkout.sessions.create(sessionData);
-        logger.info("Session created successfully:", session.id);
-        return { url: session.url };
-
-    } catch (error) {
-        logger.error("Stripe Error:", error);
-        throw new HttpsError('internal', `Stripe Failed: ${error.message}`);
-    }
-});
-
-// Webhook para ativar o VIP/Anúncio
-exports.stripeWebhook = onRequest(async (request, response) => {
-    const sig = request.headers['stripe-signature'];
-    let event;
-
-    try {
-        const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-        const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-        event = stripe.webhooks.constructEvent(request.rawBody, sig, endpointSecret);
-    } catch (err) {
-        logger.error("Webhook Error:", err.message);
-        response.status(400).send(`Webhook Error: ${err.message}`);
-        return;
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const { type, docId, userId } = session.metadata;
-
-        logger.info("Payment approved:", session.id);
-
-        try {
-            if (type === 'vip') {
-                const vipUntil = new Date();
-                vipUntil.setDate(vipUntil.getDate() + 60);
-
-                await db.collection('usuarios').doc(userId).update({
-                    isVip: true,
-                    vipUntil: Timestamp.fromDate(vipUntil),
-                    badges: FieldValue.arrayUnion('vip_gold')
-                });
-                logger.info(`VIP activated for user: ${userId}`);
-            }
-            else if (type === 'ad') {
-                await db.collection('anuncios').doc(docId).update({
-                    status: 'active',
-                    paymentId: session.payment_intent
-                });
-                logger.info(`Ad activated: ${docId}`);
-            }
-
-        } catch (error) {
-            logger.error("Error releasing benefit:", error);
-        }
-    }
-
-    response.json({ received: true });
-});
-
 exports.notifyNewChapter = onDocumentCreated("capitulos/{capituloId}", async (event) => {
     const snapshot = event.data;
     if (!snapshot) return;
@@ -238,97 +78,193 @@ exports.notifyNewChapter = onDocumentCreated("capitulos/{capituloId}", async (ev
     const autorId = navData.autorId;
     const nomeObra = navData.nomeObra;
     const tituloCap = navData.titulo;
-    const autorNome = navData.autor; // Assuming 'autor' field stores the name
+    const autorNome = navData.autor;
 
-    // Safety check
     if (!autorId) return;
 
-    // 1. Get all followers
     const seguidoresRef = db.collection('seguidores');
     const q = seguidoresRef.where('seguidoId', '==', autorId);
-
     const followersSnap = await q.get();
 
-    if (followersSnap.empty) {
-        console.log(`No followers found for author ${autorId}`);
-        return;
-    }
+    if (followersSnap.empty) return;
 
     const notificationsBatch = [];
-
     followersSnap.forEach(docSeguidor => {
         const seguidorData = docSeguidor.data();
-        // Prepare notification object
-        const newNotif = {
-            paraId: seguidorData.seguidorId,
+        notificationsBatch.push({
+            paraId: seguidorData.seguidorId, // Atenção: Verifique se no seu banco é 'seguidorId' ou 'followerId'
             mensagem: `<strong>${autorNome}</strong> updated "${nomeObra}": ${tituloCap}`,
             tipo: 'chapter',
-            linkDestino: `/ler/${snapshot.id}`, // snapshot.id is the chapter ID
+            linkDestino: `/ler/${snapshot.id}`,
             lida: false,
             data: FieldValue.serverTimestamp()
-        };
-        notificationsBatch.push(newNotif);
+        });
     });
 
-    // 2. Batch write notifications (Chunking for > 500 limit)
     const chunkSize = 500;
-    const chunks = [];
-
     for (let i = 0; i < notificationsBatch.length; i += chunkSize) {
-        chunks.push(notificationsBatch.slice(i, i + chunkSize));
-    }
-
-    console.log(`Processing ${notificationsBatch.length} notifications in ${chunks.length} batches.`);
-
-    const promises = chunks.map(async (chunk) => {
+        const chunk = notificationsBatch.slice(i, i + chunkSize);
         const batch = db.batch();
         chunk.forEach(notif => {
             const newRef = db.collection('notificacoes').doc();
             batch.set(newRef, notif);
         });
         await batch.commit();
-    });
-
-    await Promise.all(promises);
-    console.log("All notifications sent successfully.");
+    }
 });
 
 // ======================================================
-// 3. BUSCA INTELIGENTE (Novo)
+// 2. BUSCA INTELIGENTE (RESTAURADO)
 // ======================================================
-
-// Função auxiliar para gerar tokens de busca (ex: "Casa" -> ["c", "ca", "cas", "casa"])
 const createSearchTokens = (text) => {
     if (!text) return [];
-    const words = text.toLowerCase().split(/[^\w\d\p{L}]+/u); // Quebra por espaços e pontuação
+    const words = text.toLowerCase().split(/[^\w\d\p{L}]+/u);
     const uniqueTokens = new Set();
-
     words.forEach(word => {
-        if (word.length < 2) return; // Ignora letras soltas
-        // Gera todos os prefixos da palavra
+        if (word.length < 2) return;
         for (let i = 2; i <= word.length; i++) {
             uniqueTokens.add(word.substring(0, i));
         }
     });
-
     return Array.from(uniqueTokens);
 };
 
 exports.indexStoryForSearch = onDocumentWritten("obras/{obraId}", async (event) => {
     const after = event.data?.after;
-    if (!after || !after.exists) return; // Obra deletada
-
+    if (!after || !after.exists) return;
     const data = after.data();
     const previousData = event.data?.before?.data() || {};
 
-    // Evita loop infinito: só roda se o título mudou ou se ainda não tem tokens
     if (data.titulo === previousData.titulo && data.searchKeywords) return;
 
     const tokens = createSearchTokens(data.titulo);
-
-    // Salva o índice no próprio documento
     return after.ref.update({ 
         searchKeywords: tokens,
-        tituloBusca: data.titulo.toLowerCase() // Mantém compatibilidade
+        tituloBusca: data.titulo.toLowerCase()
     });
+});
+
+// ======================================================
+// 3. PAGAMENTOS STRIPE (NOVOS)
+// ======================================================
+
+exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
+
+    const { type, packId, coinsAmount } = request.data; 
+    const uid = request.auth.uid;
+    const email = request.auth.token.email;
+
+    // Em produção, use process.env.STRIPE_SECRET_KEY
+    const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+    // MUDAR PARA SEU DOMÍNIO EM PRODUÇÃO (ex: https://amazing-humans.web.app)
+    const domain = "https://amazinghumans-ae0f3.web.app"; 
+    // Se estiver testando local: const domain = "http://localhost:5173";
+
+    const successUrl = `${domain}/dashboard?payment=success`;
+    const cancelUrl = `${domain}/subscription?payment=cancelled`;
+
+    let sessionData = {
+        payment_method_types: ['card'],
+        customer_email: email,
+        client_reference_id: uid,
+        metadata: { userId: uid, type },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+    };
+
+    if (type === 'coin_pack') {
+        sessionData.mode = 'payment';
+        sessionData.metadata.coinsAmount = coinsAmount;
+        const priceInCents = coinsAmount * 10; 
+        if (priceInCents < 50) throw new HttpsError('invalid-argument', 'Minimum 5 coins.');
+
+        sessionData.line_items = [{
+            price_data: {
+                currency: 'usd',
+                product_data: { name: `${coinsAmount} Coins Pack` },
+                unit_amount: priceInCents,
+            },
+            quantity: 1,
+        }];
+    } 
+    else if (type === 'subscription') {
+        sessionData.mode = 'subscription';
+        
+        // --- ATENÇÃO: COLOQUE SEUS IDs DO STRIPE AQUI ---
+        // Exemplo:
+        // if (packId.includes('reader')) priceId = "price_1P5...";
+        
+        // Verificação de Autor
+        if (packId.includes('author')) {
+             const worksRef = db.collection('obras');
+             const q = worksRef.where('autorId', '==', uid).where('totalChapters', '>=', 10);
+             const snap = await q.count().get();
+             if (snap.data().count < 1) {
+                 throw new HttpsError('failed-precondition', 'requirements not met: need 1 book with 10+ chapters');
+             }
+             sessionData.metadata.subTier = 'author';
+        } else {
+             sessionData.metadata.subTier = 'reader';
+        }
+
+        // MOCK PARA NÃO QUEBRAR O DEPLOY SE NÃO TIVER ID
+        // Remova esse IF e coloque o priceId real no line_items
+        if (!process.env.STRIPE_SECRET_KEY) {
+             return { url: `${domain}/dashboard?mock_success=true` };
+        }
+    }
+
+    try {
+        const session = await stripe.checkout.sessions.create(sessionData);
+        return { url: session.url };
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        return { url: `${domain}/dashboard?error=stripe_error` };
+    }
+});
+
+exports.stripeWebhook = onRequest(async (request, response) => {
+    const sig = request.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    let event;
+
+    try {
+        const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+        event = stripe.webhooks.constructEvent(request.rawBody, sig, endpointSecret);
+    } catch (err) {
+        response.status(400).send(`Webhook Error: ${err.message}`);
+        return;
+    }
+
+    if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const { userId, type, coinsAmount, subTier } = session.metadata;
+
+        if (type === 'coin_pack') {
+            const qtd = parseInt(coinsAmount);
+            await db.collection('usuarios').doc(userId).update({
+                coins: FieldValue.increment(qtd)
+            });
+            await db.collection('transactions').add({
+                userId, type: 'buy_coins', amount: qtd, cost: session.amount_total, date: FieldValue.serverTimestamp()
+            });
+        } 
+        else if (type === 'subscription') {
+            let updateData = {
+                subscriptionStatus: 'active',
+                subscriptionType: subTier,
+                stripeSubId: session.subscription
+            };
+            if (subTier === 'author') {
+                 const userDoc = await db.collection('usuarios').doc(userId).get();
+                 if (!userDoc.data().referralCode) {
+                     updateData.referralCode = `REF-${userId.substring(0,5).toUpperCase()}`;
+                 }
+            }
+            await db.collection('usuarios').doc(userId).update(updateData);
+        }
+    }
+    response.json({ received: true });
 });

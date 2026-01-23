@@ -27,7 +27,7 @@ service cloud.firestore {
     }
 
     // ==========================================================
-    // 1. USUÁRIOS (AQUI ESTÁ A CORREÇÃO DE SEGURANÇA)
+    // 1. USUÁRIOS
     // ==========================================================
     match /usuarios/{userId} {
       allow read: if true;
@@ -36,9 +36,8 @@ service cloud.firestore {
       allow create: if isLoggedIn() && request.auth.uid == userId;
       
       // ATUALIZAÇÃO SEGURA (ALLOWLIST):
-      // 1. Admin pode editar tudo.
-      // 2. Dono só pode editar campos específicos (nome, foto, bio, links).
-      // Isso impede que ele altere 'role', 'vipUntil', 'banned' ou qualquer campo futuro.
+      // O usuário SÓ pode editar os campos listados abaixo.
+      // Campos sensíveis como 'coins', 'subscriptionStatus', 'role', 'badges' são bloqueados.
       allow update: if isAdmin() ||
                     (
                       isLoggedIn() 
@@ -48,7 +47,9 @@ service cloud.firestore {
                     );
     }
     
+    // ==========================================================
     // 2. OBRAS
+    // ==========================================================
     match /obras/{obraId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
@@ -60,7 +61,9 @@ service cloud.firestore {
       allow update: if isAdmin() || isOwner('autorId') || (isLoggedIn() && isViewIncrement());
     }
 
+    // ==========================================================
     // 3. CAPÍTULOS
+    // ==========================================================
     match /capitulos/{capId} {
       allow read: if true;
       allow create: if willBeOwner('autorId');
@@ -70,25 +73,33 @@ service cloud.firestore {
       allow update: if isAdmin() || isOwner('autorId');
     }
 
+    // ==========================================================
     // 4. REPORTS
+    // ==========================================================
     match /reports/{reportId} {
       allow create: if isLoggedIn();
       allow read, update, delete: if isAdmin();
     }
 
+    // ==========================================================
     // 5. REVIEWS
+    // ==========================================================
     match /reviews/{reviewId} {
       allow read: if true;
       allow create: if isLoggedIn(); 
       allow delete: if isLoggedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // ==========================================================
     // 6. HISTÓRICO
+    // ==========================================================
     match /historico/{docId} { 
        allow read, write: if isLoggedIn() && docId.matches(request.auth.uid + "_.*");
     }
 
+    // ==========================================================
     // 7. ANÚNCIOS
+    // ==========================================================
     match /anuncios/{anuncioId} {
       allow read: if true;
       allow create: if isLoggedIn();
@@ -96,7 +107,19 @@ service cloud.firestore {
       allow update, delete: if isAdmin() || (isLoggedIn() && request.auth.uid == resource.data.userId);
     }
 
+    // ==========================================================
+    // 8. TRANSAÇÕES (NOVO - CRÍTICO PARA MONETIZAÇÃO)
+    // ==========================================================
+    match /transactions/{tId} {
+      // Usuário vê as suas próprias transações, Admin vê tudo.
+      // Ninguém pode criar ou editar manualmente (apenas via Cloud Functions).
+      allow read: if isAdmin() || (isLoggedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false; 
+    }
+
+    // ==========================================================
     // OUTRAS COLEÇÕES
+    // ==========================================================
     match /comentarios/{docId} { 
       allow read: if true;
       allow create: if isLoggedIn() && request.resource.data.autorId == request.auth.uid;
