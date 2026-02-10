@@ -61,11 +61,20 @@ export default function Obra() {
 
                 // Atualiza o estado da obra em tempo real
                 setObra(prev => {
-                    // Preserva dados do autor se já existirem e o autorId não mudou
-                    if (prev?.autorId === dadosObra.autorId && prev?.autor) {
-                        return { ...dadosObra, autor: prev.autor, autorBadges: prev.autorBadges };
+                    // Se o documento vier com autor atualizado (via Cloud Function), usa ele.
+                    // Preserva badges se já existirem no estado anterior e não vierem no novo (embora setupListener não traga badges do user)
+
+                    const novoEstado = { ...dadosObra };
+
+                    // Se já tínhamos badges carregadas e o ID do autor não mudou, preserva.
+                    if (prev?.autorId === dadosObra.autorId && prev?.autorBadges) {
+                        novoEstado.autorBadges = prev.autorBadges;
                     }
-                    return dadosObra;
+
+                    // O nome 'autor' agora vem do documento da obra (atualizado pela CF), 
+                    // então confiamos em 'posteriores' atualizações do snapshot.
+
+                    return novoEstado;
                 });
 
                 // Calcula total de páginas sempre que totalChapters mudar
