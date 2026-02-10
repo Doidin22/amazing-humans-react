@@ -33,6 +33,7 @@ export default function EditarObra() {
 
   const [titulo, setTitulo] = useState('');
   const [capa, setCapa] = useState('');
+  const [coverFileName, setCoverFileName] = useState(null);
   const [sinopse, setSinopse] = useState('');
   const [status, setStatus] = useState('public');
   const [categorias, setCategorias] = useState([]);
@@ -88,6 +89,17 @@ export default function EditarObra() {
       setCategorias(categorias.filter(c => c !== cat));
     } else {
       setCategorias([...categorias, cat]);
+    }
+  };
+
+  const handleCoverFile = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCoverFileName(file.name);
+      toast('Feature under development. Backend prepared for storage integration.', {
+        icon: '🚧',
+        duration: 4000
+      });
     }
   };
 
@@ -191,7 +203,18 @@ export default function EditarObra() {
             </div>
 
             <div className="mb-4">
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover URL</label>
+              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover Image (Upload)</label>
+              <div className="flex items-center gap-2 mb-2">
+                <label htmlFor="cover-upload-edit" className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-xs font-bold transition-all shadow-lg">
+                  Choose File
+                </label>
+                <input id="cover-upload-edit" type="file" onChange={handleCoverFile} className="hidden" accept="image/png, image/jpeg" />
+                <span className="text-[10px] text-gray-400">{coverFileName || "No file chosen"}</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover URL (Or paste link)</label>
               <input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all" placeholder="https://..." />
             </div>
 

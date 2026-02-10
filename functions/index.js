@@ -138,7 +138,7 @@ exports.indexStoryForSearch = onDocumentWritten("obras/{obraId}", async (event) 
     if (data.titulo === previousData.titulo && data.searchKeywords) return;
 
     const tokens = createSearchTokens(data.titulo);
-    return after.ref.update({ 
+    return after.ref.update({
         searchKeywords: tokens,
         tituloBusca: data.titulo.toLowerCase()
     });
@@ -151,7 +151,7 @@ exports.indexStoryForSearch = onDocumentWritten("obras/{obraId}", async (event) 
 exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
-    const { type, packId, coinsAmount } = request.data; 
+    const { type, packId, coinsAmount } = request.data;
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
@@ -159,7 +159,7 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
     // MUDAR PARA SEU DOMÍNIO EM PRODUÇÃO (ex: https://amazing-humans.web.app)
-    const domain = "https://amazinghumans-ae0f3.web.app"; 
+    const domain = "https://amazinghumans-ae0f3.web.app";
     // Se estiver testando local: const domain = "http://localhost:5173";
 
     const successUrl = `${domain}/dashboard?payment=success`;
@@ -177,7 +177,7 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     if (type === 'coin_pack') {
         sessionData.mode = 'payment';
         sessionData.metadata.coinsAmount = coinsAmount;
-        const priceInCents = coinsAmount * 10; 
+        const priceInCents = coinsAmount * 10;
         if (priceInCents < 50) throw new HttpsError('invalid-argument', 'Minimum 5 coins.');
 
         sessionData.line_items = [{
@@ -188,31 +188,31 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
             },
             quantity: 1,
         }];
-    } 
+    }
     else if (type === 'subscription') {
         sessionData.mode = 'subscription';
-        
+
         // --- ATENÇÃO: COLOQUE SEUS IDs DO STRIPE AQUI ---
         // Exemplo:
         // if (packId.includes('reader')) priceId = "price_1P5...";
-        
+
         // Verificação de Autor
         if (packId.includes('author')) {
-             const worksRef = db.collection('obras');
-             const q = worksRef.where('autorId', '==', uid).where('totalChapters', '>=', 10);
-             const snap = await q.count().get();
-             if (snap.data().count < 1) {
-                 throw new HttpsError('failed-precondition', 'requirements not met: need 1 book with 10+ chapters');
-             }
-             sessionData.metadata.subTier = 'author';
+            const worksRef = db.collection('obras');
+            const q = worksRef.where('autorId', '==', uid).where('totalChapters', '>=', 10);
+            const snap = await q.count().get();
+            if (snap.data().count < 1) {
+                throw new HttpsError('failed-precondition', 'requirements not met: need 1 book with 10+ chapters');
+            }
+            sessionData.metadata.subTier = 'author';
         } else {
-             sessionData.metadata.subTier = 'reader';
+            sessionData.metadata.subTier = 'reader';
         }
 
         // MOCK PARA NÃO QUEBRAR O DEPLOY SE NÃO TIVER ID
         // Remova esse IF e coloque o priceId real no line_items
         if (!process.env.STRIPE_SECRET_KEY) {
-             return { url: `${domain}/dashboard?mock_success=true` };
+            return { url: `${domain}/dashboard?mock_success=true` };
         }
     }
 
@@ -250,7 +250,7 @@ exports.stripeWebhook = onRequest(async (request, response) => {
             await db.collection('transactions').add({
                 userId, type: 'buy_coins', amount: qtd, cost: session.amount_total, date: FieldValue.serverTimestamp()
             });
-        } 
+        }
         else if (type === 'subscription') {
             let updateData = {
                 subscriptionStatus: 'active',
@@ -258,13 +258,109 @@ exports.stripeWebhook = onRequest(async (request, response) => {
                 stripeSubId: session.subscription
             };
             if (subTier === 'author') {
-                 const userDoc = await db.collection('usuarios').doc(userId).get();
-                 if (!userDoc.data().referralCode) {
-                     updateData.referralCode = `REF-${userId.substring(0,5).toUpperCase()}`;
-                 }
+                const userDoc = await db.collection('usuarios').doc(userId).get();
+                if (!userDoc.data().referralCode) {
+                    updateData.referralCode = `REF-${userId.substring(0, 5).toUpperCase()}`;
+                }
             }
             await db.collection('usuarios').doc(userId).update(updateData);
         }
     }
     response.json({ received: true });
+});
+
+// ======================================================
+// 4. SISTEMA DE INDICAÇÃO (REFERRAL)
+// ======================================================
+
+// Garante que todo usuário novo tenha um código de convite
+exports.onUserCreate = onDocumentCreated("usuarios/{userId}", async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const data = snapshot.data();
+    if (data.referralCode) return; // Já tem código
+
+    const userId = event.params.userId;
+    const code = `REF-${userId.substring(0, 5).toUpperCase()}${Math.floor(Math.random() * 1000)}`;
+
+    return snapshot.ref.update({
+        referralCode: code,
+        referralCount: 0
+    });
+});
+
+// Resgata um código de convite
+exports.redeemReferralCode = onCall({ cors: true }, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
+
+    const { code } = request.data;
+    const uid = request.auth.uid;
+
+    if (!code) throw new HttpsError('invalid-argument', 'Code is required.');
+
+    // 1. Verificar se o código existe e pegar o dono
+    const usersRef = db.collection('usuarios');
+    const q = usersRef.where('referralCode', '==', code).limit(1);
+    const querySnapshot = await q.get();
+
+    if (querySnapshot.empty) {
+        throw new HttpsError('not-found', 'Invalid referral code.');
+    }
+
+    const referrerDoc = querySnapshot.docs[0];
+    const referrerData = referrerDoc.data();
+    const referrerId = referrerDoc.id;
+
+    // 2. Validações
+    if (referrerId === uid) {
+        throw new HttpsError('invalid-argument', 'You cannot refer yourself.');
+    }
+
+    const userRef = usersRef.doc(uid);
+    const userDoc = await userRef.get();
+
+    if (userDoc.data().referredBy) {
+        throw new HttpsError('already-exists', 'You have already been referred.');
+    }
+
+    // 3. Processar a indicação
+    await db.runTransaction(async (t) => {
+        // Marca quem foi indicado
+        t.update(userRef, {
+            referredBy: referrerId,
+            referredAt: FieldValue.serverTimestamp()
+        });
+
+        // Incrementa contador do indicador e verifica recompensa
+        const newCount = (referrerData.referralCount || 0) + 1;
+        let referrerUpdates = {
+            referralCount: FieldValue.increment(1)
+        };
+
+        // Regra de Ouro: 15 Indicações = 1 Mês Grátis (Reader Tier)
+        if (newCount === 15) {
+            // Adiciona 30 dias à data atual
+            const now = new Date();
+            const expiresAt = new Date(now.setDate(now.getDate() + 30));
+
+            referrerUpdates.subscriptionType = 'reader';
+            referrerUpdates.subscriptionStatus = 'active';
+            referrerUpdates.subscriptionExpiresAt = Timestamp.fromDate(expiresAt);
+
+            // Opcional: Notificar o usuário que ele ganhou (poderia criar uma notificação aqui)
+            const notifRef = db.collection('notificacoes').doc();
+            t.set(notifRef, {
+                paraId: referrerId,
+                mensagem: `<strong>Congratulations!</strong> You reached 15 referrals and won 1 Month of Reader Tier!`,
+                tipo: 'system',
+                lida: false,
+                data: FieldValue.serverTimestamp()
+            });
+        }
+
+        t.update(referrerDoc.ref, referrerUpdates);
+    });
+
+    return { success: true, referrerName: referrerData.nome };
 });

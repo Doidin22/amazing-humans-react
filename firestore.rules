@@ -43,7 +43,7 @@ service cloud.firestore {
                       isLoggedIn() 
                       && request.auth.uid == userId 
                       && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['nome', 'foto', 'bio', 'website', 'twitter', 'instagram', 'patreon', 'paypal'])
+                         .hasOnly(['nome', 'foto', 'capa', 'bio', 'website', 'twitter', 'instagram', 'patreon', 'paypal'])
                     );
     }
     

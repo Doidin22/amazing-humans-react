@@ -33,6 +33,7 @@ export default function Escrever() {
     // Campos do Formulário
     const [tituloObra, setTituloObra] = useState('');
     const [capa, setCapa] = useState('');
+    const [coverFileName, setCoverFileName] = useState(null);
     const [sinopse, setSinopse] = useState('');
     const [categorias, setCategorias] = useState([]);
 
@@ -65,6 +66,17 @@ export default function Escrever() {
     const handleCategoria = (e) => {
         const valor = e.target.value;
         if (e.target.checked) { setCategorias([...categorias, valor]); } else { setCategorias(categorias.filter(c => c !== valor)); }
+    };
+
+    const handleCoverFile = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setCoverFileName(file.name);
+            toast('Feature under development. Backend prepared for storage integration.', {
+                icon: '🚧',
+                duration: 4000
+            });
+        }
     };
 
     const handleTagKeyDown = React.useCallback((e) => {
@@ -215,7 +227,17 @@ export default function Escrever() {
                             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><MdBook className="text-yellow-500" /> Book Details</h3>
                             <div className="space-y-4">
                                 <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Book Title</label><input type="text" value={tituloObra} onChange={(e) => setTituloObra(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-primary outline-none" /></div>
-                                <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cover URL</label><input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-primary outline-none" /></div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cover Image (Upload)</label>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <label htmlFor="cover-upload-book" className="cursor-pointer bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-xs font-bold transition-all shadow-lg">
+                                            Choose File
+                                        </label>
+                                        <input id="cover-upload-book" type="file" onChange={handleCoverFile} className="hidden" accept="image/png, image/jpeg" />
+                                        <span className="text-[10px] text-gray-400">{coverFileName || "No file chosen"}</span>
+                                    </div>
+                                </div>
+                                <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cover URL (Or paste link)</label><input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-primary outline-none" /></div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Genres</label>
                                     <div className="flex flex-wrap gap-2">{genresList.map(cat => (<label key={cat} className={`cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all ${categorias.includes(cat) ? 'bg-primary/20 border-primary text-primary' : 'bg-[#151515] border-[#333] text-gray-400'}`}><input type="checkbox" value={cat} onChange={handleCategoria} className="hidden" /> {cat}</label>))}</div>

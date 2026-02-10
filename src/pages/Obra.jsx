@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { db } from '../services/firebaseConnection';
 import {
     doc, getDoc, collection, query, where, orderBy, getDocs, addDoc, deleteDoc, serverTimestamp,
-    limit
+    limit, onSnapshot
 } from 'firebase/firestore';
 import { AuthContext } from '../contexts/AuthContext';
 import {
@@ -43,70 +43,89 @@ export default function Obra() {
     const [lastReadId, setLastReadId] = useState(null);
 
     // --- CARREGAMENTO PRINCIPAL ---
+    // --- REAL-TIME: Obra Listener ---
     useEffect(() => {
-        let isMounted = true;
+        let unsubscribe;
 
-        async function loadObraAndChapters() {
-            try {
-                // 1. Busca Dados da Obra
-                const docRef = doc(db, "obras", id);
-                const snapshot = await getDoc(docRef);
+        async function setupListener() {
+            const docRef = doc(db, "obras", id);
 
+            unsubscribe = onSnapshot(docRef, (snapshot) => {
                 if (!snapshot.exists()) {
-                    if (isMounted) { toast.error("Book not found!"); setLoading(false); }
+                    toast.error("Book not found!");
+                    setLoading(false);
                     return;
                 }
 
                 const dadosObra = { id: snapshot.id, ...snapshot.data() };
 
-                // Dados do Autor
-                if (dadosObra.autorId) {
-                    try {
-                        const userDoc = await getDoc(doc(db, "usuarios", dadosObra.autorId));
-                        if (userDoc.exists()) {
-                            const uData = userDoc.data();
-                            dadosObra.autor = uData.nome;
-                            dadosObra.autorBadges = uData.badges || [];
-                        }
-                    } catch (err) { console.log("Erro ao carregar autor", err); }
-                }
-
-                if (isMounted) {
-                    const totalCaps = dadosObra.totalChapters || 0;
-                    setTotalPages(totalCaps > 0 ? Math.ceil(totalCaps / CHAPTERS_PER_PAGE) : 1);
-                    setObra(dadosObra);
-                }
-
-                // 2. Lógica de Histórico (Safe Mode)
-                if (user?.uid) {
-                    try {
-                        // A regra de segurança deve permitir a leitura baseada no ID do documento
-                        const histRef = doc(db, "historico", `${user.uid}_${id}`);
-                        const histSnap = await getDoc(histRef);
-
-                        if (histSnap.exists()) {
-                            const savedLastReadId = histSnap.data().lastChapterId;
-                            if (isMounted) setLastReadId(savedLastReadId);
-                        }
-                    } catch (histErr) {
-                        console.warn("Aviso: Não foi possível carregar o histórico.", histErr);
+                // Atualiza o estado da obra em tempo real
+                setObra(prev => {
+                    // Preserva dados do autor se já existirem e o autorId não mudou
+                    if (prev?.autorId === dadosObra.autorId && prev?.autor) {
+                        return { ...dadosObra, autor: prev.autor, autorBadges: prev.autorBadges };
                     }
-                }
+                    return dadosObra;
+                });
 
-                // 3. Carrega capítulos iniciais
-                if (isMounted) await fetchChapters(1);
+                // Calcula total de páginas sempre que totalChapters mudar
+                const totalCaps = dadosObra.totalChapters || 0;
+                setTotalPages(totalCaps > 0 ? Math.ceil(totalCaps / CHAPTERS_PER_PAGE) : 1);
 
-            } catch (error) {
-                console.error("Erro fatal ao carregar obra:", error);
-            } finally {
-                if (isMounted) setLoading(false);
-            }
+                setLoading(false);
+            }, (error) => {
+                console.error("Erro no listener da obra:", error);
+                setLoading(false);
+            });
         }
 
-        loadObraAndChapters();
+        setupListener();
 
-        return () => { isMounted = false; };
-    }, [id, user]);
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
+    }, [id]);
+
+    // --- EFFECT: Carregar Autor (Qdo obra for setada/atualizada e tiver autorId) ---
+    useEffect(() => {
+        if (obra?.autorId && !obra.autor) {
+            async function fetchAuthor() {
+                try {
+                    const userDoc = await getDoc(doc(db, "usuarios", obra.autorId));
+                    if (userDoc.exists()) {
+                        const uData = userDoc.data();
+                        setObra(prev => ({ ...prev, autor: uData.nome, autorBadges: uData.badges || [] }));
+                    }
+                } catch (err) { console.log("Erro ao carregar autor", err); }
+            }
+            fetchAuthor();
+        }
+    }, [obra?.autorId]); // Dependência apenas no ID para evitar loop se 'obra' mudar outras coisas
+
+    // --- EFFECT: Recarregar capítulos se o total mudar (ex: novo cap publicado) ---
+    useEffect(() => {
+        if (obra?.totalChapters) {
+            // Limpa o cache para garantir que a lista atualize, ou invalida a página atual
+            setChaptersCache({});
+            fetchChapters(page); // Recarrega a página atual
+        }
+    }, [obra?.totalChapters, page]); // Se mudar page ou totalChapters, busca.
+
+    // --- EFFECT: Carregar Histórico Inicialmente ---
+    useEffect(() => {
+        if (user?.uid && id) {
+            async function loadHistory() {
+                try {
+                    const histRef = doc(db, "historico", `${user.uid}_${id}`);
+                    const histSnap = await getDoc(histRef);
+                    if (histSnap.exists()) {
+                        setLastReadId(histSnap.data().lastChapterId);
+                    }
+                } catch (histErr) { console.warn("Erro histórico", histErr); }
+            }
+            loadHistory();
+        }
+    }, [user?.uid, id]);
 
     // --- BUSCA DE CAPÍTULOS ---
     async function fetchChapters(pageNumber) {

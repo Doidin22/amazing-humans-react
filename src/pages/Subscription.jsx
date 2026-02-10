@@ -14,16 +14,16 @@ export default function Subscription() {
     if (!user) return toast.error("Please login first");
     setLoading(true);
     const createStripeCheckout = httpsCallable(functions, 'createStripeCheckout');
-    
+
     try {
       // type: 'coin_pack' ou 'subscription'
       // id: identificador do pacote ou plano (pode ser dummy por enquanto)
-      const { data } = await createStripeCheckout({ 
-        type, 
-        packId: id, 
+      const { data } = await createStripeCheckout({
+        type,
+        packId: id,
         coinsAmount // Apenas para packs de moedas
       });
-      
+
       if (data?.url) {
         window.location.href = data.url;
       }
@@ -33,7 +33,7 @@ export default function Subscription() {
       if (error.message.includes("requirements")) {
         toast.error("You need at least 1 published book with 10+ chapters!");
       } else {
-        toast.error("Checkout failed. Try again.");
+        toast("In Development 🚧", { icon: '🚧' });
       }
     } finally {
       setLoading(false);
@@ -45,6 +45,9 @@ export default function Subscription() {
       <div className="text-center mb-12">
         <h1 className="text-4xl font-bold text-white mb-2">Support & Upgrade</h1>
         <p className="text-gray-400">Get coins to support authors or subscribe for premium benefits.</p>
+        <div className="mt-6 inline-flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 rounded-full">
+          <span className="text-yellow-500 font-bold text-sm">🚧 FEATURE IN DEVELOPMENT</span>
+        </div>
       </div>
 
       {/* SEÇÃO 1: MOEDAS (ONE-TIME) */}
@@ -58,7 +61,7 @@ export default function Subscription() {
             <h3 className="text-xl font-bold text-white">Starter Pack</h3>
             <div className="text-3xl font-bold text-yellow-500 my-4">5 Coins</div>
             <p className="text-gray-400 text-sm mb-6">$0.50 USD</p>
-            <button 
+            <button
               disabled={loading}
               onClick={() => handleCheckout('coin_pack', 'price_dummy_coins_5', 5)}
               className="w-full py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition-colors"
@@ -73,7 +76,7 @@ export default function Subscription() {
             <h3 className="text-xl font-bold text-white">Reader Pack</h3>
             <div className="text-3xl font-bold text-yellow-500 my-4">50 Coins</div>
             <p className="text-gray-400 text-sm mb-6">$5.00 USD</p>
-            <button 
+            <button
               disabled={loading}
               onClick={() => handleCheckout('coin_pack', 'price_dummy_coins_50', 50)}
               className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-lg transition-colors"
@@ -82,12 +85,12 @@ export default function Subscription() {
             </button>
           </div>
 
-           {/* Card Grande */}
-           <div className="bg-[#1f1f1f] border border-[#333] p-6 rounded-xl hover:border-yellow-500/50 transition-all">
+          {/* Card Grande */}
+          <div className="bg-[#1f1f1f] border border-[#333] p-6 rounded-xl hover:border-yellow-500/50 transition-all">
             <h3 className="text-xl font-bold text-white">Supporter Pack</h3>
             <div className="text-3xl font-bold text-yellow-500 my-4">100 Coins</div>
             <p className="text-gray-400 text-sm mb-6">$10.00 USD</p>
-            <button 
+            <button
               disabled={loading}
               onClick={() => handleCheckout('coin_pack', 'price_dummy_coins_100', 100)}
               className="w-full py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-bold rounded-lg transition-colors"
@@ -104,17 +107,17 @@ export default function Subscription() {
           <MdWorkspacePremium /> Monthly Subscriptions
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          
+
           {/* Plano Leitor */}
           <div className="bg-[#1f1f1f] border border-blue-500/30 p-8 rounded-2xl flex flex-col">
             <h3 className="text-2xl font-bold text-white">Reader Tier</h3>
             <div className="text-4xl font-bold text-blue-400 my-4">$2<span className="text-lg text-gray-500 font-normal">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
-              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500"/> No Ads</li>
-              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500"/> Support the Platform</li>
-              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500"/> Reader Badge</li>
+              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500" /> No Ads</li>
+              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500" /> Support the Platform</li>
+              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500" /> Reader Badge</li>
             </ul>
-            <button 
+            <button
               disabled={loading || user?.subscriptionType === 'reader'}
               onClick={() => handleCheckout('subscription', 'price_dummy_reader')}
               className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition-colors"
@@ -129,15 +132,15 @@ export default function Subscription() {
             <h3 className="text-2xl font-bold text-white">Author Tier</h3>
             <div className="text-4xl font-bold text-purple-400 my-4">$5<span className="text-lg text-gray-500 font-normal">/mo</span></div>
             <ul className="space-y-3 mb-8 flex-1">
-              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500"/> Everything in Reader Tier</li>
-              <li className="flex items-center gap-2 text-gray-300"><MdStar className="text-yellow-500"/> <strong>Withdrawal Unlocked</strong></li>
+              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500" /> Everything in Reader Tier</li>
+              <li className="flex items-center gap-2 text-gray-300"><MdStar className="text-yellow-500" /> <strong>Withdrawal Unlocked</strong></li>
 
-              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500"/> Custom Referral Code</li>
+              <li className="flex items-center gap-2 text-gray-300"><MdCheck className="text-green-500" /> Custom Referral Code</li>
               <li className="text-xs text-gray-500 mt-2 pt-2 border-t border-white/10">
-                <MdLock className="inline mr-1"/> Requirement: 1 Book with 10+ Chapters
+                <MdLock className="inline mr-1" /> Requirement: 1 Book with 10+ Chapters
               </li>
             </ul>
-            <button 
+            <button
               disabled={loading || user?.subscriptionType === 'author'}
               onClick={() => handleCheckout('subscription', 'price_dummy_author')}
               className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors"

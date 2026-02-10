@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { auth, provider, db } from '../services/firebaseConnection';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import toast from 'react-hot-toast';
 
 export const AuthContext = createContext({});
@@ -25,7 +26,7 @@ export function AuthProvider({ children }) {
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
-        
+
         const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), async (docSnap) => {
           if (docSnap.exists()) {
             const dados = docSnap.data();
@@ -44,15 +45,19 @@ export function AuthProvider({ children }) {
               uid: uid,
               name: dados.nome || firebaseUser.displayName,
               avatar: avatarFinal,
+              cover: dados.capa || null,
               email: firebaseUser.email,
               role: dados.role || 'user',
-              
+
               // --- NOVOS CAMPOS DE ECONOMIA ---
               coins: dados.coins || 0,
               subscriptionType: dados.subscriptionType || 'free', // 'free', 'reader', 'author'
               subscriptionStatus: dados.subscriptionStatus || 'inactive', // 'active', 'past_due'
               referralCode: dados.referralCode || '',
-              
+              // Campos referrals
+              referralCount: dados.referralCount || 0,
+              referredBy: dados.referredBy || null,
+
               // Mantendo compatibilidade com código antigo
               badges: dados.badges || [],
               followersCount: dados.followersCount || 0,
@@ -84,7 +89,7 @@ export function AuthProvider({ children }) {
     return () => unsubscribeAuth();
   }, []);
 
-  async function signInGoogle() {
+  async function signInGoogle(inviteCode) {
     try {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
@@ -95,6 +100,19 @@ export function AuthProvider({ children }) {
           nome: result.user.displayName,
           email: result.user.email
         }, { merge: true });
+
+        // Tentar aplicar código de convite se houver
+        if (inviteCode) {
+          const functions = getFunctions();
+          const redeemReferralCode = httpsCallable(functions, 'redeemReferralCode');
+          redeemReferralCode({ code: inviteCode })
+            .then((res) => toast.success(`Referred by ${res.data.referrerName}!`))
+            .catch((err) => {
+              console.error("Referral Error:", err);
+              // Não exibe erro se for "already exists" silenciosamente ou warning
+              if (!err.message.includes("already")) toast.error("Invalid invite code, but you are logged in.");
+            });
+        }
       }
     } catch (error) {
       console.error(error);
@@ -114,11 +132,11 @@ export function AuthProvider({ children }) {
     if (!user) return true;
     // Se a assinatura estiver ativa (seja leitor ou autor), remove anúncios
     if (user.subscriptionStatus === 'active') return false;
-    
+
     // Regra antiga de nível (opcional, pode manter ou tirar)
     const currentLevel = Math.floor((user.leituras || 0) / 20) + 1;
     if (currentLevel >= 100) return false;
-    
+
     return true;
   }, [user]);
 

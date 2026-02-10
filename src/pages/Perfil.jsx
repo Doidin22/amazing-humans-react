@@ -1,12 +1,13 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
-import { doc, updateDoc, collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore'; 
-import { 
-    MdEdit, MdPerson, MdLink, MdClose, MdImage, 
+import { doc, updateDoc, collection, query, where, getDocs, getCountFromServer } from 'firebase/firestore';
+import {
+    MdEdit, MdPerson, MdLink, MdClose, MdImage,
     MdVerified, MdPeople, MdPersonAdd, MdLibraryBooks, MdTimeline, MdAutoStories,
-    MdDiamond 
+    MdDiamond, MdContentCopy, MdCardGiftcard
 } from 'react-icons/md';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa';
 import StoryCard from '../components/StoryCard';
 import toast from 'react-hot-toast';
@@ -19,144 +20,246 @@ const formatUrl = (url) => {
 };
 
 export default function Perfil() {
-  const { user } = useContext(AuthContext);
-  
-  const [isEditing, setIsEditing] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [social, setSocial] = useState({ website: '', twitter: '', instagram: '', patreon: '', paypal: '' });
-  
-  const [minhasObras, setMinhasObras] = useState([]);
-  const [libraryCount, setLibraryCount] = useState(0);
-  const [loadingObras, setLoadingObras] = useState(true);
+    const { user } = useContext(AuthContext);
 
-  // Mantive apenas 'leituras' para as estatísticas gerais, removi cálculos de nível
-  const leituras = user?.leituras || 0;
+    const [isEditing, setIsEditing] = useState(false);
+    const [name, setName] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const [coverUrl, setCoverUrl] = useState('');
+    const [social, setSocial] = useState({ website: '', twitter: '', instagram: '', patreon: '', paypal: '' });
+    const [coverFileName, setCoverFileName] = useState(null);
 
-  useEffect(() => {
-    async function loadData() {
-        if(!user?.uid) return;
+    const [minhasObras, setMinhasObras] = useState([]);
+    const [libraryCount, setLibraryCount] = useState(0);
+    const [loadingObras, setLoadingObras] = useState(true);
+
+    // Mantive apenas 'leituras' para as estatísticas gerais, removi cálculos de nível
+    const leituras = user?.leituras || 0;
+
+    useEffect(() => {
+        async function loadData() {
+            if (!user?.uid) return;
+            try {
+                const qObras = query(collection(db, "obras"), where("autorId", "==", user.uid));
+                const snap = await getDocs(qObras);
+                let lista = [];
+                snap.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
+                setMinhasObras(lista);
+
+                const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid));
+                const snapLib = await getCountFromServer(qLib);
+                setLibraryCount(snapLib.data().count);
+            } catch (err) { console.error(err); } finally { setLoadingObras(false); }
+        }
+        loadData();
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            setName(user.name || '');
+            setAvatarUrl(user.avatar || '');
+            setCoverUrl(user.cover || '');
+            setSocial({
+                website: user.website || '',
+                twitter: user.twitter || '',
+                instagram: user.instagram || '',
+                patreon: user.patreon || '',
+                paypal: user.paypal || ''
+            });
+        }
+    }, [user]);
+
+    async function handleSaveProfile() {
+        if (!user?.uid) return;
         try {
-            const qObras = query(collection(db, "obras"), where("autorId", "==", user.uid));
-            const snap = await getDocs(qObras);
-            let lista = [];
-            snap.forEach((doc) => lista.push({ id: doc.id, ...doc.data() }));
-            setMinhasObras(lista);
-
-            const qLib = query(collection(db, "biblioteca"), where("userId", "==", user.uid));
-            const snapLib = await getCountFromServer(qLib);
-            setLibraryCount(snapLib.data().count);
-        } catch(err) { console.error(err); } finally { setLoadingObras(false); }
+            const userRef = doc(db, "usuarios", user.uid);
+            await updateDoc(userRef, {
+                nome: name,
+                foto: avatarUrl,
+                capa: coverUrl,
+                website: social.website,
+                twitter: social.twitter,
+                instagram: social.instagram,
+                patreon: social.patreon,
+                paypal: social.paypal
+            });
+            toast.success("Profile updated!");
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Error updating profile:", error);
+            toast.error("Error updating profile: " + error.message);
+        }
     }
-    loadData();
-  }, [user]);
 
-  useEffect(() => {
-      if(user) { 
-          setAvatarUrl(user.avatar || '');
-          setSocial({
-              website: user.website || '',
-              twitter: user.twitter || '',
-              instagram: user.instagram || '',
-              patreon: user.patreon || '',
-              paypal: user.paypal || ''
-          });
-      }
-  }, [user]);
+    const [inviteCodeInput, setInviteCodeInput] = useState('');
+    async function handleRedeemCode() {
+        if (!inviteCodeInput) return;
+        const functions = getFunctions();
+        const redeemReferralCode = httpsCallable(functions, 'redeemReferralCode');
+        try {
+            const { data } = await redeemReferralCode({ code: inviteCodeInput });
+            toast.success(`Success! Referred by ${data.referrerName}`);
+            setInviteCodeInput('');
+        } catch (error) {
+            toast.error(error.message);
+        }
+    }
 
-  async function handleSaveProfile() {
-      if(!user?.uid) return;
-      try {
-          const userRef = doc(db, "usuarios", user.uid);
-          await updateDoc(userRef, { 
-              foto: avatarUrl,
-              website: social.website,
-              twitter: social.twitter,
-              instagram: social.instagram,
-              patreon: social.patreon,
-              paypal: social.paypal
-          });
-          toast.success("Profile updated!");
-          setIsEditing(false);
-      } catch(error) { toast.error("Error updating profile."); }
-  }
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text);
+        toast.success("Code copied!");
+    }
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-            
-            {/* COLUNA DA ESQUERDA (Info do Usuário) */}
-            <div className="w-full md:w-1/3 flex flex-col gap-6">
-                <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center relative overflow-hidden border border-white/5 bg-[#1a1a1a]">
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-900/10 opacity-50 -z-10"></div>
-                    
-                    <div className="relative mb-4">
-                        <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary to-purple-500 shadow-xl relative">
-                            <img src={avatarUrl || user?.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-[#222]" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=User"; }} />
-                            {!isEditing && <button onClick={() => setIsEditing(true)} className="absolute bottom-0 right-0 bg-[#222] text-white p-2 rounded-full border border-gray-600 hover:bg-primary transition-all shadow-lg"><MdEdit size={16} /></button>}
+    function handleCoverFile(e) {
+        const file = e.target.files[0];
+        if (file) {
+            setCoverFileName(file.name);
+            toast('Feature under development. Backend prepared for storage integration.', {
+                icon: '🚧',
+                duration: 4000
+            });
+            // Logic to upload would go here, updating setCoverUrl with the result
+        }
+    }
+
+    return (
+        <div className="max-w-6xl mx-auto px-4 py-12 animate-fade-in">
+            <div className="flex flex-col md:flex-row gap-8 items-start">
+
+                {/* COLUNA DA ESQUERDA (Info do Usuário) */}
+                <div className="w-full md:w-1/3 flex flex-col gap-6">
+                    <div className="glass-panel p-6 rounded-2xl flex flex-col items-center text-center relative overflow-hidden border border-white/5 bg-[#1a1a1a]">
+                        {user?.cover ? (
+                            <div className="absolute inset-0 z-0">
+                                <img src={user.cover} alt="Cover" className="w-full h-full object-cover opacity-30" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-[#1a1a1a]/80 to-transparent"></div>
+                            </div>
+                        ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-purple-900/10 opacity-50 -z-10"></div>
+                        )}
+
+                        <div className="relative mb-4">
+                            <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary to-purple-500 shadow-xl relative">
+                                <img src={avatarUrl || user?.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-[#222]" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=User"; }} />
+                                {!isEditing && <button onClick={() => setIsEditing(true)} className="absolute bottom-0 right-0 bg-[#222] text-white p-2 rounded-full border border-gray-600 hover:bg-primary transition-all shadow-lg"><MdEdit size={16} /></button>}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col items-center w-full mb-4">
+                            <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                {user?.name}
+                                {user?.isVip && <MdDiamond className="text-yellow-400 text-xl drop-shadow-md" title="VIP Member" />}
+                                {user?.badges?.includes('pioneer') && <MdVerified className="text-blue-400 text-xl" title="Pioneer" />}
+                            </h2>
+                            {/* REMOVIDO: Span do Nível */}
+                        </div>
+
+                        {!isEditing && (
+                            <div className="flex flex-col gap-4 mb-6 w-full px-4">
+                                <div className="flex justify-center gap-4">
+                                    {user?.website && <a href={formatUrl(user.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
+                                    {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
+                                    {user?.instagram && <a href={formatUrl(user.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
+                                </div>
+                                {(user?.patreon || user?.paypal) && (
+                                    <div className="flex gap-2 justify-center mt-2 border-t border-white/5 pt-4">
+                                        {user.patreon && <a href={formatUrl(user.patreon)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20"><FaPatreon /> Support</a>}
+                                        {user.paypal && <a href={formatUrl(user.paypal)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20"><FaPaypal /> Donate</a>}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {isEditing && (
+                            <div className="w-full bg-black/20 p-4 rounded-xl border border-white/5 mt-4 animate-fade-in text-left">
+                                <div className="space-y-3 mb-4">
+                                    {/* Cover Image Input */}
+                                    <div className="p-3 bg-white/5 rounded-lg border border-dashed border-white/10 text-center">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Cover Image</label>
+                                        <div className="flex flex-col items-center gap-2">
+                                            <label htmlFor="cover-upload" className="cursor-pointer bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-xs font-bold transition-all shadow-lg">
+                                                Choose File
+                                            </label>
+                                            <input id="cover-upload" type="file" onChange={handleCoverFile} className="hidden" accept="image/png, image/jpeg" />
+                                            <span className="text-[10px] text-gray-400">{coverFileName || "No file chosen"}</span>
+                                        </div>
+                                        <p className="text-[9px] text-gray-600 mt-1">Supports JPG, PNG (Max 5MB)</p>
+                                    </div>
+
+                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Display Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input-modern w-full text-xs" /></div>
+                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Avatar URL</label><input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="input-modern w-full text-xs" /></div>
+                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Website</label><input type="text" value={social.website} onChange={(e) => setSocial({ ...social, website: e.target.value })} className="input-modern w-full text-xs" /></div>
+                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Twitter</label><input type="text" value={social.twitter} onChange={(e) => setSocial({ ...social, twitter: e.target.value })} className="input-modern w-full text-xs" /></div>
+                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Instagram</label><input type="text" value={social.instagram} onChange={(e) => setSocial({ ...social, instagram: e.target.value })} className="input-modern w-full text-xs" /></div>
+                                    <div className="pt-2 border-t border-gray-700 mt-2">
+                                        <p className="text-[10px] text-yellow-500 font-bold mb-2">Monetization</p>
+                                        <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Patreon</label><input type="text" value={social.patreon} onChange={(e) => setSocial({ ...social, patreon: e.target.value })} className="input-modern w-full text-xs" /></div>
+                                        <div className="mt-2"><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">PayPal</label><input type="text" value={social.paypal} onChange={(e) => setSocial({ ...social, paypal: e.target.value })} className="input-modern w-full text-xs" /></div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => setIsEditing(false)} className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-700 hover:bg-gray-600 text-white">Cancel</button>
+                                    <button onClick={handleSaveProfile} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary hover:bg-primary-dark text-white">Save</button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="w-full mt-2 space-y-4">
+                            {/* REMOVIDO: Barra de Progresso e Nível */}
+
+                            {/* Seguidores / Seguindo */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col items-center">
+                                    <span className="text-xl font-bold text-white">{user?.followersCount || 0}</span>
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-1"><MdPeople /> Followers</span>
+                                </div>
+                                <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col items-center">
+                                    <span className="text-xl font-bold text-white">{user?.followingCount || 0}</span>
+                                    <span className="text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-1"><MdPersonAdd /> Following</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div className="flex flex-col items-center w-full mb-4">
-                        <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
-                            {user?.name}
-                            {user?.isVip && <MdDiamond className="text-yellow-400 text-xl drop-shadow-md" title="VIP Member" />}
-                            {user?.badges?.includes('pioneer') && <MdVerified className="text-blue-400 text-xl" title="Pioneer" />}
-                        </h2>
-                        {/* REMOVIDO: Span do Nível */}
-                    </div>
 
-                    {!isEditing && (
-                        <div className="flex flex-col gap-4 mb-6 w-full px-4">
-                            <div className="flex justify-center gap-4">
-                                {user?.website && <a href={formatUrl(user.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
-                                {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
-                                {user?.instagram && <a href={formatUrl(user.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
+                    {/* Referral Section */}
+                    <div className="w-full bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 mt-2">
+                        <h4 className="text-yellow-500 font-bold flex items-center gap-2 mb-2 text-sm"><MdCardGiftcard /> Referral Program</h4>
+
+                        <div className="bg-black/30 rounded-lg p-3 border border-white/5 mb-3">
+                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">My Invite Code</p>
+                            <div className="flex items-center justify-between">
+                                <code className="text-white font-mono text-lg">{user?.referralCode || 'Generating...'}</code>
+                                <button onClick={() => copyToClipboard(user?.referralCode)} className="text-gray-400 hover:text-white p-1"><MdContentCopy /></button>
                             </div>
-                            {(user?.patreon || user?.paypal) && (
-                                <div className="flex gap-2 justify-center mt-2 border-t border-white/5 pt-4">
-                                    {user.patreon && <a href={formatUrl(user.patreon)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#ff424d]/10 text-[#ff424d] hover:bg-[#ff424d] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#ff424d]/20"><FaPatreon /> Support</a>}
-                                    {user.paypal && <a href={formatUrl(user.paypal)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-[#00457C]/10 text-[#00457C] hover:bg-[#00457C] hover:text-white px-4 py-2 rounded-lg text-xs font-bold transition-all border border-[#00457C]/20"><FaPaypal /> Donate</a>}
-                                </div>
-                            )}
+                            <p className="text-[10px] text-gray-500 mt-1">Share with friends! 15 referrals = 30 days Free Reader Tier.</p>
+                            <div className="mt-2 text-xs text-gray-300">
+                                Referrals: <span className="text-yellow-500 font-bold">{user?.referralCount || 0}</span> / 15
+                            </div>
                         </div>
-                    )}
 
-                    {isEditing && (
-                        <div className="w-full bg-black/20 p-4 rounded-xl border border-white/5 mt-4 animate-fade-in text-left">
-                            <div className="space-y-3 mb-4">
-                                <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Avatar URL</label><input type="text" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} className="input-modern w-full text-xs" /></div>
-                                <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Website</label><input type="text" value={social.website} onChange={(e) => setSocial({...social, website: e.target.value})} className="input-modern w-full text-xs" /></div>
-                                <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Twitter</label><input type="text" value={social.twitter} onChange={(e) => setSocial({...social, twitter: e.target.value})} className="input-modern w-full text-xs" /></div>
-                                <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Instagram</label><input type="text" value={social.instagram} onChange={(e) => setSocial({...social, instagram: e.target.value})} className="input-modern w-full text-xs" /></div>
-                                <div className="pt-2 border-t border-gray-700 mt-2">
-                                    <p className="text-[10px] text-yellow-500 font-bold mb-2">Monetization</p>
-                                    <div><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Patreon</label><input type="text" value={social.patreon} onChange={(e) => setSocial({...social, patreon: e.target.value})} className="input-modern w-full text-xs" /></div>
-                                    <div className="mt-2"><label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">PayPal</label><input type="text" value={social.paypal} onChange={(e) => setSocial({...social, paypal: e.target.value})} className="input-modern w-full text-xs" /></div>
+                        {!user?.referredBy && (
+                            <div className="mt-3 pt-3 border-t border-white/10">
+                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-2">Have a code?</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="REF-XXXXX"
+                                        value={inviteCodeInput}
+                                        onChange={e => setInviteCodeInput(e.target.value)}
+                                        className="w-full bg-black/30 border border-white/10 rounded px-3 text-xs text-white focus:border-yellow-500 outline-none"
+                                    />
+                                    <button onClick={handleRedeemCode} className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold text-xs px-3 rounded transition-colors">Apply</button>
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => setIsEditing(false)} className="flex-1 py-2 rounded-lg text-xs font-bold bg-gray-700 hover:bg-gray-600 text-white">Cancel</button>
-                                <button onClick={handleSaveProfile} className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary hover:bg-primary-dark text-white">Save</button>
+                        )}
+                        {user?.referredBy && (
+                            <div className="mt-2 text-xs text-gray-500 text-center">
+                                Referred by another user <MdVerified className="inline text-blue-500" />
                             </div>
-                        </div>
-                    )}
-
-                    <div className="w-full mt-2 space-y-4">
-                        {/* REMOVIDO: Barra de Progresso e Nível */}
-                        
-                        {/* Seguidores / Seguindo */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col items-center">
-                                <span className="text-xl font-bold text-white">{user?.followersCount || 0}</span>
-                                <span className="text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-1"><MdPeople /> Followers</span>
-                            </div>
-                            <div className="bg-black/20 p-3 rounded-xl border border-white/5 flex flex-col items-center">
-                                <span className="text-xl font-bold text-white">{user?.followingCount || 0}</span>
-                                <span className="text-[10px] text-gray-400 uppercase tracking-widest flex items-center gap-1"><MdPersonAdd /> Following</span>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
+
 
                 <div className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl w-full">
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2"><MdTimeline className="text-green-500" /> Reader Stats</h3>
@@ -191,6 +294,6 @@ export default function Perfil() {
                 )}
             </div>
         </div>
-    </div>
-  );
+
+    );
 }

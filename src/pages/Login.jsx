@@ -1,9 +1,10 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 
 export default function Login() {
   const { signed, signInGoogle } = useContext(AuthContext);
+  const [inviteCode, setInviteCode] = useState('');
 
   if (signed) {
     return <Navigate to="/" />;
@@ -19,9 +20,20 @@ export default function Login() {
           <p className="text-[#777] text-sm">Access your account</p>
         </div>
 
+        <div className="mb-4 text-left">
+          <label className="text-gray-400 text-xs uppercase font-bold ml-1">Invitation Code (Optional)</label>
+          <input
+            type="text"
+            placeholder="REF-XXXXX"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            className="w-full mt-1 p-3 bg-[#333] border border-[#444] rounded-lg text-white text-sm focus:outline-none focus:border-yellow-500 transition-colors"
+          />
+        </div>
+
         <button
-          onClick={signInGoogle}
-          className="w-full p-3 rounded-lg border-none bg-white text-[#333] font-bold text-base flex items-center justify-center gap-2.5 cursor-pointer mb-5"
+          onClick={() => signInGoogle(inviteCode)}
+          className="w-full p-3 rounded-lg border-none bg-white text-[#333] font-bold text-base flex items-center justify-center gap-2.5 cursor-pointer mb-5 hover:bg-gray-200 transition-colors"
         >
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-5" />
           Sign in with Google
