@@ -30,6 +30,7 @@ export default function Obra() {
 
     // States
     const [obra, setObra] = useState(null);
+    const [authorData, setAuthorData] = useState(null);
     const [capitulos, setCapitulos] = useState([]);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -96,20 +97,26 @@ export default function Obra() {
     }, [id]);
 
     // --- EFFECT: Carregar Autor (Qdo obra for setada/atualizada e tiver autorId) ---
+    // --- EFFECT: Monitorar Autor em Tempo Real (Substitui busca única) ---
     useEffect(() => {
-        if (obra?.autorId && !obra.autor) {
-            async function fetchAuthor() {
-                try {
-                    const userDoc = await getDoc(doc(db, "usuarios", obra.autorId));
-                    if (userDoc.exists()) {
-                        const uData = userDoc.data();
-                        setObra(prev => ({ ...prev, autor: uData.nome, autorBadges: uData.badges || [] }));
-                    }
-                } catch (err) { console.log("Erro ao carregar autor", err); }
-            }
-            fetchAuthor();
+        // Limpa dados do autor anterior ao mudar de obra/autor
+        if (!obra?.autorId) {
+            setAuthorData(null);
+            return;
         }
-    }, [obra?.autorId]); // Dependência apenas no ID para evitar loop se 'obra' mudar outras coisas
+
+        const userRef = doc(db, "usuarios", obra.autorId);
+        const unsubscribe = onSnapshot(userRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const uData = docSnap.data();
+                setAuthorData({ nome: uData.nome, badges: uData.badges || [] });
+            }
+        }, (error) => {
+            console.error("Erro ao monitorar autor:", error);
+        });
+
+        return () => unsubscribe();
+    }, [obra?.autorId]);
 
     // --- EFFECT: Recarregar capítulos se o total mudar (ex: novo cap publicado) ---
     useEffect(() => {
@@ -274,8 +281,8 @@ export default function Obra() {
 
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-6">
                             <Link to={`/usuario/${obra.autorId}`} className="flex items-center gap-2 hover:text-primary transition-colors">
-                                <MdPerson /> {obra.autor || "Unknown"}
-                                {obra.autorBadges?.includes('pioneer') && <MdVerified className="text-yellow-400" />}
+                                <MdPerson /> {authorData?.nome || obra.autor || "Unknown"}
+                                {(authorData?.badges || obra.autorBadges)?.includes('pioneer') && <MdVerified className="text-yellow-400" />}
                             </Link>
                             <div className="flex items-center gap-1 text-yellow-500"><MdStar /> {(obra.rating || 0).toFixed(1)}</div>
                             <div className="flex items-center gap-1"><MdVisibility /> {obra.views || 0} Views</div>
