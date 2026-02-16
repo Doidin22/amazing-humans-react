@@ -33,7 +33,10 @@ service cloud.firestore {
       allow read: if true;
       
       // CRIAÇÃO: O próprio usuário pode criar seu documento ao logar
-      allow create: if isLoggedIn() && request.auth.uid == userId;
+      // CORREÇÃO DE SEGURANÇA: Validar campos na criação para impedir injeção de privilégios
+      allow create: if isLoggedIn() && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly(['uid', 'nome', 'email', 'avatar', 'createdAt'])
+                    && request.resource.data.uid == userId;
       
       // ATUALIZAÇÃO SEGURA (ALLOWLIST):
       // O usuário SÓ pode editar os campos listados abaixo.

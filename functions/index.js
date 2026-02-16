@@ -83,7 +83,8 @@ exports.notifyNewChapter = onDocumentCreated("capitulos/{capituloId}", async (ev
     if (!autorId) return;
 
     const seguidoresRef = db.collection('seguidores');
-    const q = seguidoresRef.where('seguidoId', '==', autorId);
+
+    const q = seguidoresRef.where('followedId', '==', autorId);
     const followersSnap = await q.get();
 
     if (followersSnap.empty) return;
@@ -92,7 +93,7 @@ exports.notifyNewChapter = onDocumentCreated("capitulos/{capituloId}", async (ev
     followersSnap.forEach(docSeguidor => {
         const seguidorData = docSeguidor.data();
         notificationsBatch.push({
-            paraId: seguidorData.seguidorId, // Atenção: Verifique se no seu banco é 'seguidorId' ou 'followerId'
+            paraId: seguidorData.followerId, // Atenção: Verifique se no seu banco é 'seguidorId' ou 'followerId'
             mensagem: `<strong>${autorNome}</strong> updated "${nomeObra}": ${tituloCap}`,
             tipo: 'chapter',
             linkDestino: `/ler/${snapshot.id}`,
@@ -286,7 +287,11 @@ exports.onUserCreate = onDocumentCreated("usuarios/{userId}", async (event) => {
 
     return snapshot.ref.update({
         referralCode: code,
-        referralCount: 0
+        referralCount: 0,
+        // Inicialização Segura de dados sensíveis
+        coins: 0,
+        subscriptionType: 'free',
+        subscriptionStatus: 'inactive'
     });
 });
 

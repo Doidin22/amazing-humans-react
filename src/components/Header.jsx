@@ -112,29 +112,29 @@ export default function Header() {
                 </div>
               </div>
 
-              {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> Admin Panel</Link>}
+              {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> <span>Admin Panel</span></Link>}
 
               {/* --- Link do Dashboard no Mobile --- */}
-              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> Subscription</Link>
-              <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Dashboard</Link>
+              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+              <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> <span>Dashboard</span></Link>
 
-              <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> Home</Link>
-              <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> Profile</Link>
-              <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="drawer-link"><MdBookmarks size={20} /> Library</Link>
-              <Link to="/escrever" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> Write</Link>
+              <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> <span>Home</span></Link>
+              <Link to="/perfil" onClick={() => setShowDrawer(false)} className="drawer-link"><MdPerson size={20} /> <span>Profile</span></Link>
+              <Link to="/biblioteca" onClick={() => setShowDrawer(false)} className="drawer-link"><MdBookmarks size={20} /> <span>Library</span></Link>
+              <Link to="/escrever" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> <span>Write</span></Link>
 
               <Link to="/notificacoes" onClick={() => setShowDrawer(false)} className="drawer-link flex justify-between">
-                <span className="flex items-center gap-3"><MdNotifications size={20} /> Notifications</span>
+                <span className="flex items-center gap-3"><MdNotifications size={20} /> <span>Notifications</span></span>
                 {notifCount > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{notifCount}</span>}
               </Link>
-              <button onClick={() => { logout(); setShowDrawer(false); }} className="drawer-link text-red-400 mt-4 border-t border-white/5 pt-4"><MdLogout size={20} /> Logout</button>
+              <button onClick={() => { logout(); setShowDrawer(false); }} className="drawer-link text-red-400 mt-4 border-t border-white/5 pt-4"><MdLogout size={20} /> <span>Logout</span></button>
             </>
           ) : (
             <>
-              <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> Home</Link>
-              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> Subscription</Link>
-              <Link to="/how-it-works" onClick={() => setShowDrawer(false)} className="drawer-link"><MdInfoOutline size={20} /> How it Works</Link>
-              <Link to="/login" onClick={() => setShowDrawer(false)} className="mt-4 mx-2 bg-primary text-white py-3 rounded-lg font-bold text-center shadow-lg">Login / Sign Up</Link>
+              <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> <span>Home</span></Link>
+              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+              <Link to="/how-it-works" onClick={() => setShowDrawer(false)} className="drawer-link"><MdInfoOutline size={20} /> <span>How it Works</span></Link>
+              <Link to="/login" onClick={() => setShowDrawer(false)} className="mt-4 mx-2 bg-primary text-white py-3 rounded-lg font-bold text-center shadow-lg"><span>Login / Sign Up</span></Link>
             </>
           )}
         </div>
@@ -185,14 +185,14 @@ export default function Header() {
                           <p className="text-[10px] text-gray-500 uppercase tracking-wider">{user.role}</p>
                         </div>
                       </div>
-                      {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> Admin Panel</Link>}
-                      <Link to="/subscription" className="dropdown-item"><span className="text-yellow-500">★</span> Subscription</Link>
-                      <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> Dashboard</Link>
-                      <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> Profile</Link>
-                      <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> Library</Link>
+                      {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> <span>Admin Panel</span></Link>}
+                      <Link to="/subscription" className="dropdown-item"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+                      <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> <span>Dashboard</span></Link>
+                      <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> <span>Profile</span></Link>
+                      <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> <span>Library</span></Link>
 
                       <div className="h-px bg-white/5 my-1"></div>
-                      <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> Logout</button>
+                      <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> <span>Logout</span></button>
                     </div>
                   )}
                 </div>

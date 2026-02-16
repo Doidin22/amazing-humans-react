@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, provider, db } from '../services/firebaseConnection';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import toast from 'react-hot-toast';
 
@@ -94,12 +94,21 @@ export function AuthProvider({ children }) {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
         const uid = result.user.uid;
-        // Merge true para não sobrescrever dados existentes (como moedas)
-        await setDoc(doc(db, "usuarios", uid), {
-          uid: uid,
-          nome: result.user.displayName,
-          email: result.user.email
-        }, { merge: true });
+        const userRef = doc(db, "usuarios", uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+          // Criar novo usuário se não existir
+          // REMOVED: coins, subscriptionType, subscriptionStatus (initialized server-side)
+          await setDoc(userRef, {
+            uid: uid,
+            nome: result.user.displayName,
+            email: result.user.email,
+            createdAt: new Date(),
+            avatar: result.user.photoURL || null
+          });
+        }
+        // Se já existir, NÃO atualizamos o nome para não sobrescrever customizações do usuário
 
         // Tentar aplicar código de convite se houver
         if (inviteCode) {

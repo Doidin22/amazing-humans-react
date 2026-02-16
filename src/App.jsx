@@ -1,8 +1,7 @@
-import { useEffect, Suspense, lazy } from 'react';
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -36,14 +35,7 @@ const LoadingFallback = () => (
     <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
   </div>
 );
-
 function App() {
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW({
-    onRegistered(r) { r && setInterval(() => { r.update(); }, 60 * 60 * 1000); }
-  });
-
-  useEffect(() => { if (needRefresh) updateServiceWorker(true); }, [needRefresh, updateServiceWorker]);
-
   return (
     <AuthProvider>
       <CacheProvider>
@@ -80,7 +72,7 @@ function App() {
           <Footer />
         </BrowserRouter>
       </CacheProvider>
-    </AuthProvider>
+    </AuthProvider >
   );
 }
 

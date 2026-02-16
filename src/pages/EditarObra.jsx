@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
-import { db } from '../services/firebaseConnection';
+import { db, storage } from '../services/firebaseConnection'; // ADICIONADO storage
 import {
   doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // ADICIONADO
 import { Editor } from '@tinymce/tinymce-react';
-import { MdSave, MdDelete, MdArrowBack, MdVisibility, MdAdd, MdLock, MdPublic, MdCancel, MdEdit } from 'react-icons/md';
+import { MdSave, MdDelete, MdArrowBack, MdVisibility, MdAdd, MdLock, MdPublic, MdCancel, MdEdit, MdSchedule } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 // Lista fixa de categorias para o editor - HFY ADICIONADO
@@ -92,16 +93,36 @@ export default function EditarObra() {
     }
   };
 
-  const handleCoverFile = (e) => {
+  const handleCoverFile = async (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("File too large (Max 5MB).");
+        return;
+      }
+
       setCoverFileName(file.name);
-      toast('Feature under development. Backend prepared for storage integration.', {
-        icon: '🚧',
-        duration: 4000
-      });
+      const toastId = toast.loading("Uploading cover...");
+
+      try {
+        const storageRef = ref(storage, `covers/${user.uid}/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+
+        setCapa(url);
+        toast.success("Cover uploaded!", { id: toastId });
+      } catch (error) {
+        console.error("Upload error:", error);
+        toast.error("Upload failed.", { id: toastId });
+      }
     }
   };
+
+  // Filtragem de Capítulos
+  const now = new Date();
+  const publishedChapters = capitulos.filter(c => c.status !== 'draft' && (!c.data || new Date(c.data.seconds * 1000) <= now));
+  const scheduledChapters = capitulos.filter(c => c.status !== 'draft' && (c.data && new Date(c.data.seconds * 1000) > now));
+  const draftChapters = capitulos.filter(c => c.status === 'draft');
 
   async function handleSave() {
     if (!titulo.trim()) return toast.error("Title is required.");
@@ -123,6 +144,21 @@ export default function EditarObra() {
       toast.error("Error saving.", { id: toastId });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteChapter(capId) {
+    if (!window.confirm("Are you sure you want to delete this chapter?")) return;
+
+    const toastId = toast.loading("Deleting chapter...");
+    try {
+      await deleteDoc(doc(db, "capitulos", capId));
+      // Atualiza a lista local removendo o item deletado
+      setCapitulos(prev => prev.filter(c => c.id !== capId));
+      toast.success("Chapter deleted", { id: toastId });
+    } catch (error) {
+      console.error("Error deleting chapter:", error);
+      toast.error("Failed to delete", { id: toastId });
     }
   }
 
@@ -213,10 +249,7 @@ export default function EditarObra() {
               </div>
             </div>
 
-            <div className="mb-4">
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover URL (Or paste link)</label>
-              <input type="text" value={capa} onChange={(e) => setCapa(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all" placeholder="https://..." />
-            </div>
+
 
             {/* Categorias */}
             <div className="mb-6">
@@ -269,38 +302,87 @@ export default function EditarObra() {
               </Link>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-2 space-y-1">
-              {capitulos.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                  <p>No chapters yet.</p>
-                  <p className="text-sm">Click "Add New Chapter" to start.</p>
-                </div>
-              ) : (
-                capitulos.map((cap, index) => (
-                  <div key={cap.id} className="p-3 rounded-lg hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-transparent hover:border-[#333]">
-                    <div className="flex items-center gap-4">
-                      <span className="text-gray-600 font-mono text-xs w-6 text-center">#{index + 1}</span>
-                      <div>
-                        <p className="text-gray-200 font-medium text-sm group-hover:text-blue-400 transition-colors">{cap.titulo}</p>
-                        <div className="flex items-center gap-3 text-[10px] text-gray-500 mt-0.5">
-                          <span>{cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'Draft'}</span>
-                          {cap.views !== undefined && <span>👁️ {cap.views}</span>}
+            <div className="overflow-y-auto flex-1 p-2 space-y-6">
+
+              {/* --- SCHEDULED CHAPTERS --- */}
+              {scheduledChapters.length > 0 && (
+                <div>
+                  <h4 className="text-blue-400 font-bold text-xs uppercase mb-2 flex items-center gap-2 px-2">
+                    <MdSchedule /> Scheduled ({scheduledChapters.length})
+                  </h4>
+                  <div className="space-y-1">
+                    {scheduledChapters.map((cap) => (
+                      <div key={cap.id} className="p-3 rounded-lg bg-[#252525] hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-blue-500/20 hover:border-blue-500/40">
+                        <div>
+                          <p className="text-gray-200 font-medium text-sm group-hover:text-blue-400 transition-colors">{cap.titulo}</p>
+                          <span className="text-[10px] text-blue-400 flex items-center gap-1 mt-0.5">
+                            Scheduled: {cap.data ? new Date(cap.data.seconds * 1000).toLocaleString() : '?'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/editar-capitulo/${cap.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"><MdEdit size={16} /></Link>
+                          <button onClick={() => handleDeleteChapter(cap.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"><MdDelete size={16} /></button>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Link
-                        to={`/editar-capitulo/${cap.id}`}
-                        className="p-2 bg-[#333] text-yellow-500 rounded hover:bg-yellow-500/20 hover:text-yellow-400 transition-colors"
-                        title="Edit Chapter"
-                      >
-                        <MdEdit size={16} />
-                      </Link>
-                    </div>
+                    ))}
                   </div>
-                ))
+                </div>
               )}
+
+              {/* --- DRAFTS --- */}
+              {draftChapters.length > 0 && (
+                <div>
+                  <h4 className="text-yellow-500 font-bold text-xs uppercase mb-2 flex items-center gap-2 px-2">
+                    <MdEdit /> Drafts ({draftChapters.length})
+                  </h4>
+                  <div className="space-y-1">
+                    {draftChapters.map((cap) => (
+                      <div key={cap.id} className="p-3 rounded-lg bg-[#252525] hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-yellow-500/20 hover:border-yellow-500/40">
+                        <div>
+                          <p className="text-gray-200 font-medium text-sm group-hover:text-yellow-400 transition-colors">{cap.titulo}</p>
+                          <span className="text-[10px] text-yellow-500/80 mt-0.5 block">Not Published</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Link to={`/editar-capitulo/${cap.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"><MdEdit size={16} /></Link>
+                          <button onClick={() => handleDeleteChapter(cap.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"><MdDelete size={16} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* --- PUBLISHED CHAPTERS --- */}
+              <div>
+                <h4 className="text-gray-500 font-bold text-xs uppercase mb-2 flex items-center gap-2 px-2">
+                  <MdPublic /> Published ({publishedChapters.length})
+                </h4>
+                {publishedChapters.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p className="text-gray-600 text-sm italic">No published chapters yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {publishedChapters.map((cap, index) => (
+                      <div key={cap.id} className="p-3 rounded-lg hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-transparent hover:border-[#333]">
+                        <div className="flex items-center gap-4">
+                          <span className="text-gray-600 font-mono text-xs w-6 text-center">#{index + 1}</span>
+                          <div>
+                            <p className="text-gray-200 font-medium text-sm group-hover:text-green-400 transition-colors">{cap.titulo}</p>
+                            <span className="text-[10px] text-gray-500 mt-0.5 block">
+                              {cap.data ? new Date(cap.data.seconds * 1000).toLocaleDateString() : 'No date'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Link to={`/editar-capitulo/${cap.id}`} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"><MdEdit size={16} /></Link>
+                          <button onClick={() => handleDeleteChapter(cap.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors"><MdDelete size={16} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

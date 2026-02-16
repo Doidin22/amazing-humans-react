@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
+// import { VitePWA } from 'vite-plugin-pwa';
 import viteCompression from 'vite-plugin-compression';
 import { visualizer } from 'rollup-plugin-visualizer';
 
@@ -13,6 +13,7 @@ export default defineConfig({
       algorithm: 'gzip',
       ext: '.gz',
     }),
+    /* PWA REMOVED TEMPORARILY
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['logo-ah.png', 'robots.txt'],
@@ -54,6 +55,7 @@ export default defineConfig({
         ]
       }
     }),
+    */
     // Visualizer configurado para NÃO abrir sozinho
     visualizer({
       open: false,      // <--- MUDANÇA AQUI: Impede de abrir a aba no navegador
