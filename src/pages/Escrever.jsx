@@ -7,10 +7,12 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // ADICIONADO
 import { Editor } from '@tinymce/tinymce-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MdEdit, MdBook, MdCheckCircle, MdCancel, MdClose, MdInfoOutline, MdWarning, MdSchedule } from 'react-icons/md';
+import { MdEdit, MdBook, MdCheckCircle, MdCancel, MdClose, MdInfoOutline, MdWarning, MdSchedule, MdFileUpload, MdWorkspacePremium } from 'react-icons/md';
 import toast from 'react-hot-toast';
+import { parseFile } from '../utils/fileParser';
 
 const genresList = ['Fantasy', 'Sci-Fi', 'Romance', 'Horror', 'Adventure', 'RPG', 'Mystery', 'Action', 'Isekai', 'FanFic', 'HFY'];
+const formatsList = ['Interactive'];
 
 const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
 const editorConfig = {
@@ -46,8 +48,11 @@ export default function Escrever() {
     const [conteudo, setConteudo] = useState('');
     const [notaAutor, setNotaAutor] = useState('');
 
-    // NOVO: Estado para agendamento
+
+    // NOVO: Estado para agendamento e importação
     const [dataAgendada, setDataAgendada] = useState('');
+    const [importFile, setImportFile] = useState(null);
+    const [isImporting, setIsImporting] = useState(false);
 
     const [loadingPost, setLoadingPost] = useState(false);
 
@@ -123,11 +128,112 @@ export default function Escrever() {
 
         if (modo === 'nova') {
             if (!tituloObra) return toast.error("Please fill in Book Title.");
-            // Sinopse can be empty for draft? Let's keep it required for now to avoid broken UI.
             if (!sinopse) return toast.error("Please fill in Synopsis.");
         } else {
             if (!obraSelecionada) return toast.error("Select a book.");
         }
+
+        // --- BULK IMPORT LOGIC ---
+        if (importFile) {
+            if (status === 'draft') return toast.error("Bulk import currently only supports immediate publishing.");
+
+            setLoadingPost(true);
+            const toastId = toast.loading("Processing file & publishing...");
+
+            try {
+                // 1. Parse File
+                const chapters = await parseFile(importFile);
+                if (!chapters || chapters.length === 0) {
+                    throw new Error("No chapters found in file. Please check formatting.");
+                }
+
+                // 2. Create Book (if new)
+                let idFinalObra = obraSelecionada;
+                let nomeFinalObra = "";
+
+                if (modo === 'nova') {
+                    const docRef = await addDoc(collection(db, "obras"), {
+                        titulo: tituloObra,
+                        capa: capa,
+                        sinopse: sinopse,
+                        categorias: categorias,
+                        tags: tags,
+                        autor: user.name,
+                        autorId: user.uid,
+                        dataCriacao: serverTimestamp(),
+                        tituloBusca: tituloObra.toLowerCase(),
+                        views: 0, rating: 0, votes: 0,
+                        status: 'public',
+                        totalChapters: 0,
+                        lastUpdated: serverTimestamp()
+                    });
+                    idFinalObra = docRef.id;
+                    nomeFinalObra = tituloObra;
+                } else {
+                    const obraObj = minhasObras.find(o => o.id === obraSelecionada);
+                    nomeFinalObra = obraObj ? obraObj.titulo : "Unknown";
+                }
+
+                // 3. Create Chapters Batch
+                const batch = writeBatch(db);
+                // Firestore batch limit is 500. Assuming < 500 chapters for now.
+                // If > 500, we'd need to chunk.
+
+                let addedCount = 0;
+                let firstChapterId = null; // Store first chapter ID for redirect
+
+                chapters.forEach((cap, index) => {
+                    const now = new Date(); // Base date
+                    // Increment date by 1 second for each chapter to preserve order
+                    now.setSeconds(now.getSeconds() + index);
+
+                    const newCapRef = doc(collection(db, "capitulos"));
+
+                    // Capture the first chapter ID
+                    if (index === 0) firstChapterId = newCapRef.id;
+
+                    batch.set(newCapRef, {
+                        obraId: idFinalObra,
+                        nomeObra: nomeFinalObra, // This might be empty if new book, fixed below
+                        titulo: cap.title || `Chapter ${index + 1}`,
+                        conteudo: cap.content, // HTML content
+                        authorNote: "",
+                        autor: user.name,
+                        autorId: user.uid,
+                        data: now,
+                        status: 'public',
+                        views: 0
+                    });
+                    addedCount++;
+                });
+
+                await batch.commit();
+
+                // 4. Update Book Count
+                const bookRef = doc(db, 'obras', idFinalObra);
+                await updateDoc(bookRef, {
+                    totalChapters: increment(addedCount),
+                    lastUpdated: serverTimestamp()
+                });
+
+                toast.success(`Successfully imported ${addedCount} chapters!`, { id: toastId });
+
+                // Redirect to the first chapter if available, otherwise book page
+                if (firstChapterId) {
+                    navigate(`/ler/${firstChapterId}`);
+                } else {
+                    navigate(`/obra/${idFinalObra}`);
+                }
+
+            } catch (error) {
+                console.error(error);
+                toast.error("Import failed: " + error.message, { id: toastId });
+            } finally {
+                setLoadingPost(false);
+            }
+            return; // EXIT FUNCTION
+        }
+        // --- END BULK IMPORT LOGIC ---
 
         if (!tituloCapitulo) return toast.error("Please fill in Chapter Title.");
 
@@ -240,6 +346,22 @@ export default function Escrever() {
             <div className="flex gap-4 mb-8 bg-[#1f1f1f] p-1 rounded-lg w-fit border border-[#333]">
                 <button onClick={() => setModo('nova')} className={`px-6 py-2 rounded-md font-bold transition-all ${modo === 'nova' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Create New Book</button>
                 <button onClick={() => setModo('capitulo')} className={`px-6 py-2 rounded-md font-bold transition-all ${modo === 'capitulo' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>New Chapter Only</button>
+                <button
+                    onClick={() => {
+                        if (user?.subscriptionType !== 'author') {
+                            toast('Interactive Stories requires the Author Plan 🔒', { icon: '⭐', duration: 3000 });
+                            navigate('/subscription');
+                        } else {
+                            navigate('/escrever-historia-interativa');
+                        }
+                    }}
+                    className="px-6 py-2 rounded-md font-bold transition-all text-gray-400 hover:text-white flex items-center gap-2"
+                >
+                    {user?.subscriptionType === 'author'
+                        ? <><span className="text-blue-400">⎇</span> Interactive Story</>
+                        : <><MdWorkspacePremium className="text-purple-400" size={16} /> Interactive Story</>
+                    }
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -264,6 +386,10 @@ export default function Escrever() {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Genres</label>
                                     <div className="flex flex-wrap gap-2">{genresList.map(cat => (<label key={cat} className={`cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all ${categorias.includes(cat) ? 'bg-primary/20 border-primary text-primary' : 'bg-[#151515] border-[#333] text-gray-400'}`}><input type="checkbox" value={cat} onChange={handleCategoria} className="hidden" /> {cat}</label>))}</div>
+                                    <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-[#222]">
+                                        {formatsList.map(cat => (<label key={cat} className={`cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 ${categorias.includes(cat) ? 'bg-purple-500/20 border-purple-500 text-purple-400' : 'bg-[#151515] border-[#333] text-gray-400'}`}><input type="checkbox" value={cat} onChange={handleCategoria} className="hidden" /><span className="text-[10px]">⎇</span> {cat}</label>))}
+                                        <span className="text-[10px] text-gray-600 self-center">— mark if this is an interactive branching story</span>
+                                    </div>
                                 </div>
                                 <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Synopsis</label><Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 200 }} onEditorChange={(content) => setSinopse(content)} /></div>
                             </div>
@@ -284,65 +410,114 @@ export default function Escrever() {
                         <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                             <MdEdit className="text-green-500" /> Content Editor
                         </h3>
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chapter Title</label>
-                                <input type="text" value={tituloCapitulo} onChange={(e) => setTituloCapitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-green-500 outline-none font-bold text-lg" />
-                            </div>
 
-                            {/* LÓGICA DE AGENDAMENTO */}
-                            {modo === 'nova' ? (
-                                <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg flex items-start gap-3">
-                                    <MdInfoOutline className="text-blue-500 text-xl flex-shrink-0 mt-0.5" />
+                        {/* IMPORT ALERT */}
+                        <div className="mb-6 bg-purple-500/10 border border-purple-500/30 p-4 rounded-lg">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                    <MdFileUpload className="text-purple-400 text-xl flex-shrink-0 mt-0.5" />
                                     <div>
-                                        <h4 className="text-blue-500 text-sm font-bold mb-1">First Chapter Policy</h4>
-                                        <p className="text-gray-400 text-xs">The first chapter of a new book must be published immediately to ensure the book listing is active.</p>
+                                        <h4 className="text-purple-400 text-sm font-bold mb-1">Bulk Import Chapters</h4>
+                                        <p className="text-gray-400 text-xs mb-2">
+                                            Upload a <b>.docx (Word)</b> or <b>.pdf</b> file containing multiple chapters.
+                                            The system will automatically detect chapters like "Chapter 1", "Capítulo 5", etc.
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 italic">
+                                            Warning: PDF parsing is experimental. For best results, use Word documents or ensure clear headings.
+                                        </p>
                                     </div>
                                 </div>
-                            ) : (
-                                <div>
-                                    <label className="text-xs font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
-                                        <MdSchedule /> Schedule Publication (Optional)
+                                <div className="flex flex-col items-end gap-2">
+                                    <label htmlFor="bulk-import" className="cursor-pointer bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg flex items-center gap-2">
+                                        <MdFileUpload /> {importFile ? "Change File" : "Select File"}
                                     </label>
-                                    {/* O input type="datetime-local" segue o padrão do navegador, mas a lógica foi tratada */}
-                                    <input
-                                        type="datetime-local"
-                                        value={dataAgendada}
-                                        onChange={(e) => setDataAgendada(e.target.value)}
-                                        className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 outline-none"
-                                    />
-                                    <p className="text-[10px] text-gray-500 mt-1">Leave blank to publish immediately. Format: Month/Day/Year Time</p>
-                                </div>
-                            )}
-
-                            <div>
-                                <div className="flex justify-between mb-1">
-                                    <label className="block text-xs font-bold text-gray-500 uppercase">Content</label>
-                                    <span className={`text-xs font-bold ${countWords(conteudo) < 500 ? 'text-red-400' : 'text-green-400'}`}>
-                                        {countWords(conteudo)} words (Min: 500)
-                                    </span>
-                                </div>
-                                <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 600 }} onEditorChange={(content) => setConteudo(content)} />
-                            </div>
-
-                            <div className="pt-4 border-t border-white/5">
-                                <label className="text-xs font-bold text-blue-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
-                                <div className="border border-[#333] rounded-lg overflow-hidden">
-                                    <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 200, statusbar: false }} onEditorChange={(content) => setNotaAutor(content)} />
+                                    <input id="bulk-import" type="file" onChange={(e) => setImportFile(e.target.files[0])} className="hidden" accept=".pdf,.docx,.doc" />
+                                    {importFile && (
+                                        <div className="flex items-center gap-2 bg-purple-500/20 px-2 py-1 rounded text-[10px] text-purple-200">
+                                            <span>{importFile.name}</span>
+                                            <button onClick={() => setImportFile(null)} className="hover:text-white"><MdClose /></button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-white/10">
-                            <button onClick={() => handlePublicar('draft')} disabled={loadingPost} className="bg-[#333] hover:bg-[#444] text-gray-300 font-bold py-3 px-6 rounded-lg flex items-center gap-2 disabled:opacity-50">
-                                <MdEdit /> Save Draft
-                            </button>
-                            <button onClick={() => handlePublicar('public')} disabled={loadingPost} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50">
-                                {loadingPost ? "Processing..." : (dataAgendada && modo !== 'nova') ? <><MdSchedule size={20} /> Schedule</> : <><MdCheckCircle size={20} /> Publish</>}
-                            </button>
-                        </div>
+
+                        {importFile ? (
+                            <div className="p-8 text-center border-2 border-dashed border-purple-500/30 rounded-lg bg-[#151515]">
+                                <MdBook size={48} className="mx-auto text-purple-500 mb-4 opacity-50" />
+                                <h3 className="text-xl font-bold text-white mb-2">Ready to Import</h3>
+                                <p className="text-gray-400 text-sm mb-6">
+                                    We will scan <b>{importFile.name}</b> and create chapters automatically.<br />
+                                    Existing content in the editor below will be ignored.
+                                </p>
+                                <button onClick={() => handlePublicar('public')} disabled={loadingPost} className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg inline-flex items-center gap-2 text-lg disabled:opacity-50">
+                                    {loadingPost ? "Importing & Publishing..." : "Import & Publish All"}
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Chapter Title</label>
+                                        <input type="text" value={tituloCapitulo} onChange={(e) => setTituloCapitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-green-500 outline-none font-bold text-lg" />
+                                    </div>
+
+                                    {/* LÓGICA DE AGENDAMENTO */}
+                                    {modo === 'nova' ? (
+                                        <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg flex items-start gap-3">
+                                            <MdInfoOutline className="text-blue-500 text-xl flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <h4 className="text-blue-500 text-sm font-bold mb-1">First Chapter Policy</h4>
+                                                <p className="text-gray-400 text-xs">The first chapter of a new book must be published immediately to ensure the book listing is active.</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <label className="text-xs font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
+                                                <MdSchedule /> Schedule Publication (Optional)
+                                            </label>
+                                            {/* O input type="datetime-local" segue o padrão do navegador, mas a lógica foi tratada */}
+                                            <input
+                                                type="datetime-local"
+                                                value={dataAgendada}
+                                                onChange={(e) => setDataAgendada(e.target.value)}
+                                                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                                            />
+                                            <p className="text-[10px] text-gray-500 mt-1">Leave blank to publish immediately. Format: Month/Day/Year Time</p>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <div className="flex justify-between mb-1">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase">Content</label>
+                                            <span className={`text-xs font-bold ${countWords(conteudo) < 500 ? 'text-red-400' : 'text-green-400'}`}>
+                                                {countWords(conteudo)} words (Min: 500)
+                                            </span>
+                                        </div>
+                                        <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 600 }} onEditorChange={(content) => setConteudo(content)} />
+                                    </div>
+
+                                    <div className="pt-4 border-t border-white/5">
+                                        <label className="text-xs font-bold text-blue-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
+                                        <div className="border border-[#333] rounded-lg overflow-hidden">
+                                            <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 200, statusbar: false }} onEditorChange={(content) => setNotaAutor(content)} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-white/10">
+                                    <button onClick={() => handlePublicar('draft')} disabled={loadingPost} className="bg-[#333] hover:bg-[#444] text-gray-300 font-bold py-3 px-6 rounded-lg flex items-center gap-2 disabled:opacity-50">
+                                        <MdEdit /> Save Draft
+                                    </button>
+                                    <button onClick={() => handlePublicar('public')} disabled={loadingPost} className="bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center gap-2 disabled:opacity-50">
+                                        {loadingPost ? "Processing..." : (dataAgendada && modo !== 'nova') ? <><MdSchedule size={20} /> Schedule</> : <><MdCheckCircle size={20} /> Publish</>}
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
         </div>
+
     );
 }

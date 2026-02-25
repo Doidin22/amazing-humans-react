@@ -168,5 +168,21 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false; // Apenas servidor (Functions) ou Admin via console direto
     }
+
+    // ==========================================================
+    // 9. HISTÓRIAS INTERATIVAS (BRANCHING STORIES)
+    // ==========================================================
+    match /historias_interativas/{historiaId} {
+      // Qualquer um pode ler histórias publicadas; autor pode ler suas próprias rascunhos
+      allow read: if resource.data.status == 'public'
+                  || (isLoggedIn() && resource.data.autorId == request.auth.uid)
+                  || isAdmin();
+
+      // Autor cria a história com seu próprio ID
+      allow create: if willBeOwner('autorId');
+
+      // Apenas autor ou admin podem atualizar/deletar
+      allow update, delete: if isOwner('autorId') || isAdmin();
+    }
   }
 }

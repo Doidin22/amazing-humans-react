@@ -3,18 +3,22 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../contexts/AuthContext';
 import { db, storage } from '../services/firebaseConnection'; // ADICIONADO storage
 import {
-  doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy
+  doc, getDoc, updateDoc, deleteDoc, collection, query, where, getDocs, orderBy, writeBatch, serverTimestamp, increment
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // ADICIONADO
 import { Editor } from '@tinymce/tinymce-react';
-import { MdSave, MdDelete, MdArrowBack, MdVisibility, MdAdd, MdLock, MdPublic, MdCancel, MdEdit, MdSchedule } from 'react-icons/md';
+import { MdSave, MdDelete, MdArrowBack, MdVisibility, MdAdd, MdLock, MdPublic, MdCancel, MdEdit, MdSchedule, MdFileUpload, MdClose } from 'react-icons/md';
 import toast from 'react-hot-toast';
+import { parseFile } from '../utils/fileParser';
+import PremiumLock from '../components/PremiumLock';
 
 // Lista fixa de categorias para o editor - HFY ADICIONADO
-const categoriesList = [
+const GENRES = [
   'Fantasy', 'Sci-Fi', 'Romance', 'Horror', 'Adventure',
   'RPG', 'Mystery', 'Action', 'Isekai', 'FanFic', 'HFY'
 ];
+const FORMATS = ['Interactive'];
+const categoriesList = [...GENRES, ...FORMATS];
 
 const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
 const editorConfig = {
@@ -40,7 +44,12 @@ export default function EditarObra() {
   const [categorias, setCategorias] = useState([]);
   const [capitulos, setCapitulos] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
+
+  // Import State
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     async function loadDados() {
@@ -144,6 +153,67 @@ export default function EditarObra() {
       toast.error("Error saving.", { id: toastId });
     } finally {
       setSaving(false);
+    }
+  }
+
+
+
+  async function handleImport() {
+    if (!importFile) return;
+
+    setImporting(true);
+    const toastId = toast.loading("Parsing and importing chapters...");
+
+    try {
+      const chapters = await parseFile(importFile);
+      if (!chapters || chapters.length === 0) {
+        throw new Error("No chapters found. Please check file format.");
+      }
+
+      const batch = writeBatch(db);
+      const newCaps = [];
+
+      chapters.forEach((cap, index) => {
+        const now = new Date(); // Base date
+        // Increment date by 1 second for each chapter to preserve order
+        now.setSeconds(now.getSeconds() + index);
+
+        const newCapRef = doc(collection(db, "capitulos"));
+        const capData = {
+          obraId: id,
+          nomeObra: titulo, // might be old title but okay
+          titulo: cap.title || `Chapter ${capitulos.length + index + 1}`,
+          conteudo: cap.content, // HTML content now
+          authorNote: "",
+          autor: user.name,
+          autorId: user.uid,
+          data: now,
+          status: 'public',
+          views: 0
+        };
+        batch.set(newCapRef, capData);
+        newCaps.push({ id: newCapRef.id, ...capData });
+      });
+
+      await batch.commit();
+
+      // Update book total count
+      await updateDoc(doc(db, "obras", id), {
+        totalChapters: increment(chapters.length),
+        lastUpdated: serverTimestamp()
+      });
+
+      // Update local state
+      setCapitulos(prev => [...prev, ...newCaps]);
+
+      toast.success(`Imported ${chapters.length} chapters!`, { id: toastId });
+      setImportFile(null); // Reset import
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Import failed: " + error.message, { id: toastId });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -255,7 +325,7 @@ export default function EditarObra() {
             <div className="mb-6">
               <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Categories</label>
               <div className="flex flex-wrap gap-2 bg-[#151515] p-3 rounded-lg border border-[#333]">
-                {categoriesList.map(cat => (
+                {GENRES.map(cat => (
                   <button
                     key={cat}
                     onClick={() => handleCategoria(cat)}
@@ -264,6 +334,18 @@ export default function EditarObra() {
                     {cat}
                   </button>
                 ))}
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2 pt-2">
+                {FORMATS.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => handleCategoria(cat)}
+                    className={`text-[10px] px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${categorias.includes(cat) ? 'bg-purple-500/20 border-purple-500 text-purple-400 font-bold' : 'bg-[#1f1f1f] border-[#333] text-gray-400 hover:border-gray-500'}`}
+                  >
+                    <span>⎇</span> {cat}
+                  </button>
+                ))}
+                <span className="text-[10px] text-gray-600 self-center">— mark only if this is a branching interactive story</span>
               </div>
             </div>
 
@@ -297,10 +379,45 @@ export default function EditarObra() {
               <h3 className="text-white font-bold flex items-center gap-2">
                 Chapters <span className="bg-[#333] text-gray-400 text-xs px-2 py-0.5 rounded-full">{capitulos.length}</span>
               </h3>
-              <Link to={`/escrever?obraId=${id}`} className="text-xs bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-1 transition-colors shadow-lg shadow-green-900/20">
-                <MdAdd size={16} /> Add New Chapter
-              </Link>
+              <div className="flex gap-2">
+                <PremiumLock
+                  user={user}
+                  feature="PDF/Word Import"
+                  description="Import chapters from PDF or Word files"
+                  compact
+                >
+                  <label htmlFor="import-chapter-edit" className={`text-xs bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg font-bold flex items-center gap-1 transition-colors shadow-lg cursor-pointer ${importing ? "opacity-50 pointer-events-none" : ""}`}>
+                    <MdFileUpload size={16} /> Import PDF/Word
+                  </label>
+                  <input id="import-chapter-edit" type="file" onChange={(e) => {
+                    if (e.target.files[0]) { setImportFile(e.target.files[0]); }
+                  }} className="hidden" accept=".pdf,.docx,.doc" />
+                </PremiumLock>
+
+                <Link to={`/escrever?obraId=${id}`} className="text-xs bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-1 transition-colors shadow-lg shadow-green-900/20">
+                  <MdAdd size={16} /> New Chapter
+                </Link>
+              </div>
             </div>
+
+            {/* IMPORT CONFIRMATION UI */}
+            {importFile && (
+              <div className="bg-purple-900/20 border-b border-purple-500/30 p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <MdFileUpload className="text-purple-400 text-xl" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Import from {importFile.name}?</p>
+                    <p className="text-[10px] text-gray-400">Chapters will be appended to the list.</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setImportFile(null)} className="px-3 py-1 text-xs font-bold text-gray-400 hover:text-white">Cancel</button>
+                  <button onClick={handleImport} disabled={importing} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg shadow-lg">
+                    {importing ? "Importing..." : "Confirm Import"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="overflow-y-auto flex-1 p-2 space-y-6">
 

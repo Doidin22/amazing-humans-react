@@ -3,13 +3,14 @@ import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import {
     collection, query, orderBy, getDocs, doc, deleteDoc, updateDoc,
-    where, getCountFromServer, limit, arrayUnion, arrayRemove
+    where, getCountFromServer, limit, arrayUnion, arrayRemove, getDoc
 } from 'firebase/firestore';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     MdDelete, MdCheck, MdWarning, MdSecurity, MdOpenInNew,
     MdPeople, MdMenuBook, MdBarChart, MdSearch, MdBlock, MdVerified,
-    MdSupervisedUserCircle, MdVisibility, MdVisibilityOff, MdClose, MdEditDocument
+    MdSupervisedUserCircle, MdVisibility, MdVisibilityOff, MdClose, MdEditDocument,
+    MdLibraryBooks, MdComment, MdStar
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
@@ -28,8 +29,11 @@ export default function Admin() {
 
     // States para Modal de Conteúdo do Usuário
     const [selectedUser, setSelectedUser] = useState(null);
+    const [userModalTab, setUserModalTab] = useState('published'); // published, library, comments
     const [userWorks, setUserWorks] = useState([]);
-    const [loadingWorks, setLoadingWorks] = useState(false);
+    const [userLibrary, setUserLibrary] = useState([]);
+    const [userComments, setUserComments] = useState([]);
+    const [loadingUserData, setLoadingUserData] = useState(false);
 
     useEffect(() => {
         if (loadingAuth) return;
@@ -179,21 +183,102 @@ export default function Admin() {
         } catch (error) { toast.error("Failed to update badge."); }
     }
 
+    // --- GERENCIAMENTO DE SUBSCRIPTION ---
+
+    async function grantSubscription(targetUser, type) {
+        const confirmMsg = type === 'free'
+            ? `Remove subscription from ${targetUser.nome}?`
+            : `Grant FREE ${type.toUpperCase()} subscription to ${targetUser.nome}?`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        try {
+            const userRef = doc(db, "usuarios", targetUser.id);
+            const source = type === 'free' ? null : 'admin_gift';
+
+            await updateDoc(userRef, {
+                subscriptionType: type === 'free' ? null : type,
+                subscriptionSource: source
+            });
+
+            setFoundUsers(foundUsers.map(u => u.id === targetUser.id ? {
+                ...u,
+                subscriptionType: type === 'free' ? null : type,
+                subscriptionSource: source
+            } : u));
+
+            toast.success(`Subscription updated: ${type}`);
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to update subscription.");
+        }
+    }
+
     // --- GERENCIAMENTO DE CONTEÚDO DO USUÁRIO ---
 
-    async function openUserContent(targetUser) {
+    async function openUserDetails(targetUser) {
         setSelectedUser(targetUser);
-        setLoadingWorks(true);
+        setUserModalTab('published');
+        setLoadingUserData(true);
+
         try {
-            const q = query(collection(db, "obras"), where("autorId", "==", targetUser.id));
-            const snap = await getDocs(q);
+            // 1. Published Works
+            const qWorks = query(collection(db, "obras"), where("autorId", "==", targetUser.id));
+            const snapWorks = await getDocs(qWorks);
             let works = [];
-            snap.forEach(d => works.push({ id: d.id, ...d.data() }));
+            snapWorks.forEach(d => works.push({ id: d.id, ...d.data() }));
             setUserWorks(works);
+
+            // 2. Library (Followed Books)
+            const qLib = query(collection(db, "biblioteca"), where("userId", "==", targetUser.id));
+            const snapLib = await getDocs(qLib);
+            let library = [];
+
+            // Fetch book details manually for library items
+            const libraryPromises = snapLib.docs.map(async (d) => {
+                const libData = d.data();
+                try {
+                    const bookSnap = await getDoc(doc(db, "obras", libData.obraId));
+                    return {
+                        id: d.id,
+                        ...libData,
+                        bookTitle: bookSnap.exists() ? bookSnap.data().titulo : "Unknown Book",
+                        bookCover: bookSnap.exists() ? bookSnap.data().capa : null
+                    };
+                } catch (e) {
+                    return { id: d.id, ...libData, bookTitle: "Error loading book", bookCover: null };
+                }
+            });
+
+            library = await Promise.all(libraryPromises);
+            setUserLibrary(library);
+
+            // 3. Comments (Recent 20)
+            const qComm = query(collection(db, "comentarios"), where("autorId", "==", targetUser.id), orderBy("data", "desc"), limit(20));
+            const snapComm = await getDocs(qComm);
+            let comments = [];
+
+            // Fetch target details (Book or Chapter) for comments
+            const commentPromises = snapComm.docs.map(async (d) => {
+                const cData = d.data();
+                let contextTitle = "Unknown Context";
+
+                // If we want more context, we'd fetch the chapter/book title here
+                // For now, we'll try to rely on what's stored or just show ID/Type
+                // Ideally, we should fetch the parent object if needed, but let's keep it light for now
+                // or use the targetTitle stored if available (some comments logic stores it)
+
+                return { id: d.id, ...cData };
+            });
+
+            comments = await Promise.all(commentPromises);
+            setUserComments(comments);
+
         } catch (error) {
-            toast.error("Error loading user works.");
+            console.error(error);
+            toast.error("Error loading user data.");
         } finally {
-            setLoadingWorks(false);
+            setLoadingUserData(false);
         }
     }
 
@@ -214,6 +299,15 @@ export default function Admin() {
             setUserWorks(userWorks.filter(w => w.id !== workId));
             toast.success("Story deleted.");
         } catch (e) { toast.error("Error deleting story."); }
+    }
+
+    async function deleteComment(commentId) {
+        if (!window.confirm("Delete this comment?")) return;
+        try {
+            await deleteDoc(doc(db, "comentarios", commentId));
+            setUserComments(userComments.filter(c => c.id !== commentId));
+            toast.success("Comment deleted.");
+        } catch (e) { toast.error("Error deleting comment."); }
     }
 
     if (loading || loadingAuth) return <div className="loading-spinner"></div>;
@@ -326,6 +420,7 @@ export default function Admin() {
                                             {u.nome}
                                             {u.role === 'admin' && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdSecurity size={10} /> Admin</span>}
                                             {u.banned && <span className="bg-gray-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdBlock size={10} /> Banned</span>}
+                                            {u.subscriptionType && <span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdStar size={10} /> {u.subscriptionType}</span>}
                                             {u.badges?.includes('verified') && <MdVerified className="text-blue-400" title="Verified" />}
                                         </h4>
                                         <p className="text-gray-500 text-sm">{u.email}</p>
@@ -336,11 +431,23 @@ export default function Admin() {
                                 <div className="flex flex-col gap-2 items-end">
                                     <div className="flex gap-2">
                                         <button
-                                            onClick={() => openUserContent(u)}
+                                            onClick={() => openUserDetails(u)}
                                             className="text-xs font-bold text-gray-300 hover:text-white border border-[#444] px-3 py-2 rounded hover:bg-[#333] flex items-center gap-1"
                                         >
-                                            <MdEditDocument /> Manage Content
+                                            <MdEditDocument /> Detailed Info
                                         </button>
+
+                                        <div className="relative group">
+                                            <button className="text-xs font-bold text-purple-400 border border-purple-500/30 px-3 py-2 rounded hover:bg-purple-500/10 flex items-center gap-1">
+                                                <MdStar /> Subscription
+                                            </button>
+                                            <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-[#333] rounded-lg p-2 shadow-xl z-10 w-48 hidden group-hover:block">
+                                                <p className="text-[10px] text-gray-500 font-bold uppercase mb-2">Set Subscription:</p>
+                                                <button onClick={() => grantSubscription(u, 'free')} className="w-full text-left text-xs text-gray-300 hover:text-white hover:bg-[#333] px-2 py-1.5 rounded">None (Free)</button>
+                                                <button onClick={() => grantSubscription(u, 'reader')} className="w-full text-left text-xs text-blue-400 hover:text-blue-300 hover:bg-[#333] px-2 py-1.5 rounded font-bold">Reader Tier</button>
+                                                <button onClick={() => grantSubscription(u, 'author')} className="w-full text-left text-xs text-purple-400 hover:text-purple-300 hover:bg-[#333] px-2 py-1.5 rounded font-bold">Author Tier</button>
+                                            </div>
+                                        </div>
 
                                         <button
                                             onClick={() => toggleVerifyUser(u)}
@@ -369,55 +476,112 @@ export default function Admin() {
                 </div>
             )}
 
-            {/* --- MODAL DE GERENCIAMENTO DE CONTEÚDO --- */}
+            {/* --- MODAL DE DETALHES DO USUÁRIO --- */}
             {selectedUser && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-[#1a1a1a] w-full max-w-2xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+                    <div className="bg-[#1a1a1a] w-full max-w-4xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col h-[85vh]">
+                        {/* Modal Header */}
                         <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#222]">
-                            <h3 className="text-white font-bold text-lg flex items-center gap-2"><MdEditDocument /> Managing: {selectedUser.nome}</h3>
+                            <div className="flex items-center gap-3">
+                                <img src={selectedUser.foto || "https://ui-avatars.com/api/?background=random"} className="w-10 h-10 rounded-full object-cover" alt="User" />
+                                <div>
+                                    <h3 className="text-white font-bold text-lg leading-tight">{selectedUser.nome}</h3>
+                                    <p className="text-gray-500 text-xs">{selectedUser.email}</p>
+                                </div>
+                            </div>
                             <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/10"><MdClose size={24} /></button>
                         </div>
 
-                        <div className="p-4 overflow-y-auto flex-1">
-                            {loadingWorks ? (
+                        {/* Modal Tabs */}
+                        <div className="flex border-b border-white/5 bg-[#1f1f1f]">
+                            <button onClick={() => setUserModalTab('published')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'published' ? 'text-blue-500 border-b-2 border-blue-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
+                                Published Works ({userWorks.length})
+                            </button>
+                            <button onClick={() => setUserModalTab('library')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'library' ? 'text-green-500 border-b-2 border-green-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
+                                Library / Following ({userLibrary.length})
+                            </button>
+                            <button onClick={() => setUserModalTab('comments')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'comments' ? 'text-yellow-500 border-b-2 border-yellow-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
+                                Comments ({userComments.length})
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-4 overflow-y-auto flex-1 bg-[#121212]">
+                            {loadingUserData ? (
                                 <div className="text-center py-10"><div className="loading-spinner"></div></div>
-                            ) : userWorks.length === 0 ? (
-                                <div className="text-center py-10 text-gray-500 italic">User has no published works.</div>
                             ) : (
-                                <div className="space-y-3">
-                                    {userWorks.map(work => (
-                                        <div key={work.id} className="bg-[#121212] p-3 rounded-lg border border-[#333] flex justify-between items-center">
-                                            <div className="flex gap-3">
-                                                <img src={work.capa} className="w-10 h-14 object-cover rounded bg-[#333]" alt="Cover" />
-                                                <div>
-                                                    <h4 className="text-white font-bold text-sm line-clamp-1">{work.titulo}</h4>
-                                                    <div className="flex gap-2 mt-1">
-                                                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${work.status === 'banned' ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}`}>
-                                                            {work.status}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-500 flex items-center gap-1"><MdVisibility /> {work.views || 0}</span>
+                                <>
+                                    {/* WORKS TAB */}
+                                    {userModalTab === 'published' && (
+                                        <div className="space-y-3">
+                                            {userWorks.length === 0 ? <p className="text-gray-500 text-center py-10">No published works.</p> : userWorks.map(work => (
+                                                <div key={work.id} className="bg-[#1f1f1f] p-3 rounded-lg border border-[#333] flex justify-between items-center group hover:border-[#555]">
+                                                    <div className="flex gap-3">
+                                                        <img src={work.capa} className="w-10 h-14 object-cover rounded bg-[#333]" alt="Cover" />
+                                                        <div>
+                                                            <h4 className="text-white font-bold text-sm line-clamp-1">{work.titulo}</h4>
+                                                            <div className="flex gap-2 mt-1">
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold ${work.status === 'banned' ? 'bg-red-900 text-red-300' : 'bg-green-900 text-green-300'}`}>
+                                                                    {work.status}
+                                                                </span>
+                                                                <span className="text-[10px] text-gray-500 flex items-center gap-1"><MdVisibility /> {work.views || 0}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => toggleWorkVisibility(work)} className={`p-2 rounded-lg border transition-colors ${work.status === 'banned' ? 'border-green-500/30 text-green-500 hover:bg-green-500/10' : 'border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10'}`}>
+                                                            {work.status === 'banned' ? <MdVisibility /> : <MdVisibilityOff />}
+                                                        </button>
+                                                        <button onClick={() => deleteWork(work.id)} className="p-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors">
+                                                            <MdDelete />
+                                                        </button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => toggleWorkVisibility(work)}
-                                                    className={`p-2 rounded-lg border transition-colors ${work.status === 'banned' ? 'border-green-500/30 text-green-500 hover:bg-green-500/10' : 'border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10'}`}
-                                                    title={work.status === 'banned' ? "Restore / Unhide" : "Hide / Shadowban"}
-                                                >
-                                                    {work.status === 'banned' ? <MdVisibility /> : <MdVisibilityOff />}
-                                                </button>
-                                                <button
-                                                    onClick={() => deleteWork(work.id)}
-                                                    className="p-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"
-                                                    title="Delete Permanently"
-                                                >
-                                                    <MdDelete />
-                                                </button>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
+                                    )}
+
+                                    {/* LIBRARY TAB */}
+                                    {userModalTab === 'library' && (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {userLibrary.length === 0 ? <p className="text-gray-500 text-center py-10 col-span-2">No items in library.</p> : userLibrary.map(item => (
+                                                <div key={item.id} className="bg-[#1f1f1f] p-3 rounded-lg border border-[#333] flex items-center gap-3">
+                                                    <div className="w-10 h-14 bg-[#333] rounded shrink-0 overflow-hidden">
+                                                        {item.bookCover && <img src={item.bookCover} className="w-full h-full object-cover" alt="Cover" />}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-white font-bold text-sm line-clamp-1">{item.bookTitle}</h4>
+                                                        <div className="flex gap-2 mt-1">
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-500/20 uppercase font-bold">{item.status}</span>
+                                                            {item.isFavorite && <span className="text-[10px] text-red-500 font-bold flex items-center gap-1"><MdStar size={10} /> Favorite</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* COMMENTS TAB */}
+                                    {userModalTab === 'comments' && (
+                                        <div className="space-y-3">
+                                            {userComments.length === 0 ? <p className="text-gray-500 text-center py-10">No recent comments.</p> : userComments.map(comment => (
+                                                <div key={comment.id} className="bg-[#1f1f1f] p-3 rounded-lg border border-[#333] flex flex-col gap-2 relative group">
+                                                    <div className="flex justify-between items-start">
+                                                        <p className="text-gray-300 text-sm italic">"{comment.texto}"</p>
+                                                        <button onClick={() => deleteComment(comment.id)} className="text-red-500 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 p-1 rounded transition-all"><MdDelete /></button>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1 border-t border-[#333] pt-2">
+                                                        <MdComment className="text-gray-600" size={12} />
+                                                        <span className="text-[10px] text-gray-500">
+                                                            {comment.data ? new Date(comment.data.seconds * 1000).toLocaleString() : 'Just now'}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-600 bg-[#252525] px-1.5 rounded">ID: {comment.targetId}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -431,4 +595,4 @@ export default function Admin() {
         `}</style>
         </div>
     );
-}
+} 

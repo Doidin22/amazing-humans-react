@@ -3,6 +3,7 @@ import { AuthContext } from '../contexts/AuthContext';
 import { db } from '../services/firebaseConnection';
 import { collection, query, where, orderBy, limit, getDocs, startAfter } from 'firebase/firestore';
 import { MdSearch, MdList, MdAutoAwesome, MdCheck, MdExpandMore, MdErrorOutline } from 'react-icons/md';
+import { FiGitBranch } from 'react-icons/fi';
 import { VirtuosoGrid } from 'react-virtuoso';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'; // <--- OTIMIZAÇÃO
 import StoryCard from '../components/StoryCard';
@@ -24,7 +25,7 @@ const GridItem = forwardRef(({ children, ...props }, ref) => (
 
 const ITEMS_PER_PAGE = 24;
 
-const categoriesList = ["All", "Fantasy", "Sci-Fi", "Romance", "Horror", "Adventure", "RPG", "Mystery", "Action", "Isekai", "FanFic", "HFY"];
+const categoriesList = ["All", "Fantasy", "Sci-Fi", "Romance", "Horror", "Adventure", "RPG", "Mystery", "Action", "Isekai", "FanFic", "HFY", "Interactive"];
 
 export default function Home() {
   const { user } = useContext(AuthContext);
@@ -65,37 +66,37 @@ export default function Home() {
       let q;
       let constraints = [where("status", "==", "public"), limit(ITEMS_PER_PAGE)];
 
-// LÓGICA DE BUSCA
+      // LÓGICA DE BUSCA
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase().trim();
-        
+
         let qSearch = query(
-            storiesRef, 
-            where("status", "==", "public"), 
-            where("searchKeywords", "array-contains", term),
-            limit(50)
+          storiesRef,
+          where("status", "==", "public"),
+          where("searchKeywords", "array-contains", term),
+          limit(50)
         );
 
         // Se tiver categoria selecionada, podemos tentar filtrar (exige índice composto no Firebase)
         // Se der erro de índice no console, o Firebase vai gerar um link para você clicar e criar.
         if (category !== 'All') {
-             qSearch = query(
-                storiesRef, 
-                where("status", "==", "public"), 
-                where("searchKeywords", "array-contains", term),
-                where("categorias", "array-contains", category), 
-                limit(50)
-            );
+          qSearch = query(
+            storiesRef,
+            where("status", "==", "public"),
+            where("searchKeywords", "array-contains", term),
+            where("categorias", "array-contains", category),
+            limit(50)
+          );
         }
 
         const snap = await getDocs(qSearch);
         let items = [];
         snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-        
+
         // Se usar o filtro duplo acima (searchKeywords + categorias),
         // o filtro manual abaixo não é mais necessário, mas serve de fallback.
         if (category !== 'All' && items.length > 0) {
-             items = items.filter(i => i.categorias?.includes(category));
+          items = items.filter(i => i.categorias?.includes(category));
         }
 
         return { items, nextCursor: null };
@@ -176,11 +177,18 @@ export default function Home() {
               <MdList size={22} />
             </button>
             {showFilter && (
-              <div className="absolute right-0 top-12 w-48 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in max-h-60 overflow-y-auto">
+              <div className="absolute right-0 top-12 w-52 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in max-h-60 overflow-y-auto">
                 {categoriesList.map((cat) => (
-                  <button key={cat} onClick={() => { setCategory(cat); setShowFilter(false); }} className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-[#2a2a2a] ${category === cat ? 'text-primary font-bold bg-primary/10' : 'text-gray-300'}`}>
-                    {cat} {category === cat && <MdCheck size={16} />}
-                  </button>
+                  cat === 'Interactive' ? (
+                    <button key={cat} onClick={() => { setCategory(cat); setShowFilter(false); }} className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-blue-900/20 border-t border-[#333] mt-1 pt-2 ${category === cat ? 'text-blue-400 font-bold bg-blue-500/10' : 'text-blue-400/70 hover:text-blue-300'}`}>
+                      <span className="flex items-center gap-2"><FiGitBranch size={13} /> {cat}</span>
+                      {category === cat && <MdCheck size={16} />}
+                    </button>
+                  ) : (
+                    <button key={cat} onClick={() => { setCategory(cat); setShowFilter(false); }} className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-[#2a2a2a] ${category === cat ? 'text-primary font-bold bg-primary/10' : 'text-gray-300'}`}>
+                      {cat} {category === cat && <MdCheck size={16} />}
+                    </button>
+                  )
                 ))}
               </div>
             )}
@@ -194,7 +202,14 @@ export default function Home() {
       <div className="flex items-center gap-3 border-b border-white/10 pb-3 mb-6 mt-2">
         <div className="h-6 w-1.5 bg-primary rounded-full shadow-[0_0_10px_rgba(74,144,226,0.5)]"></div>
         <h2 className="text-xl font-bold text-white m-0 tracking-wide">New Releases</h2>
-        {category !== "All" && <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded border border-primary/30">{category}</span>}
+        {category !== "All" && (
+          <span className={`text-xs px-2 py-1 rounded border flex items-center gap-1.5 ${category === 'Interactive'
+              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+              : 'bg-primary/20 text-primary border-primary/30'
+            }`}>
+            {category === 'Interactive' && <FiGitBranch size={11} />}{category}
+          </span>
+        )}
       </div>
 
       {/* --- ESTADOS DE CARREGAMENTO E ERRO --- */}
