@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, provider, db } from '../services/firebaseConnection';
-import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import toast from 'react-hot-toast';
@@ -129,6 +129,64 @@ export function AuthProvider({ children }) {
     }
   }
 
+  async function registerEmail(name, email, password, inviteCode) {
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      
+      if (result.user) {
+        const uid = result.user.uid;
+        const userRef = doc(db, "usuarios", uid);
+        
+        await setDoc(userRef, {
+          uid: uid,
+          nome: name,
+          email: email,
+          createdAt: new Date(),
+          avatar: generateAvatar(uid),
+          // Defaults are handled inside the listener but we can set them here to be safe
+          coins: 0,
+          role: 'user',
+          subscriptionType: 'free',
+          subscriptionStatus: 'inactive'
+        });
+
+        if (inviteCode) {
+          try {
+            const functions = getFunctions();
+            const redeemReferralCode = httpsCallable(functions, 'redeemReferralCode');
+            const res = await redeemReferralCode({ code: inviteCode });
+            toast.success(`Referred by ${res.data.referrerName}!`);
+          } catch (err) {
+            console.error("Referral Error:", err);
+            if (!err.message.includes("already")) toast.error("Invalid invite code, but you are registered.");
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error("Este e-mail já existe. Se você já usou o Google para entrar antes, precisa usar o botão do Google novamente.", { duration: 5000 });
+      } else if (error.code === 'auth/weak-password') {
+        toast.error("A senha deve ter pelo menos 6 caracteres.");
+      } else {
+        toast.error("Erro ao criar conta.");
+      }
+    }
+  }
+
+  async function loginEmail(email, password) {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error(error);
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        toast.error("E-mail ou senha incorretos.");
+      } else {
+        toast.error("Erro ao fazer login.");
+      }
+    }
+  }
+
   async function logout() {
     await signOut(auth);
     setUser(null);
@@ -150,7 +208,7 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, logout, loadingAuth, isAdmin, hasAds }}>
+    <AuthContext.Provider value={{ signed: !!user, user, signInGoogle, registerEmail, loginEmail, logout, loadingAuth, isAdmin, hasAds }}>
       {children}
     </AuthContext.Provider>
   );
