@@ -18,7 +18,10 @@ const editorConfig = {
   body_class: 'my-editor-content',
   content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; } p { margin-bottom: 1rem !important; }',
   forced_root_block: 'p',
-  paste_as_text: false
+  paste_as_text: false,
+  paste_data_images: false,
+  smart_paste: false,
+  invalid_elements: 'img'
 };
 
 export default function EditarCapitulo() {
