@@ -528,17 +528,23 @@ export default function Escrever() {
                                                         </div>
                                                         <div>
                                                             <div className="flex justify-between mb-1">
-                                                                <label className="block text-xs font-bold text-gray-500 uppercase">Content (HTML)</label>
+                                                                <label className="block text-xs font-bold text-gray-500 uppercase">Content (Visual Editor)</label>
+                                                                <span className="text-[10px] text-gray-500">
+                                                                    {countWords(cap.content)} words
+                                                                </span>
                                                             </div>
-                                                            <textarea 
-                                                                value={cap.content}
-                                                                onChange={(e) => {
-                                                                    const newChapters = [...extractedChapters];
-                                                                    newChapters[index].content = e.target.value;
-                                                                    setExtractedChapters(newChapters);
-                                                                }}
-                                                                className="w-full h-80 bg-[#151515] border border-[#333] rounded-lg p-3 text-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-mono text-xs leading-relaxed resize-y transition-all"
-                                                            />
+                                                            <div className="border border-[#333] rounded-lg overflow-hidden">
+                                                                <Editor 
+                                                                    tinymceScriptSrc={OPEN_SOURCE_TINY} 
+                                                                    init={{ ...editorConfig, height: 400 }} 
+                                                                    value={cap.content}
+                                                                    onEditorChange={(content) => {
+                                                                        const newChapters = [...extractedChapters];
+                                                                        newChapters[index].content = content;
+                                                                        setExtractedChapters(newChapters);
+                                                                    }} 
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
