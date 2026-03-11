@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { auth, provider, db } from '../services/firebaseConnection';
-import { signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import toast from 'react-hot-toast';
@@ -23,8 +23,21 @@ export function AuthProvider({ children }) {
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        
+        // --- VERIFICAÇÃO DE EMAIL ---
+        // Checamos se o usuário logou por e-mail/senha.
+        // Se sim, e o e-mail não estiver verificado, bloqueamos o acesso.
+        // (Exceção: provedores como Google já vêm com emailVerified = true ou confiamos neles)
+        if (!firebaseUser.emailVerified && firebaseUser.providerData.some(p => p.providerId === 'password')) {
+          toast.error("Por favor, verifique seu e-mail antes de fazer o login.");
+          await signOut(auth);
+          setUser(null);
+          setLoadingAuth(false);
+          return;
+        }
+
         const uid = firebaseUser.uid;
 
         const unsubscribeFirestore = onSnapshot(doc(db, "usuarios", uid), async (docSnap) => {
@@ -161,6 +174,14 @@ export function AuthProvider({ children }) {
             if (!err.message.includes("already")) toast.error("Invalid invite code, but you are registered.");
           }
         }
+
+        // --- ENVIAR EMAIL DE VERIFICAÇÃO ---
+        await sendEmailVerification(result.user);
+        toast.success("Conta criada! Enviamos um link de confirmação para o seu e-mail.", { duration: 6000 });
+        
+        // Desloga o usuário imediatamente para ele não navegar sem confirmar
+        await signOut(auth);
+
       }
     } catch (error) {
       console.error(error);
