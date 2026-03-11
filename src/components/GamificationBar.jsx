@@ -13,7 +13,7 @@ export default function GamificationBar({ mobile = false }) {
     return (
       <div className="w-full bg-[#111] p-3 rounded-lg border border-[#333] mb-4 shadow-inner">
         <div className="flex justify-between items-center text-xs font-bold text-gray-400">
-            <span className="text-blue-400 flex items-center gap-1"><MdMenuBook /> {totalReads} Reads</span>
+            <span className="text-zinc-400 flex items-center gap-1"><MdMenuBook /> {totalReads} Reads</span>
         </div>
       </div>
     );
@@ -24,7 +24,7 @@ export default function GamificationBar({ mobile = false }) {
     <div className="hidden lg:flex items-center gap-4 mr-4">
         {/* Badge de Leituras */}
         <div className="flex flex-col items-center justify-center bg-[#222] w-10 h-10 rounded-full border border-[#333] shadow-sm" title="Total Chapters Read">
-            <MdMenuBook className="text-blue-500 text-xs" />
+            <MdMenuBook className="text-zinc-500 text-xs" />
             <span className="text-[10px] font-bold text-gray-300 leading-none mt-0.5">{totalReads}</span>
         </div>
     </div>

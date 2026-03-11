@@ -60,7 +60,7 @@ export default function HeroCarousel() {
         style={{ backgroundImage: bgImage }}
       >
         {!hasCover && (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-900/20 to-purple-900/20">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-900/20 to-purple-900/20">
             <img src="/logo-ah.png" alt="Logo" className="w-32 opacity-10 grayscale" />
           </div>
         )}

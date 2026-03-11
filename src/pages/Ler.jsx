@@ -231,7 +231,7 @@ export default function Ler() {
 
                     <button
                         onClick={toggleAutoScroll}
-                        className={`p-3 rounded-full shadow-lg border transition-all ${isAutoScrolling ? 'bg-blue-600 text-white border-blue-500' : `${currentTheme.uiBg} ${currentTheme.text} ${currentTheme.uiBorder} hover:border-primary`}`}
+                        className={`p-3 rounded-full shadow-lg border transition-all ${isAutoScrolling ? 'bg-zinc-600 text-white border-zinc-500' : `${currentTheme.uiBg} ${currentTheme.text} ${currentTheme.uiBorder} hover:border-primary`}`}
                         title="Auto Scroll"
                     >
                         {isAutoScrolling ? <MdPause size={24} /> : <MdAutorenew size={24} />}
@@ -248,7 +248,7 @@ export default function Ler() {
                 <button onClick={toggleSpeaking} className={`p-2 rounded-full transition-colors ${isSpeaking ? 'text-green-500 bg-green-500/10' : `${currentTheme.text}`}`}>
                     {isSpeaking ? <MdStop size={28} /> : <MdVolumeUp size={28} />}
                 </button>
-                <button onClick={toggleAutoScroll} className={`p-2 rounded-full transition-colors ${isAutoScrolling ? 'text-blue-500 bg-blue-500/10' : `${currentTheme.text}`}`}>
+                <button onClick={toggleAutoScroll} className={`p-2 rounded-full transition-colors ${isAutoScrolling ? 'text-zinc-500 bg-zinc-500/10' : `${currentTheme.text}`}`}>
                     {isAutoScrolling ? <MdPause size={28} /> : <MdAutorenew size={28} />}
                 </button>
                 <button onClick={() => setShowSettings(!showSettings)} className={`p-2 rounded-full transition-colors ${showSettings ? 'text-primary' : `${currentTheme.text}`}`}>
@@ -275,7 +275,7 @@ export default function Ler() {
                                     <button
                                         key={key}
                                         onClick={() => updateSetting('theme', key)}
-                                        className={`aspect-square rounded-full border-2 flex items-center justify-center transition-all ${settings.theme === key ? 'border-blue-500 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                                        className={`aspect-square rounded-full border-2 flex items-center justify-center transition-all ${settings.theme === key ? 'border-zinc-500 scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
                                         style={{ backgroundColor: key === 'light' ? '#f5f5f5' : key === 'sepia' ? '#f4ecd8' : key === 'midnight' ? '#0f172a' : key === 'forest' ? '#1a2e1a' : '#121212' }}
                                         title={theme.label}
                                     >
@@ -290,7 +290,7 @@ export default function Ler() {
                             <div className={`flex justify-between text-xs uppercase font-bold mb-2 ${currentTheme.text} opacity-70`}><span>Font Size</span><span>{settings.fontSize}px</span></div>
                             <div className={`flex items-center gap-3 p-3 rounded-lg border ${currentTheme.bg} ${currentTheme.uiBorder}`}>
                                 <MdFormatSize size={16} className={currentTheme.text} />
-                                <input type="range" min="14" max="32" step="1" value={settings.fontSize} onChange={(e) => updateSetting('fontSize', Number(e.target.value))} className="w-full accent-blue-500 h-1.5 rounded-lg appearance-none cursor-pointer" />
+                                <input type="range" min="14" max="32" step="1" value={settings.fontSize} onChange={(e) => updateSetting('fontSize', Number(e.target.value))} className="w-full accent-zinc-500 h-1.5 rounded-lg appearance-none cursor-pointer" />
                                 <MdFormatSize size={24} className={currentTheme.text} />
                             </div>
                         </div>
@@ -300,7 +300,7 @@ export default function Ler() {
                             <div className={`text-xs uppercase font-bold mb-2 flex items-center gap-2 ${currentTheme.text} opacity-70`}><MdTextFields /> Font Family</div>
                             <div className={`flex gap-1 p-1 rounded-lg border ${currentTheme.bg} ${currentTheme.uiBorder}`}>
                                 {['serif', 'sans', 'mono'].map(font => (
-                                    <button key={font} onClick={() => updateSetting('fontFamily', font)} className={`flex-1 py-2 rounded text-xs font-bold transition-all ${settings.fontFamily === font ? 'bg-blue-600 text-white shadow' : `${currentTheme.text} hover:opacity-80 hover:bg-black/5`}`}>
+                                    <button key={font} onClick={() => updateSetting('fontFamily', font)} className={`flex-1 py-2 rounded text-xs font-bold transition-all ${settings.fontFamily === font ? 'bg-zinc-600 text-white shadow' : `${currentTheme.text} hover:opacity-80 hover:bg-black/5`}`}>
                                         {font === 'serif' ? 'Serif' : font === 'sans' ? 'Sans' : 'Mono'}
                                     </button>
                                 ))}
@@ -316,7 +316,7 @@ export default function Ler() {
                                     { label: 'Normal', cls: 'max-w-2xl' },
                                     { label: 'Wide', cls: 'max-w-4xl' }
                                 ].map(w => (
-                                    <button key={w.label} onClick={() => updateSetting('widthClass', w.cls)} className={`flex-1 py-2 rounded text-xs font-bold transition-all ${settings.widthClass === w.cls ? 'bg-blue-600 text-white shadow' : `${currentTheme.text} hover:opacity-80 hover:bg-black/5`}`}>
+                                    <button key={w.label} onClick={() => updateSetting('widthClass', w.cls)} className={`flex-1 py-2 rounded text-xs font-bold transition-all ${settings.widthClass === w.cls ? 'bg-zinc-600 text-white shadow' : `${currentTheme.text} hover:opacity-80 hover:bg-black/5`}`}>
                                         {w.label}
                                     </button>
                                 ))}
@@ -329,7 +329,7 @@ export default function Ler() {
             {/* CONTAINER DO TEXTO */}
             <div className={`mx-auto px-6 pt-12 transition-all duration-300 ease-in-out ${settings.widthClass}`}>
 
-                <Link to={`/obra/${capitulo.obraId}`} className={`inline-flex items-center gap-2 mb-8 font-medium transition-colors ${currentTheme.text} hover:text-blue-500 opacity-70 hover:opacity-100`}>
+                <Link to={`/obra/${capitulo.obraId}`} className={`inline-flex items-center gap-2 mb-8 font-medium transition-colors ${currentTheme.text} hover:text-zinc-500 opacity-70 hover:opacity-100`}>
                     <MdArrowBack /> Back to Book
                 </Link>
 
@@ -349,15 +349,15 @@ export default function Ler() {
                     className={`
                     ${currentTheme.text} 
                     font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}
-                    selection:bg-blue-500/30 leading-relaxed
+                    selection:bg-zinc-500/30 leading-relaxed
                 `}
                     style={{ fontSize: `${settings.fontSize}px`, lineHeight: settings.lineHeight }}
                     dangerouslySetInnerHTML={{ __html: cleanContent }}
                 />
 
                 {cleanNote && (
-                    <div className={`mt-16 border-l-4 border-blue-500 p-6 rounded-r-lg ${currentTheme.uiBg}`}>
-                        <h4 className="text-blue-500 font-bold mb-2 text-sm uppercase tracking-wide">Author Note</h4>
+                    <div className={`mt-16 border-l-4 border-zinc-500 p-6 rounded-r-lg ${currentTheme.uiBg}`}>
+                        <h4 className="text-zinc-500 font-bold mb-2 text-sm uppercase tracking-wide">Author Note</h4>
                         <div className={`${currentTheme.text} italic text-sm`} dangerouslySetInnerHTML={{ __html: cleanNote }} />
                     </div>
                 )}
@@ -376,7 +376,7 @@ export default function Ler() {
                 {/* NAVEGAÇÃO */}
                 <div className={`flex justify-between items-center mt-8 pt-8 border-t ${currentTheme.uiBorder}`}>
                     {prevId ? (
-                        <Link to={`/ler/${prevId}`} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all border ${currentTheme.uiBg} ${currentTheme.text} ${currentTheme.uiBorder} hover:border-blue-500 hover:-translate-x-1`}>
+                        <Link to={`/ler/${prevId}`} className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-all border ${currentTheme.uiBg} ${currentTheme.text} ${currentTheme.uiBorder} hover:border-zinc-500 hover:-translate-x-1`}>
                             <MdNavigateBefore size={24} /> <span className="hidden sm:inline">Prev</span>
                         </Link>
                     ) : (<div className="w-24 opacity-0"></div>)}
@@ -385,12 +385,12 @@ export default function Ler() {
                         to={`/obra/${capitulo.obraId}`}
                         className={`flex flex-col items-center justify-center transition-colors group ${currentTheme.text} opacity-60 hover:opacity-100`}
                     >
-                        <MdMenuBook size={28} className="group-hover:text-blue-500 transition-colors mb-1" />
+                        <MdMenuBook size={28} className="group-hover:text-zinc-500 transition-colors mb-1" />
                         <span className="text-[10px] uppercase font-bold tracking-widest hidden sm:block">Chapters</span>
                     </Link>
 
                     {nextId ? (
-                        <Link to={`/ler/${nextId}`} className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white px-8 py-3 rounded-lg font-bold transition-all shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:-translate-y-1">
+                        <Link to={`/ler/${nextId}`} className="flex items-center gap-2 bg-gradient-to-r from-zinc-600 to-zinc-500 text-white px-8 py-3 rounded-lg font-bold transition-all shadow-lg shadow-zinc-500/20 hover:shadow-zinc-500/40 hover:-translate-y-1">
                             <span className="hidden sm:inline">Next</span> <MdNavigateNext size={24} />
                         </Link>
                     ) : (<div className={`${currentTheme.text} font-medium w-24 text-right opacity-50`}>End</div>)}

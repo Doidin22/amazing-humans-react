@@ -116,7 +116,7 @@ export default function LerHistoriaInterativa() {
     if (!historia || !currentNode) return (
         <div className="min-h-screen flex flex-col items-center justify-center text-white">
             <h2 className="text-2xl font-bold mb-4">Story not found.</h2>
-            <button onClick={() => navigate('/')} className="text-blue-400 hover:underline">Go Home</button>
+            <button onClick={() => navigate('/')} className="text-zinc-400 hover:underline">Go Home</button>
         </div>
     );
 
@@ -134,7 +134,7 @@ export default function LerHistoriaInterativa() {
                     </Link>
 
                     <div className="flex items-center gap-2">
-                        <FiGitBranch className="text-blue-400" size={16} />
+                        <FiGitBranch className="text-zinc-400" size={16} />
                         <span className="text-white text-sm font-bold truncate max-w-[180px]">{historia.titulo}</span>
                     </div>
 
@@ -161,7 +161,7 @@ export default function LerHistoriaInterativa() {
                                 Beginning
                             </span>
                         ) : (
-                            <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-full uppercase tracking-wider">
+                            <span className="text-[10px] font-bold bg-zinc-500/20 text-zinc-400 border border-zinc-500/30 px-3 py-1 rounded-full uppercase tracking-wider">
                                 Chapter {history.length + 1}
                             </span>
                         )
@@ -192,7 +192,7 @@ export default function LerHistoriaInterativa() {
                         </p>
                         <button
                             onClick={restart}
-                            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all"
+                            className="inline-flex items-center gap-2 bg-zinc-600 hover:bg-zinc-500 text-white font-bold px-8 py-3 rounded-xl shadow-lg shadow-zinc-500/20 transition-all"
                         >
                             <MdAutorenew size={20} /> Restart Story
                         </button>
@@ -215,16 +215,16 @@ export default function LerHistoriaInterativa() {
                                     group relative overflow-hidden
                                     ${!choice.targetNodeId ? 'opacity-40 cursor-not-allowed border-white/5' : ''}
                                     ${choice.targetNodeId
-                                        ? `border-white/10 ${theme.uiBg} hover:border-blue-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/10 cursor-pointer`
+                                        ? `border-white/10 ${theme.uiBg} hover:border-zinc-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-zinc-500/10 cursor-pointer`
                                         : ''
                                     }
                                 `}
                             >
                                 {/* Left accent */}
-                                <span className="absolute left-0 top-0 h-full w-1 bg-blue-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 rounded-l-xl" />
+                                <span className="absolute left-0 top-0 h-full w-1 bg-zinc-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 rounded-l-xl" />
 
                                 <div className="flex items-center gap-3">
-                                    <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-400 text-xs font-bold flex items-center justify-center">
+                                    <span className="flex-shrink-0 w-7 h-7 rounded-lg bg-zinc-500/20 border border-zinc-500/30 text-zinc-400 text-xs font-bold flex items-center justify-center">
                                         {String.fromCharCode(65 + idx)}
                                     </span>
                                     <span className={`${theme.text} text-base`}>{choice.label || '(No label)'}</span>
@@ -239,7 +239,7 @@ export default function LerHistoriaInterativa() {
                     <button
                         onClick={goBack}
                         disabled={history.length === 0}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${theme.uiBorder} ${theme.uiBg} ${theme.text} hover:border-blue-400 disabled:opacity-30 disabled:cursor-not-allowed hover:-translate-x-0.5`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${theme.uiBorder} ${theme.uiBg} ${theme.text} hover:border-zinc-400 disabled:opacity-30 disabled:cursor-not-allowed hover:-translate-x-0.5`}
                     >
                         <MdArrowBack size={18} /> Back
                     </button>

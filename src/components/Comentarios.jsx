@@ -118,12 +118,12 @@ const CommentThread = ({
                                 autoFocus
                                 value={textoResposta}
                                 onChange={(e) => setTextoResposta(e.target.value)}
-                                className={`w-full border rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:outline-none transition-colors ${styles.inputBg} ${styles.inputText} ${styles.border}`}
+                                className={`w-full border rounded-lg px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none transition-colors ${styles.inputBg} ${styles.inputText} ${styles.border}`}
                                 placeholder="Write a reply..."
                             />
                             <div className="flex justify-end gap-2 mt-2">
                                 <button onClick={() => { setRespondendoA(null); setTextoResposta(''); }} className={`px-3 py-1 rounded text-xs font-bold ${styles.subText} hover:${styles.text}`}>Cancel</button>
-                                <button onClick={() => handleEnviar(dados.id)} disabled={!textoResposta.trim()} className="px-4 py-1 rounded bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 disabled:opacity-50">Reply</button>
+                                <button onClick={() => handleEnviar(dados.id)} disabled={!textoResposta.trim()} className="px-4 py-1 rounded bg-zinc-600 text-white font-bold text-xs hover:bg-zinc-500 disabled:opacity-50">Reply</button>
                             </div>
                         </div>
                     </div>
@@ -154,7 +154,7 @@ const CommentThread = ({
                         ) : (
                             <button
                                 onClick={() => setMostrarRespostas(true)}
-                                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-xs font-bold transition-colors mt-1"
+                                className="flex items-center gap-2 text-zinc-400 hover:text-zinc-300 text-xs font-bold transition-colors mt-1"
                             >
                                 <MdKeyboardArrowDown /> View {minhasRespostas.length} replies
                             </button>
@@ -322,7 +322,7 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
             <div className="flex gap-4 mb-10">
                 <img src={user?.avatar || getFallbackAvatar(user?.name)} className={`w-10 h-10 rounded-full object-cover border ${styles.border}`} />
                 <div className="flex-1">
-                    <div className={`border ${isFocused ? 'border-blue-500' : styles.border} rounded-xl p-2 transition-colors ${styles.inputBg}`}>
+                    <div className={`border ${isFocused ? 'border-zinc-500' : styles.border} rounded-xl p-2 transition-colors ${styles.inputBg}`}>
                         <textarea
                             placeholder="Add a comment..."
                             value={novoTexto}
@@ -335,7 +335,7 @@ export default function Comentarios({ targetId, targetType = 'capitulo', targetA
                         {(isFocused || novoTexto) && (
                             <div className={`flex justify-end gap-2 mt-2 pt-2 border-t ${styles.border}`}>
                                 <button onClick={() => { setIsFocused(false); setNovoTexto(''); }} className={`px-4 py-1.5 rounded-full text-xs font-bold ${styles.subText} hover:${styles.text}`}>Cancel</button>
-                                <button onClick={() => handleEnviar(null)} disabled={!user || !novoTexto.trim()} className={`px-5 py-1.5 rounded-full font-bold text-xs transition-all ${!novoTexto.trim() ? 'opacity-50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg'}`}>Comment</button>
+                                <button onClick={() => handleEnviar(null)} disabled={!user || !novoTexto.trim()} className={`px-5 py-1.5 rounded-full font-bold text-xs transition-all ${!novoTexto.trim() ? 'opacity-50 cursor-not-allowed' : 'bg-zinc-600 text-white hover:bg-zinc-500 shadow-lg'}`}>Comment</button>
                             </div>
                         )}
                     </div>

@@ -55,11 +55,11 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-3">
           <PremiumLock user={user} feature="Interactive Stories" description="" compact>
-            <Link to="/escrever-historia-interativa" className="flex items-center gap-2 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/40 text-blue-300 px-4 py-2 rounded-lg font-bold text-sm transition-all">
+            <Link to="/escrever-historia-interativa" className="flex items-center gap-2 bg-zinc-600/20 hover:bg-zinc-600/40 border border-zinc-500/40 text-zinc-300 px-4 py-2 rounded-lg font-bold text-sm transition-all">
               <FiGitBranch size={16} /> New Interactive Story
             </Link>
           </PremiumLock>
-          <Link to="/escrever" className="btn-primary shadow-lg shadow-blue-500/20 group">
+          <Link to="/escrever" className="btn-primary shadow-lg shadow-zinc-500/20 group">
             <MdAdd size={22} className="group-hover:rotate-90 transition-transform duration-300" /> Create New Book
           </Link>
         </div>
@@ -81,7 +81,7 @@ export default function Dashboard() {
         </button>
         <button
           onClick={() => setActiveTab('interactive')}
-          className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'interactive' ? 'border-blue-400 text-blue-300' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
+          className={`pb-3 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 flex items-center gap-2 ${activeTab === 'interactive' ? 'border-zinc-400 text-zinc-300' : 'border-transparent text-gray-500 hover:text-gray-300'}`}
         >
           <FiGitBranch size={14} /> Interactive ({historias.length})
         </button>
@@ -117,7 +117,7 @@ export default function Dashboard() {
                     </div>
                     {obra.status !== 'draft' && (
                       <div className="flex items-center gap-4 text-sm text-gray-400 mb-6">
-                        <div className="flex items-center gap-1"><MdBarChart className="text-blue-400" /> {obra.views || 0} reads</div>
+                        <div className="flex items-center gap-1"><MdBarChart className="text-zinc-400" /> {obra.views || 0} reads</div>
                         <div className="flex items-center gap-1"><MdStar className="text-yellow-500" /> {obra.rating ? obra.rating.toFixed(1) : '0.0'}</div>
                       </div>
                     )}
@@ -159,17 +159,17 @@ export default function Dashboard() {
                 <FiGitBranch size={40} className="text-gray-600 mb-4" />
                 <h3 className="text-xl font-bold text-white mb-2">No interactive stories yet</h3>
                 <p className="text-gray-500 mb-6 text-sm max-w-sm">Create branching stories where readers make choices that change the outcome!</p>
-                <Link to="/escrever-historia-interativa" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-lg shadow-blue-500/20">
+                <Link to="/escrever-historia-interativa" className="flex items-center gap-2 bg-zinc-600 hover:bg-zinc-500 text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-lg shadow-zinc-500/20">
                   <FiGitBranch size={16} /> Create Interactive Story
                 </Link>
               </div>
             ) : (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {historias.map(h => (
-                  <div key={h.id} className="bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden hover:border-blue-500/40 transition-all group shadow-lg flex flex-col">
+                  <div key={h.id} className="bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden hover:border-zinc-500/40 transition-all group shadow-lg flex flex-col">
                     {/* Card header with gradient */}
-                    <div className="h-24 relative bg-gradient-to-br from-blue-900/40 via-purple-900/30 to-slate-900 flex items-center justify-center">
-                      <FiGitBranch size={36} className="text-blue-400/50" />
+                    <div className="h-24 relative bg-gradient-to-br from-zinc-900/40 via-purple-900/30 to-slate-900 flex items-center justify-center">
+                      <FiGitBranch size={36} className="text-zinc-400/50" />
                       <div className={`absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded uppercase ${h.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
                         {h.status === 'draft' ? 'Draft' : 'Published'}
                       </div>
@@ -193,7 +193,7 @@ export default function Dashboard() {
                         </Link>
                         <Link
                           to={`/historia-interativa/${h.id}`}
-                          className="flex-1 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/30 text-blue-300 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                          className="flex-1 bg-zinc-600/20 hover:bg-zinc-600/40 border border-zinc-500/30 text-zinc-300 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                         >
                           <MdPlayArrow size={14} /> Play
                         </Link>
@@ -204,9 +204,9 @@ export default function Dashboard() {
                 {/* Create new card */}
                 <Link
                   to="/escrever-historia-interativa"
-                  className="bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl overflow-hidden hover:border-blue-500/40 transition-all group flex flex-col items-center justify-center py-12 gap-3 text-gray-600 hover:text-blue-400"
+                  className="bg-[#1a1a1a] border-2 border-dashed border-[#333] rounded-xl overflow-hidden hover:border-zinc-500/40 transition-all group flex flex-col items-center justify-center py-12 gap-3 text-gray-600 hover:text-zinc-400"
                 >
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-blue-500/10 transition-colors">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-zinc-500/10 transition-colors">
                     <MdAdd size={24} />
                   </div>
                   <span className="text-sm font-bold">New Interactive Story</span>

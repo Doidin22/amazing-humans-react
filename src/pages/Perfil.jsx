@@ -149,7 +149,7 @@ export default function Perfil() {
                             <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
                                 {user?.name}
                                 {user?.isVip && <MdDiamond className="text-yellow-400 text-xl drop-shadow-md" title="VIP Member" />}
-                                {user?.badges?.includes('pioneer') && <MdVerified className="text-blue-400 text-xl" title="Pioneer" />}
+                                {user?.badges?.includes('pioneer') && <MdVerified className="text-zinc-400 text-xl" title="Pioneer" />}
                             </h2>
                             {/* REMOVIDO: Span do Nível */}
                         </div>
@@ -158,7 +158,7 @@ export default function Perfil() {
                             <div className="flex flex-col gap-4 mb-6 w-full px-4">
                                 <div className="flex justify-center gap-4">
                                     {user?.website && <a href={formatUrl(user.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
-                                    {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
+                                    {user?.twitter && <a href={formatUrl(user.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-zinc-400 transition-colors"><FaTwitter size={20} /></a>}
                                     {user?.instagram && <a href={formatUrl(user.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
                                 </div>
                                 {(user?.patreon || user?.paypal) && (
@@ -254,7 +254,7 @@ export default function Perfil() {
                         )}
                         {user?.referredBy && (
                             <div className="mt-2 text-xs text-gray-500 text-center">
-                                Referred by another user <MdVerified className="inline text-blue-500" />
+                                Referred by another user <MdVerified className="inline text-zinc-500" />
                             </div>
                         )}
                     </div>
@@ -265,7 +265,7 @@ export default function Perfil() {
                     <h3 className="text-white font-bold mb-4 flex items-center gap-2"><MdTimeline className="text-green-500" /> Reader Stats</h3>
                     <div className="space-y-4">
                         <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
-                            <div className="flex items-center gap-3"><div className="p-2 bg-blue-500/20 text-blue-400 rounded-lg"><MdLibraryBooks size={20} /></div><span className="text-sm text-gray-300">In Library</span></div>
+                            <div className="flex items-center gap-3"><div className="p-2 bg-zinc-500/20 text-zinc-400 rounded-lg"><MdLibraryBooks size={20} /></div><span className="text-sm text-gray-300">In Library</span></div>
                             <span className="text-white font-bold">{libraryCount} Books</span>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">

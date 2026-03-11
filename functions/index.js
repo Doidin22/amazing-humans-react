@@ -152,7 +152,7 @@ exports.indexStoryForSearch = onDocumentWritten("obras/{obraId}", async (event) 
 exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
-    const { type, packId, coinsAmount } = request.data;
+    const { type, packId } = request.data;
     const uid = request.auth.uid;
     const email = request.auth.token.email;
 
@@ -175,22 +175,7 @@ exports.createStripeCheckout = onCall({ cors: true }, async (request) => {
         cancel_url: cancelUrl,
     };
 
-    if (type === 'coin_pack') {
-        sessionData.mode = 'payment';
-        sessionData.metadata.coinsAmount = coinsAmount;
-        const priceInCents = coinsAmount * 10;
-        if (priceInCents < 50) throw new HttpsError('invalid-argument', 'Minimum 5 coins.');
-
-        sessionData.line_items = [{
-            price_data: {
-                currency: 'usd',
-                product_data: { name: `${coinsAmount} Coins Pack` },
-                unit_amount: priceInCents,
-            },
-            quantity: 1,
-        }];
-    }
-    else if (type === 'subscription') {
+    if (type === 'subscription') {
         sessionData.mode = 'subscription';
 
         // --- ATENÇÃO: COLOQUE SEUS IDs DO STRIPE AQUI ---
@@ -241,18 +226,7 @@ exports.stripeWebhook = onRequest(async (request, response) => {
 
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
-        const { userId, type, coinsAmount, subTier } = session.metadata;
-
-        if (type === 'coin_pack') {
-            const qtd = parseInt(coinsAmount);
-            await db.collection('usuarios').doc(userId).update({
-                coins: FieldValue.increment(qtd)
-            });
-            await db.collection('transactions').add({
-                userId, type: 'buy_coins', amount: qtd, cost: session.amount_total, date: FieldValue.serverTimestamp()
-            });
-        }
-        else if (type === 'subscription') {
+        if (type === 'subscription') {
             let updateData = {
                 subscriptionStatus: 'active',
                 subscriptionType: subTier,
@@ -329,6 +303,18 @@ exports.redeemReferralCode = onCall({ cors: true }, async (request) => {
         throw new HttpsError('already-exists', 'You have already been referred.');
     }
 
+    const newCount = (referrerData.referralCount || 0) + 1;
+    let isAuthorQualified = false;
+
+    if (newCount === 15) {
+        const worksRef = db.collection('obras');
+        const qWorks = worksRef.where('autorId', '==', referrerId).where('totalChapters', '>=', 10);
+        const snapWorks = await qWorks.limit(1).get();
+        if (!snapWorks.empty) {
+            isAuthorQualified = true;
+        }
+    }
+
     // 3. Processar a indicação
     await db.runTransaction(async (t) => {
         // Marca quem foi indicado
@@ -338,18 +324,20 @@ exports.redeemReferralCode = onCall({ cors: true }, async (request) => {
         });
 
         // Incrementa contador do indicador e verifica recompensa
-        const newCount = (referrerData.referralCount || 0) + 1;
         let referrerUpdates = {
             referralCount: FieldValue.increment(1)
         };
 
-        // Regra de Ouro: 15 Indicações = 1 Mês Grátis (Reader Tier)
+        // Regra de Ouro: 15 Indicações = 1 Mês Grátis (Reader ou Author Tier)
         if (newCount === 15) {
             // Adiciona 30 dias à data atual
             const now = new Date();
             const expiresAt = new Date(now.setDate(now.getDate() + 30));
 
-            referrerUpdates.subscriptionType = 'reader';
+            const tierAssigned = isAuthorQualified ? 'author' : 'reader';
+            const tierName = isAuthorQualified ? 'Author' : 'Reader';
+
+            referrerUpdates.subscriptionType = tierAssigned;
             referrerUpdates.subscriptionStatus = 'active';
             referrerUpdates.subscriptionExpiresAt = Timestamp.fromDate(expiresAt);
 
@@ -357,7 +345,7 @@ exports.redeemReferralCode = onCall({ cors: true }, async (request) => {
             const notifRef = db.collection('notificacoes').doc();
             t.set(notifRef, {
                 paraId: referrerId,
-                mensagem: `<strong>Congratulations!</strong> You reached 15 referrals and won 1 Month of Reader Tier!`,
+                mensagem: `<strong>Congratulations!</strong> You reached 15 referrals and won 1 Month of ${tierName} Tier!`,
                 tipo: 'system',
                 lida: false,
                 data: FieldValue.serverTimestamp()

@@ -25,9 +25,9 @@ export default {
         'surface-highlight': '#27272a',
 
         // --- CORES DE DESTAQUE ---
-        // Azul vibrante e elétrico para botões/links
-        primary: '#3B82F6', 
-        'primary-dark': '#2563EB',
+        // Cinza fosco/escuro para botões/links (puxando para o tema Zinc)
+        primary: '#52525b', // zinc-600
+        'primary-dark': '#3f3f46', // zinc-700
 
         // Acentos funcionais
         secondary: '#EAB308', // Dourado/Amarelo
@@ -40,16 +40,16 @@ export default {
       },
       backgroundImage: {
         // Gradiente principal para botões de CTA (Call to Action)
-        'gradient-primary': 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)', // Azul -> Índigo
+        'gradient-primary': 'linear-gradient(135deg, #52525b 0%, #3f3f46 100%)', // zinc-600 -> zinc-700
         
         // Brilho de fundo sutil no topo da página
-        'gradient-dark': 'radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.15) 0%, #0F0F0F 60%)',
+        'gradient-dark': 'radial-gradient(circle at 50% -20%, rgba(82, 82, 91, 0.15) 0%, #0F0F0F 60%)',
         
         // Efeito de brilho em cards
         'glass-gradient': 'linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.00) 100%)',
       },
       boxShadow: {
-        'glow': '0 0 25px rgba(59, 130, 246, 0.35)', // Brilho azulado
+        'glow': '0 0 25px rgba(82, 82, 91, 0.35)', // Brilho cinza fosco
         'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
       },
       animation: {

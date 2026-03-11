@@ -44,7 +44,7 @@ export default function StoryCard({ data }) {
             </span>
           )}
           {data.categorias && data.categorias.filter(c => c !== 'Interactive').slice(0, 1).map((cat, i) => (
-            <span key={i} className="text-[9px] uppercase font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded">
+            <span key={i} className="text-[9px] uppercase font-bold text-zinc-400 bg-zinc-500/10 border border-zinc-500/20 px-1.5 py-0.5 rounded">
               {cat}
             </span>
           ))}

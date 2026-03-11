@@ -28,7 +28,10 @@ const editorConfig = {
   toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat',
   skin: 'oxide-dark',
   content_css: 'dark',
-  body_class: 'my-editor-content'
+  body_class: 'my-editor-content',
+  content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; } p { margin-bottom: 1rem !important; }',
+  forced_root_block: 'p',
+  paste_as_text: false
 };
 
 export default function EditarObra() {
@@ -258,7 +261,7 @@ export default function EditarObra() {
   // --- LOADER ---
   if (loading) return (
     <div className="flex justify-center items-center h-screen">
-      <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      <div className="w-10 h-10 border-4 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
 
@@ -305,13 +308,13 @@ export default function EditarObra() {
 
             <div className="mb-4">
               <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Title</label>
-              <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all" />
+              <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500/50 outline-none transition-all" />
             </div>
 
             <div className="mb-4">
               <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cover Image (Upload)</label>
               <div className="flex items-center gap-2 mb-2">
-                <label htmlFor="cover-upload-edit" className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-xs font-bold transition-all shadow-lg">
+                <label htmlFor="cover-upload-edit" className="cursor-pointer bg-zinc-600 hover:bg-zinc-500 text-white px-4 py-2 rounded-md text-xs font-bold transition-all shadow-lg">
                   Choose File
                 </label>
                 <input id="cover-upload-edit" type="file" onChange={handleCoverFile} className="hidden" accept="image/png, image/jpeg" />
@@ -329,7 +332,7 @@ export default function EditarObra() {
                   <button
                     key={cat}
                     onClick={() => handleCategoria(cat)}
-                    className={`text-[10px] px-2.5 py-1 rounded border transition-all ${categorias.includes(cat) ? 'bg-blue-500/20 border-blue-500 text-blue-400 font-bold' : 'bg-[#1f1f1f] border-[#333] text-gray-400 hover:border-gray-500'}`}
+                    className={`text-[10px] px-2.5 py-1 rounded border transition-all ${categorias.includes(cat) ? 'bg-zinc-500/20 border-zinc-500 text-zinc-400 font-bold' : 'bg-[#1f1f1f] border-[#333] text-gray-400 hover:border-gray-500'}`}
                   >
                     {cat}
                   </button>
@@ -361,7 +364,7 @@ export default function EditarObra() {
                 <MdCancel size={18} /> Cancel
               </Link>
 
-              <button onClick={handleSave} disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-500/20 disabled:opacity-50">
+              <button onClick={handleSave} disabled={saving} className="flex-1 bg-zinc-600 hover:bg-zinc-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-zinc-500/20 disabled:opacity-50">
                 <MdSave size={18} /> {saving ? "Saving..." : "Save"}
               </button>
             </div>
@@ -424,15 +427,15 @@ export default function EditarObra() {
               {/* --- SCHEDULED CHAPTERS --- */}
               {scheduledChapters.length > 0 && (
                 <div>
-                  <h4 className="text-blue-400 font-bold text-xs uppercase mb-2 flex items-center gap-2 px-2">
+                  <h4 className="text-zinc-400 font-bold text-xs uppercase mb-2 flex items-center gap-2 px-2">
                     <MdSchedule /> Scheduled ({scheduledChapters.length})
                   </h4>
                   <div className="space-y-1">
                     {scheduledChapters.map((cap) => (
-                      <div key={cap.id} className="p-3 rounded-lg bg-[#252525] hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-blue-500/20 hover:border-blue-500/40">
+                      <div key={cap.id} className="p-3 rounded-lg bg-[#252525] hover:bg-[#2a2a2a] flex justify-between items-center group transition border border-zinc-500/20 hover:border-zinc-500/40">
                         <div>
-                          <p className="text-gray-200 font-medium text-sm group-hover:text-blue-400 transition-colors">{cap.titulo}</p>
-                          <span className="text-[10px] text-blue-400 flex items-center gap-1 mt-0.5">
+                          <p className="text-gray-200 font-medium text-sm group-hover:text-zinc-400 transition-colors">{cap.titulo}</p>
+                          <span className="text-[10px] text-zinc-400 flex items-center gap-1 mt-0.5">
                             Scheduled: {cap.data ? new Date(cap.data.seconds * 1000).toLocaleString() : '?'}
                           </span>
                         </div>

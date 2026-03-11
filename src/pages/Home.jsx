@@ -173,14 +173,14 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            <button onClick={() => setShowFilter(!showFilter)} className={`h-full w-12 flex items-center justify-center border border-l-0 rounded-r-md transition-colors ${showFilter ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1a1a1a] border-[#333] text-gray-400 hover:text-white hover:bg-[#252525]'}`}>
+            <button onClick={() => setShowFilter(!showFilter)} className={`h-full w-12 flex items-center justify-center border border-l-0 rounded-r-md transition-colors ${showFilter ? 'bg-zinc-600 border-zinc-600 text-white' : 'bg-[#1a1a1a] border-[#333] text-gray-400 hover:text-white hover:bg-[#252525]'}`}>
               <MdList size={22} />
             </button>
             {showFilter && (
               <div className="absolute right-0 top-12 w-52 bg-[#1f1f1f] border border-[#333] rounded-lg shadow-2xl py-2 z-50 animate-fade-in max-h-60 overflow-y-auto">
                 {categoriesList.map((cat) => (
                   cat === 'Interactive' ? (
-                    <button key={cat} onClick={() => { setCategory(cat); setShowFilter(false); }} className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-blue-900/20 border-t border-[#333] mt-1 pt-2 ${category === cat ? 'text-blue-400 font-bold bg-blue-500/10' : 'text-blue-400/70 hover:text-blue-300'}`}>
+                    <button key={cat} onClick={() => { setCategory(cat); setShowFilter(false); }} className={`w-full text-left px-4 py-2 text-sm flex items-center justify-between hover:bg-zinc-900/20 border-t border-[#333] mt-1 pt-2 ${category === cat ? 'text-zinc-400 font-bold bg-zinc-500/10' : 'text-zinc-400/70 hover:text-zinc-300'}`}>
                       <span className="flex items-center gap-2"><FiGitBranch size={13} /> {cat}</span>
                       {category === cat && <MdCheck size={16} />}
                     </button>
@@ -204,7 +204,7 @@ export default function Home() {
         <h2 className="text-xl font-bold text-white m-0 tracking-wide">New Releases</h2>
         {category !== "All" && (
           <span className={`text-xs px-2 py-1 rounded border flex items-center gap-1.5 ${category === 'Interactive'
-              ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
+              ? 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30'
               : 'bg-primary/20 text-primary border-primary/30'
             }`}>
             {category === 'Interactive' && <FiGitBranch size={11} />}{category}

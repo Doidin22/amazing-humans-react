@@ -10,7 +10,7 @@ body {
   @apply bg-background text-gray-200 font-sans min-h-screen flex flex-col overflow-x-hidden;
   
   /* Gradiente sutil no topo para dar "luz" ao site */
-  background-image: radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.12), rgba(15, 15, 15, 1) 70%);
+  background-image: radial-gradient(circle at 50% -20%, rgba(82, 82, 91, 0.12), rgba(15, 15, 15, 1) 70%);
   background-attachment: fixed; /* O fundo fica fixo enquanto rola */
 }
 

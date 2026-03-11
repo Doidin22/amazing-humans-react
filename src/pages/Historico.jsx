@@ -96,12 +96,12 @@ export default function Historico() {
     const allItems = data?.pages.flatMap(page => page.items) || [];
 
     const renderItem = React.useCallback((index, item) => (
-        <div className="bg-[#1f1f1f] border border-[#333] p-4 rounded-xl flex items-center justify-between hover:border-blue-500/30 transition-all mb-3 group">
+        <div className="bg-[#1f1f1f] border border-[#333] p-4 rounded-xl flex items-center justify-between hover:border-zinc-500/30 transition-all mb-3 group">
             <div className="flex flex-col gap-1">
                 <h4 className="text-white font-bold text-base flex items-center gap-2">
                     <MdMenuBook className="text-gray-500" /> {item.bookTitle}
                 </h4>
-                <p className="text-blue-400 text-sm font-medium flex items-center gap-1">
+                <p className="text-zinc-400 text-sm font-medium flex items-center gap-1">
                     Chapter: <span className="text-gray-300">{item.lastChapterTitle}</span>
                 </p>
                 <span className="text-xs text-gray-600 flex items-center gap-1">
@@ -111,7 +111,7 @@ export default function Historico() {
 
             <Link
                 to={`/ler/${item.lastChapterId}`}
-                className="bg-[#2a2a2a] hover:bg-blue-600 text-white p-3 rounded-full transition-all shadow-lg group-hover:scale-110"
+                className="bg-[#2a2a2a] hover:bg-zinc-600 text-white p-3 rounded-full transition-all shadow-lg group-hover:scale-110"
                 title="Read Again"
             >
                 <MdHistory size={20} />
@@ -124,7 +124,7 @@ export default function Historico() {
 
             <div className="flex justify-between items-center mb-6 border-b border-[#333] pb-4">
                 <div className="flex items-center gap-3">
-                    <MdHistory size={28} className="text-blue-500" />
+                    <MdHistory size={28} className="text-zinc-500" />
                     <h2 className="text-2xl font-bold text-white">Reading History</h2>
                 </div>
                 {allItems.length > 0 && (
@@ -146,7 +146,7 @@ export default function Historico() {
                 <div className="text-center py-16 bg-[#1f1f1f] rounded-xl border border-dashed border-[#444]">
                     <MdMenuBook size={40} className="text-gray-600 mx-auto mb-3" />
                     <p className="text-gray-500">You haven't read anything yet.</p>
-                    <Link to="/" className="text-blue-500 text-sm font-bold mt-2 hover:underline">Start Reading</Link>
+                    <Link to="/" className="text-zinc-500 text-sm font-bold mt-2 hover:underline">Start Reading</Link>
                 </div>
             ) : (
                 <Virtuoso

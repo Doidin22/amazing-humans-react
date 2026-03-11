@@ -16,7 +16,16 @@ const formatsList = ['Interactive'];
 
 const OPEN_SOURCE_TINY = "https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js";
 const editorConfig = {
-    height: 400, menubar: false, plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount', toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat', skin: 'oxide-dark', content_css: 'dark', body_class: 'my-editor-content'
+    height: 400,
+    menubar: false,
+    plugins: 'anchor autolink charmap emoticons link lists searchreplace visualblocks wordcount',
+    toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat',
+    skin: 'oxide-dark',
+    content_css: 'dark',
+    body_class: 'my-editor-content',
+    content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; } p { margin-bottom: 1rem !important; }',
+    forced_root_block: 'p',
+    paste_as_text: false
 };
 
 function countWords(htmlString) {
@@ -358,7 +367,7 @@ export default function Escrever() {
                     className="px-6 py-2 rounded-md font-bold transition-all text-gray-400 hover:text-white flex items-center gap-2"
                 >
                     {user?.subscriptionType === 'author'
-                        ? <><span className="text-blue-400">⎇</span> Interactive Story</>
+                        ? <><span className="text-zinc-400">⎇</span> Interactive Story</>
                         : <><MdWorkspacePremium className="text-purple-400" size={16} /> Interactive Story</>
                     }
                 </button>
@@ -464,16 +473,16 @@ export default function Escrever() {
 
                                     {/* LÓGICA DE AGENDAMENTO */}
                                     {modo === 'nova' ? (
-                                        <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg flex items-start gap-3">
-                                            <MdInfoOutline className="text-blue-500 text-xl flex-shrink-0 mt-0.5" />
+                                        <div className="bg-zinc-500/10 border border-zinc-500/30 p-4 rounded-lg flex items-start gap-3">
+                                            <MdInfoOutline className="text-zinc-500 text-xl flex-shrink-0 mt-0.5" />
                                             <div>
-                                                <h4 className="text-blue-500 text-sm font-bold mb-1">First Chapter Policy</h4>
+                                                <h4 className="text-zinc-500 text-sm font-bold mb-1">First Chapter Policy</h4>
                                                 <p className="text-gray-400 text-xs">The first chapter of a new book must be published immediately to ensure the book listing is active.</p>
                                             </div>
                                         </div>
                                     ) : (
                                         <div>
-                                            <label className="text-xs font-bold text-blue-400 uppercase mb-1 flex items-center gap-1">
+                                            <label className="text-xs font-bold text-zinc-400 uppercase mb-1 flex items-center gap-1">
                                                 <MdSchedule /> Schedule Publication (Optional)
                                             </label>
                                             {/* O input type="datetime-local" segue o padrão do navegador, mas a lógica foi tratada */}
@@ -481,7 +490,7 @@ export default function Escrever() {
                                                 type="datetime-local"
                                                 value={dataAgendada}
                                                 onChange={(e) => setDataAgendada(e.target.value)}
-                                                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-blue-500 outline-none"
+                                                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-zinc-500 outline-none"
                                             />
                                             <p className="text-[10px] text-gray-500 mt-1">Leave blank to publish immediately. Format: Month/Day/Year Time</p>
                                         </div>
@@ -498,7 +507,7 @@ export default function Escrever() {
                                     </div>
 
                                     <div className="pt-4 border-t border-white/5">
-                                        <label className="text-xs font-bold text-blue-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
+                                        <label className="text-xs font-bold text-zinc-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
                                         <div className="border border-[#333] rounded-lg overflow-hidden">
                                             <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 200, statusbar: false }} onEditorChange={(content) => setNotaAutor(content)} />
                                         </div>

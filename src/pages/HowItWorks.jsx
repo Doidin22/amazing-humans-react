@@ -71,7 +71,7 @@ export default function HowItWorks() {
           <h2 className="text-3xl font-bold text-white mb-6">Why Amazing Humans?</h2>
           <ul className="space-y-6">
             <li className="flex gap-4">
-              <div className="bg-blue-500/20 p-3 rounded-lg text-blue-400 h-fit"><MdDevices size={24} /></div>
+              <div className="bg-zinc-500/20 p-3 rounded-lg text-zinc-400 h-fit"><MdDevices size={24} /></div>
               <div>
                 <h4 className="text-white font-bold text-lg">Cross-Platform</h4>
                 <p className="text-gray-400 text-sm">Read comfortably on your desktop, tablet, or mobile phone. Your library syncs everywhere.</p>

@@ -128,7 +128,7 @@ export default function Biblioteca() {
     });
 
     const renderItem = React.useCallback((index, item) => (
-        <div className="bg-[#1f1f1f] rounded-xl overflow-hidden border border-[#333] flex flex-col sm:flex-row transition-all hover:border-blue-500/30 group relative mb-4">
+        <div className="bg-[#1f1f1f] rounded-xl overflow-hidden border border-[#333] flex flex-col sm:flex-row transition-all hover:border-zinc-500/30 group relative mb-4">
             <button onClick={() => mutationFavorite.mutate(item)} className="absolute top-2 right-2 z-10 p-2 rounded-full bg-black/50 hover:bg-black/80 text-white transition-all opacity-0 group-hover:opacity-100">
                 {item.isFavorite ? <MdFavorite className="text-red-500" /> : <MdFavoriteBorder />}
             </button>
@@ -138,18 +138,18 @@ export default function Biblioteca() {
             </Link>
             <div className="flex-1 p-5 flex flex-col justify-between">
                 <div>
-                    <Link to={`/obra/${item.obraId}`}><h3 className="text-white font-bold text-lg leading-tight mb-1 group-hover:text-blue-400 transition-colors">{item.tituloObra}</h3></Link>
+                    <Link to={`/obra/${item.obraId}`}><h3 className="text-white font-bold text-lg leading-tight mb-1 group-hover:text-zinc-400 transition-colors">{item.tituloObra}</h3></Link>
                     <div className="mt-3">
-                        <div className="flex justify-between items-center text-xs text-gray-400 mb-1 font-bold uppercase tracking-wide"><span>Progress</span><span className={item.progresso === 100 ? "text-green-500" : "text-blue-400"}>{item.progresso}%</span></div>
-                        <div className="w-full h-2 bg-[#2a2a2a] rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ${item.progresso === 100 ? 'bg-green-600' : 'bg-blue-600'}`} style={{ width: `${item.progresso}%` }}></div></div>
+                        <div className="flex justify-between items-center text-xs text-gray-400 mb-1 font-bold uppercase tracking-wide"><span>Progress</span><span className={item.progresso === 100 ? "text-green-500" : "text-zinc-400"}>{item.progresso}%</span></div>
+                        <div className="w-full h-2 bg-[#2a2a2a] rounded-full overflow-hidden"><div className={`h-full transition-all duration-1000 ${item.progresso === 100 ? 'bg-green-600' : 'bg-zinc-600'}`} style={{ width: `${item.progresso}%` }}></div></div>
                         <p className="text-xs text-gray-500 mt-2">Last read: <span className="text-gray-300 italic">{item.ultimoCapituloLido}</span></p>
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-[#2a2a2a]">
-                    <select value={item.status || 'reading'} onChange={(e) => mutationStatus.mutate({ id: item.id, novoStatus: e.target.value })} className="bg-[#252525] text-gray-400 text-xs py-1.5 px-3 rounded-lg border border-[#444] outline-none cursor-pointer focus:border-blue-500">
+                    <select value={item.status || 'reading'} onChange={(e) => mutationStatus.mutate({ id: item.id, novoStatus: e.target.value })} className="bg-[#252525] text-gray-400 text-xs py-1.5 px-3 rounded-lg border border-[#444] outline-none cursor-pointer focus:border-zinc-500">
                         <option value="reading">Lendo</option><option value="completed">Lido</option><option value="plan">A Ler</option><option value="remove">Remover</option>
                     </select>
-                    <Link to={item.ultimoCapituloId ? `/ler/${item.ultimoCapituloId}` : `/obra/${item.obraId}`} className={`px-5 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all ${item.progresso === 100 ? 'bg-[#2a2a2a] text-gray-300 hover:bg-[#333]' : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg'}`}>
+                    <Link to={item.ultimoCapituloId ? `/ler/${item.ultimoCapituloId}` : `/obra/${item.obraId}`} className={`px-5 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all ${item.progresso === 100 ? 'bg-[#2a2a2a] text-gray-300 hover:bg-[#333]' : 'bg-zinc-600 hover:bg-zinc-500 text-white shadow-lg'}`}>
                         <MdPlayArrow size={16} /> {item.ultimoCapituloId ? "Continuar" : "Começar"}
                     </Link>
                 </div>
@@ -165,7 +165,7 @@ export default function Biblioteca() {
             </div>
             <div className="flex flex-wrap gap-3 mb-8">
                 {['reading', 'plan', 'completed', 'favorites'].map(aba => (
-                    <button key={aba} onClick={() => setAbaAtual(aba)} className={`capitalize px-4 py-2 rounded-full font-bold text-sm transition-all ${abaAtual === aba ? 'bg-blue-600 text-white' : 'bg-[#252525] text-gray-400'}`}>{aba}</button>
+                    <button key={aba} onClick={() => setAbaAtual(aba)} className={`capitalize px-4 py-2 rounded-full font-bold text-sm transition-all ${abaAtual === aba ? 'bg-zinc-600 text-white' : 'bg-[#252525] text-gray-400'}`}>{aba}</button>
                 ))}
             </div>
 

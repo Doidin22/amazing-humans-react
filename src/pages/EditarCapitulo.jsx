@@ -15,7 +15,10 @@ const editorConfig = {
   toolbar: 'undo redo | blocks fontsize | bold italic underline | align lineheight | numlist bullist | emoticons charmap | removeformat',
   skin: 'oxide-dark',
   content_css: 'dark',
-  body_class: 'my-editor-content'
+  body_class: 'my-editor-content',
+  content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.6; } p { margin-bottom: 1rem !important; }',
+  forced_root_block: 'p',
+  paste_as_text: false
 };
 
 export default function EditarCapitulo() {
@@ -126,7 +129,7 @@ export default function EditarCapitulo() {
             <MdCancel size={18} /> Cancel
           </button>
 
-          <button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50">
+          <button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-zinc-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg flex items-center gap-2 transition-all disabled:opacity-50">
             <MdSave size={20} /> {saving ? "Saving..." : "Save"}
           </button>
         </div>
@@ -155,7 +158,7 @@ export default function EditarCapitulo() {
         </div>
 
         <div className="pt-4 border-t border-white/5">
-          <label className="text-xs font-bold text-blue-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
+          <label className="text-xs font-bold text-zinc-400 uppercase mb-2 block tracking-wider">Author Note (Optional)</label>
           <div className="border border-[#333] rounded-lg overflow-hidden">
             <Editor tinymceScriptSrc={OPEN_SOURCE_TINY} init={{ ...editorConfig, height: 150, statusbar: false }} value={notaAutor} onEditorChange={(c) => setNotaAutor(c)} />
           </div>

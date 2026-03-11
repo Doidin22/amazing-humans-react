@@ -149,7 +149,6 @@ export default function Header() {
                 <div className="absolute -inset-1 bg-primary rounded-full blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
                 <img src="/logo-ah.png" alt="Logo" className="relative h-9 w-auto object-contain" onError={(e) => handleImgError(e, 'logo')} />
               </div>
-              <span className="text-white font-serif font-bold text-xl tracking-wide hidden sm:block">Amazing<span className="text-primary">Humans</span></span>
             </Link>
           </div>
 
@@ -188,7 +187,7 @@ export default function Header() {
                       {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> <span>Admin Panel</span></Link>}
                       <Link to="/subscription" className="dropdown-item"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
                       <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> <span>Dashboard</span></Link>
-                      <Link to="/perfil" className="dropdown-item"><MdPerson className="text-blue-400" /> <span>Profile</span></Link>
+                      <Link to="/perfil" className="dropdown-item"><MdPerson className="text-zinc-400" /> <span>Profile</span></Link>
                       <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> <span>Library</span></Link>
 
                       <div className="h-px bg-white/5 my-1"></div>

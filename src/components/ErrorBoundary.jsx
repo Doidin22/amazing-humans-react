@@ -22,7 +22,7 @@ class ErrorBoundary extends React.Component {
           <p className="text-gray-400 mb-6">Something went wrong attempting to render this page.</p>
           <button 
             onClick={() => window.location.href = '/'} 
-            className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-full font-bold transition"
+            className="bg-zinc-600 hover:bg-zinc-500 px-6 py-3 rounded-full font-bold transition"
           >
             Return to Home
           </button>

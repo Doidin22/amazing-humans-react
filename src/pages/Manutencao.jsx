@@ -7,7 +7,7 @@ export default function Manutencao() {
     <div className="min-h-screen bg-[#121212] flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
         
         {/* --- FUNDO ANIMADO (GLOW) --- */}
-        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] animate-pulse"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-zinc-600/20 rounded-full blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[150px] animate-pulse delay-1000"></div>
 
         {/* --- CONTEÚDO CENTRAL --- */}
@@ -15,9 +15,9 @@ export default function Manutencao() {
             
             {/* Ícone Animado */}
             <div className="mb-8 relative inline-flex justify-center items-center">
-                <div className="absolute inset-0 bg-blue-500 blur-2xl opacity-20 rounded-full animate-ping duration-[3s]"></div>
-                <div className="relative bg-[#1a1a1a] border border-white/10 p-6 rounded-full shadow-2xl shadow-blue-500/10">
-                    <MdRocketLaunch size={60} className="text-blue-400 animate-bounce" />
+                <div className="absolute inset-0 bg-zinc-500 blur-2xl opacity-20 rounded-full animate-ping duration-[3s]"></div>
+                <div className="relative bg-[#1a1a1a] border border-white/10 p-6 rounded-full shadow-2xl shadow-zinc-500/10">
+                    <MdRocketLaunch size={60} className="text-zinc-400 animate-bounce" />
                 </div>
                 {/* Estrelinhas decorativas */}
                 <MdAutoAwesome className="absolute -top-2 -right-4 text-yellow-400 text-2xl animate-spin-slow" />
@@ -31,7 +31,7 @@ export default function Manutencao() {
             
             <p className="text-gray-400 text-lg md:text-xl mb-10 leading-relaxed max-w-lg mx-auto">
                 Our writers are crafting new worlds and our developers are polishing the pixels. 
-                <span className="block mt-2 text-blue-400 font-medium">Amazing things are coming!</span>
+                <span className="block mt-2 text-zinc-400 font-medium">Amazing things are coming!</span>
             </p>
 
             {/* Card de Status (Glassmorphism) */}
@@ -60,7 +60,7 @@ export default function Manutencao() {
             <div className="mt-12">
                 <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mb-4">Follow us for updates</p>
                 <div className="flex justify-center gap-4">
-                    <a href="#" className="p-3 bg-[#1f1f1f] rounded-full text-gray-400 hover:text-white hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1">
+                    <a href="#" className="p-3 bg-[#1f1f1f] rounded-full text-gray-400 hover:text-white hover:bg-zinc-600 transition-all shadow-lg hover:-translate-y-1">
                         <FaTwitter size={20} />
                     </a>
                     <a href="#" className="p-3 bg-[#1f1f1f] rounded-full text-gray-400 hover:text-white hover:bg-[#5865F2] transition-all shadow-lg hover:-translate-y-1">

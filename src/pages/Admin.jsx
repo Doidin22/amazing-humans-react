@@ -352,7 +352,7 @@ export default function Admin() {
                 </button>
                 <button
                     onClick={() => setActiveTab('users')}
-                    className={`pb-3 px-2 text-sm font-bold uppercase tracking-wide transition-all ${activeTab === 'users' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-gray-500 hover:text-white'}`}
+                    className={`pb-3 px-2 text-sm font-bold uppercase tracking-wide transition-all ${activeTab === 'users' ? 'text-zinc-500 border-b-2 border-zinc-500' : 'text-gray-500 hover:text-white'}`}
                 >
                     <span>User Manager</span>
                 </button>
@@ -366,7 +366,7 @@ export default function Admin() {
                             <div className="flex justify-between items-start">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${report.targetType === 'book' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'}`}>
+                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${report.targetType === 'book' ? 'bg-zinc-900 text-zinc-300' : 'bg-green-900 text-green-300'}`}>
                                             {report.targetType}
                                         </span>
                                         <span className="text-xs text-gray-500">{report.timestamp ? new Date(report.timestamp.seconds * 1000).toLocaleString() : ''}</span>
@@ -404,10 +404,10 @@ export default function Admin() {
                                 placeholder="Search user by email or name..."
                                 value={userSearch}
                                 onChange={(e) => setUserSearch(e.target.value)}
-                                className="w-full bg-[#1a1a1a] border border-[#333] text-white pl-10 pr-4 py-3 rounded-lg outline-none focus:border-blue-500"
+                                className="w-full bg-[#1a1a1a] border border-[#333] text-white pl-10 pr-4 py-3 rounded-lg outline-none focus:border-zinc-500"
                             />
                         </div>
-                        <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white px-6 rounded-lg font-bold">Search</button>
+                        <button type="submit" className="bg-zinc-600 hover:bg-zinc-500 text-white px-6 rounded-lg font-bold">Search</button>
                     </form>
 
                     <div className="space-y-4">
@@ -421,7 +421,7 @@ export default function Admin() {
                                             {u.role === 'admin' && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdSecurity size={10} /> Admin</span>}
                                             {u.banned && <span className="bg-gray-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdBlock size={10} /> Banned</span>}
                                             {u.subscriptionType && <span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded uppercase flex items-center gap-1"><MdStar size={10} /> {u.subscriptionType}</span>}
-                                            {u.badges?.includes('verified') && <MdVerified className="text-blue-400" title="Verified" />}
+                                            {u.badges?.includes('verified') && <MdVerified className="text-zinc-400" title="Verified" />}
                                         </h4>
                                         <p className="text-gray-500 text-sm">{u.email}</p>
                                         <p className="text-gray-600 text-xs mt-1">ID: {u.id}</p>
@@ -444,14 +444,14 @@ export default function Admin() {
                                             <div className="absolute top-full right-0 mt-2 bg-[#1a1a1a] border border-[#333] rounded-lg p-2 shadow-xl z-10 w-48 hidden group-hover:block">
                                                 <p className="text-[10px] text-gray-500 font-bold uppercase mb-2">Set Subscription:</p>
                                                 <button onClick={() => grantSubscription(u, 'free')} className="w-full text-left text-xs text-gray-300 hover:text-white hover:bg-[#333] px-2 py-1.5 rounded">None (Free)</button>
-                                                <button onClick={() => grantSubscription(u, 'reader')} className="w-full text-left text-xs text-blue-400 hover:text-blue-300 hover:bg-[#333] px-2 py-1.5 rounded font-bold">Reader Tier</button>
+                                                <button onClick={() => grantSubscription(u, 'reader')} className="w-full text-left text-xs text-zinc-400 hover:text-zinc-300 hover:bg-[#333] px-2 py-1.5 rounded font-bold">Reader Tier</button>
                                                 <button onClick={() => grantSubscription(u, 'author')} className="w-full text-left text-xs text-purple-400 hover:text-purple-300 hover:bg-[#333] px-2 py-1.5 rounded font-bold">Author Tier</button>
                                             </div>
                                         </div>
 
                                         <button
                                             onClick={() => toggleVerifyUser(u)}
-                                            className={`text-xs font-bold px-3 py-2 rounded flex items-center gap-1 transition-colors border ${u.badges?.includes('verified') ? 'border-blue-500/50 text-blue-400 hover:bg-blue-500/10' : 'border-gray-600 text-gray-400 hover:text-white'}`}
+                                            className={`text-xs font-bold px-3 py-2 rounded flex items-center gap-1 transition-colors border ${u.badges?.includes('verified') ? 'border-zinc-500/50 text-zinc-400 hover:bg-zinc-500/10' : 'border-gray-600 text-gray-400 hover:text-white'}`}
                                         >
                                             <MdVerified /> {u.badges?.includes('verified') ? 'Unverify' : 'Verify'}
                                         </button>
@@ -494,7 +494,7 @@ export default function Admin() {
 
                         {/* Modal Tabs */}
                         <div className="flex border-b border-white/5 bg-[#1f1f1f]">
-                            <button onClick={() => setUserModalTab('published')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'published' ? 'text-blue-500 border-b-2 border-blue-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
+                            <button onClick={() => setUserModalTab('published')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'published' ? 'text-zinc-500 border-b-2 border-zinc-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
                                 Published Works ({userWorks.length})
                             </button>
                             <button onClick={() => setUserModalTab('library')} className={`flex-1 py-3 text-sm font-bold uppercase transition-all ${userModalTab === 'library' ? 'text-green-500 border-b-2 border-green-500 bg-[#252525]' : 'text-gray-500 hover:text-white'}`}>
@@ -552,7 +552,7 @@ export default function Admin() {
                                                     <div>
                                                         <h4 className="text-white font-bold text-sm line-clamp-1">{item.bookTitle}</h4>
                                                         <div className="flex gap-2 mt-1">
-                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-500/20 uppercase font-bold">{item.status}</span>
+                                                            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900/30 text-zinc-400 border border-zinc-500/20 uppercase font-bold">{item.status}</span>
                                                             {item.isFavorite && <span className="text-[10px] text-red-500 font-bold flex items-center gap-1"><MdStar size={10} /> Favorite</span>}
                                                         </div>
                                                     </div>

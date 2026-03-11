@@ -17,8 +17,8 @@ const getStyleData = (tipo, lida) => {
         case 'chapter':
             return {
                 icon: <MdMenuBook size={20} />,
-                bg: lida ? 'bg-gray-800' : 'bg-blue-500/20',
-                iconColor: lida ? 'text-gray-500' : 'text-blue-400'
+                bg: lida ? 'bg-gray-800' : 'bg-zinc-500/20',
+                iconColor: lida ? 'text-gray-500' : 'text-zinc-400'
             };
         case 'comment':
             return {
@@ -124,7 +124,7 @@ export default function Notificacoes() {
 
                 <div className="flex gap-2">
                     {notificacoes.some(n => !n.lida) && (
-                        <button onClick={marcarTodasLidas} className="text-xs font-bold text-blue-400 hover:text-white px-3 py-1.5 rounded-lg border border-blue-500/30 hover:bg-blue-500/20 transition flex items-center gap-1">
+                        <button onClick={marcarTodasLidas} className="text-xs font-bold text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg border border-zinc-500/30 hover:bg-zinc-500/20 transition flex items-center gap-1">
                             <MdCheckCircle /> Mark all read
                         </button>
                     )}

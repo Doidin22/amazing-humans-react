@@ -114,7 +114,7 @@ export default function PerfilPublico() {
                     <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center gap-2">
                         {perfil.nome}
                         {isVip && <MdDiamond className="text-yellow-400 drop-shadow-md" title="VIP User" />}
-                        {perfil.badges?.includes('pioneer') && <MdVerified className="text-blue-400" title="Founder Author" />}
+                        {perfil.badges?.includes('pioneer') && <MdVerified className="text-zinc-400" title="Founder Author" />}
                     </h2>
                     
                     <div className="flex gap-2 mb-4 justify-center">
@@ -126,7 +126,7 @@ export default function PerfilPublico() {
                     <div className="flex flex-col gap-4 mb-6 w-full px-4">
                         <div className="flex justify-center gap-4">
                             {perfil.website && <a href={formatUrl(perfil.website)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><FaGlobe size={20} /></a>}
-                            {perfil.twitter && <a href={formatUrl(perfil.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-blue-400 transition-colors"><FaTwitter size={20} /></a>}
+                            {perfil.twitter && <a href={formatUrl(perfil.twitter)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-zinc-400 transition-colors"><FaTwitter size={20} /></a>}
                             {perfil.instagram && <a href={formatUrl(perfil.instagram)} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-500 transition-colors"><FaInstagram size={20} /></a>}
                         </div>
 

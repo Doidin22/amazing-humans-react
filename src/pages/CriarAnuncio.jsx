@@ -106,7 +106,7 @@ export default function CriarAnuncio() {
                 <p className="text-gray-400 mb-6">Promote your stories. (Test Mode Active)</p>
 
                 {user?.isVip ? (
-                    <div className="bg-gradient-to-r from-green-900/30 to-blue-900/30 border border-green-500/30 p-4 rounded-lg mb-8 flex items-center gap-3">
+                    <div className="bg-gradient-to-r from-green-900/30 to-zinc-900/30 border border-green-500/30 p-4 rounded-lg mb-8 flex items-center gap-3">
                         <MdDiamond className="text-green-400 text-2xl flex-shrink-0" />
                         <div>
                             <h3 className="text-green-400 font-bold flex items-center gap-2">VIP Premium Status Active!</h3>
