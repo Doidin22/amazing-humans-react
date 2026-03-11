@@ -349,7 +349,7 @@ export default function Ler() {
                     className={`
                     ${currentTheme.text} 
                     font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}
-                    selection:bg-zinc-500/30 leading-relaxed
+                    selection:bg-zinc-500/30 leading-relaxed reader-content
                 `}
                     style={{ fontSize: `${settings.fontSize}px`, lineHeight: settings.lineHeight }}
                     dangerouslySetInnerHTML={{ __html: cleanContent }}

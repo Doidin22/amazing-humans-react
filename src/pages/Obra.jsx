@@ -295,7 +295,7 @@ export default function Obra() {
                         <div className="bg-[#1f1f1f]/80 backdrop-blur-sm border border-white/5 p-6 rounded-xl mb-6 relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
                             <h3 className="text-white font-bold mb-2 flex items-center gap-2"><MdInfoOutline /> Synopsis</h3>
-                            <div className="text-gray-300 leading-relaxed font-serif text-sm md:text-base" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse) }} />
+                            <div className="text-gray-300 leading-relaxed font-serif text-sm md:text-base reader-content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse) }} />
                         </div>
 
                         <div className="flex flex-wrap gap-4 items-center">

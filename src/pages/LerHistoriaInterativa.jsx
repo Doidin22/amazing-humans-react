@@ -177,7 +177,7 @@ export default function LerHistoriaInterativa() {
 
                 {/* Scene content */}
                 <div
-                    className={`${theme.text} leading-relaxed mb-12 font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'}`}
+                    className={`${theme.text} leading-relaxed mb-12 font-${settings.fontFamily === 'serif' ? 'serif' : settings.fontFamily === 'mono' ? 'mono' : 'sans'} reader-content`}
                     style={{ fontSize: `${settings.fontSize}px`, lineHeight: settings.lineHeight }}
                     dangerouslySetInnerHTML={{ __html: cleanContent }}
                 />
