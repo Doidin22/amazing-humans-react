@@ -91,19 +91,7 @@ export default function Perfil() {
         }
     }
 
-    const [inviteCodeInput, setInviteCodeInput] = useState('');
-    async function handleRedeemCode() {
-        if (!inviteCodeInput) return;
-        const functions = getFunctions();
-        const redeemReferralCode = httpsCallable(functions, 'redeemReferralCode');
-        try {
-            const { data } = await redeemReferralCode({ code: inviteCodeInput });
-            toast.success(`Success! Referred by ${data.referrerName}`);
-            setInviteCodeInput('');
-        } catch (error) {
-            toast.error(error.message);
-        }
-    }
+
 
     function copyToClipboard(text) {
         navigator.clipboard.writeText(text);
@@ -221,43 +209,7 @@ export default function Perfil() {
                         </div>
                     </div>
 
-                    {/* Referral Section */}
-                    <div className="w-full bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 mt-2">
-                        <h4 className="text-yellow-500 font-bold flex items-center gap-2 mb-2 text-sm"><MdCardGiftcard /> Referral Program</h4>
 
-                        <div className="bg-black/30 rounded-lg p-3 border border-white/5 mb-3">
-                            <p className="text-[10px] text-gray-400 uppercase font-bold mb-1">My Invite Code</p>
-                            <div className="flex items-center justify-between">
-                                <code className="text-white font-mono text-lg">{user?.referralCode || 'Generating...'}</code>
-                                <button onClick={() => copyToClipboard(user?.referralCode)} className="text-gray-400 hover:text-white p-1"><MdContentCopy /></button>
-                            </div>
-                            <p className="text-[10px] text-gray-500 mt-1">Share with friends! 15 referrals = 30 days Free Reader Tier.</p>
-                            <div className="mt-2 text-xs text-gray-300">
-                                Referrals: <span className="text-yellow-500 font-bold">{user?.referralCount || 0}</span> / 15
-                            </div>
-                        </div>
-
-                        {!user?.referredBy && (
-                            <div className="mt-3 pt-3 border-t border-white/10">
-                                <p className="text-[10px] text-gray-400 uppercase font-bold mb-2">Have a code?</p>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="REF-XXXXX"
-                                        value={inviteCodeInput}
-                                        onChange={e => setInviteCodeInput(e.target.value)}
-                                        className="w-full bg-black/30 border border-white/10 rounded px-3 text-xs text-white focus:border-yellow-500 outline-none"
-                                    />
-                                    <button onClick={handleRedeemCode} className="bg-yellow-600 hover:bg-yellow-500 text-black font-bold text-xs px-3 rounded transition-colors">Apply</button>
-                                </div>
-                            </div>
-                        )}
-                        {user?.referredBy && (
-                            <div className="mt-2 text-xs text-gray-500 text-center">
-                                Referred by another user <MdVerified className="inline text-zinc-500" />
-                            </div>
-                        )}
-                    </div>
                 </div>
 
 
