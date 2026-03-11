@@ -386,19 +386,11 @@ export default function Escrever() {
                 <button onClick={() => setModo('capitulo')} className={`px-6 py-2 rounded-md font-bold transition-all ${modo === 'capitulo' ? 'bg-primary text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>New Chapter Only</button>
                 <button
                     onClick={() => {
-                        if (user?.subscriptionType !== 'author') {
-                            toast('Interactive Stories requires the Author Plan 🔒', { icon: '⭐', duration: 3000 });
-                            navigate('/subscription');
-                        } else {
-                            navigate('/escrever-historia-interativa');
-                        }
+                        navigate('/escrever-historia-interativa');
                     }}
                     className="px-6 py-2 rounded-md font-bold transition-all text-gray-400 hover:text-white flex items-center gap-2"
                 >
-                    {user?.subscriptionType === 'author'
-                        ? <><span className="text-zinc-400">⎇</span> Interactive Story</>
-                        : <><MdWorkspacePremium className="text-purple-400" size={16} /> Interactive Story</>
-                    }
+                    <><span className="text-zinc-400">⎇</span> Interactive Story</>
                 </button>
             </div>
 

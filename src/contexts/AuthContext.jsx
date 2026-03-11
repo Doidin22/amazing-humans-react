@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
 
               // --- NOVOS CAMPOS DE ECONOMIA ---
               coins: dados.coins || 0,
-              subscriptionType: dados.subscriptionType || 'free', // 'free', 'reader', 'author'
+              subscriptionType: 'author', // Force author for free premium
               subscriptionStatus: dados.subscriptionStatus || 'inactive', // 'active', 'past_due'
               referralCode: dados.referralCode || '',
               // Campos referrals
@@ -87,7 +87,7 @@ export function AuthProvider({ children }) {
               email: firebaseUser.email,
               role: 'user',
               coins: 0,
-              subscriptionType: 'free',
+              subscriptionType: 'author', // Override Default
               subscriptionStatus: 'inactive'
             });
           }
@@ -159,7 +159,7 @@ export function AuthProvider({ children }) {
           // Defaults are handled inside the listener but we can set them here to be safe
           coins: 0,
           role: 'user',
-          subscriptionType: 'free',
+          subscriptionType: 'author', // Force premium
           subscriptionStatus: 'inactive'
         });
 

@@ -115,7 +115,7 @@ export default function Header() {
               {isUserAdmin && <Link to="/admin" onClick={() => setShowDrawer(false)} className="drawer-link text-red-400 bg-red-500/10 border-red-500/20 mb-2 rounded-lg"><MdSecurity size={20} /> <span>Admin Panel</span></Link>}
 
               {/* --- Link do Dashboard no Mobile --- */}
-              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+              {/* <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link> */}
               <Link to="/dashboard" onClick={() => setShowDrawer(false)} className="drawer-link"><MdEditNote size={20} /> <span>Dashboard</span></Link>
 
               <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> <span>Home</span></Link>
@@ -132,7 +132,7 @@ export default function Header() {
           ) : (
             <>
               <Link to="/" onClick={() => setShowDrawer(false)} className="drawer-link"><MdHome size={20} /> <span>Home</span></Link>
-              <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+              {/* <Link to="/subscription" onClick={() => setShowDrawer(false)} className="drawer-link"><span className="text-yellow-500">★</span> <span>Subscription</span></Link> */}
               <Link to="/how-it-works" onClick={() => setShowDrawer(false)} className="drawer-link"><MdInfoOutline size={20} /> <span>How it Works</span></Link>
               <Link to="/login" onClick={() => setShowDrawer(false)} className="mt-4 mx-2 bg-primary text-white py-3 rounded-lg font-bold text-center shadow-lg"><span>Login / Sign Up</span></Link>
             </>
@@ -154,7 +154,7 @@ export default function Header() {
 
           <div className="hidden lg:flex items-center gap-6">
 
-            <Link to="/subscription" className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-yellow-600/10 to-yellow-600/20 hover:from-yellow-600/20 hover:to-yellow-600/30 text-yellow-500 border border-yellow-500/30 px-4 py-1.5 rounded-full font-bold text-xs transition-all shadow-[0_0_15px_-5px_rgba(234,179,8,0.3)]">★ Subscription</Link>
+            {/* <Link to="/subscription" className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-yellow-600/10 to-yellow-600/20 hover:from-yellow-600/20 hover:to-yellow-600/30 text-yellow-500 border border-yellow-500/30 px-4 py-1.5 rounded-full font-bold text-xs transition-all shadow-[0_0_15px_-5px_rgba(234,179,8,0.3)]">★ Subscription</Link> */}
 
             <a href="https://buymeacoffee.com/rlokin222" target="_blank" className="flex items-center gap-2 bg-secondary/10 hover:bg-secondary/20 text-secondary border border-secondary/20 px-4 py-1.5 rounded-full font-bold text-xs transition-all"><FaCoffee size={14} /> Support</a>
 
@@ -185,7 +185,7 @@ export default function Header() {
                         </div>
                       </div>
                       {isUserAdmin && <Link to="/admin" className="dropdown-item text-red-400 hover:bg-red-500/10"><MdSecurity className="text-red-400" /> <span>Admin Panel</span></Link>}
-                      <Link to="/subscription" className="dropdown-item"><span className="text-yellow-500">★</span> <span>Subscription</span></Link>
+                      {/* <Link to="/subscription" className="dropdown-item"><span className="text-yellow-500">★</span> <span>Subscription</span></Link> */}
                       <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> <span>Dashboard</span></Link>
                       <Link to="/perfil" className="dropdown-item"><MdPerson className="text-zinc-400" /> <span>Profile</span></Link>
                       <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> <span>Library</span></Link>

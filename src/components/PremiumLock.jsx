@@ -14,7 +14,7 @@ import { MdWorkspacePremium, MdLock } from 'react-icons/md';
  *   - compact       : if true, renders a small inline badge instead of a full card
  */
 export default function PremiumLock({ user, feature, description, children, compact = false }) {
-    const isAuthor = user?.subscriptionType === 'author';
+    const isAuthor = true; // user?.subscriptionType === 'author'; - Temporarily bypassed for free premium access
 
     if (isAuthor) return <>{children}</>;
 
