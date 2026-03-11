@@ -42,6 +42,7 @@ export default function Obra() {
     const [idBiblioteca, setIdBiblioteca] = useState(null);
     const [showReport, setShowReport] = useState(false);
     const [lastReadId, setLastReadId] = useState(null);
+    const [showFullSynopsis, setShowFullSynopsis] = useState(false);
 
     // --- CARREGAMENTO PRINCIPAL ---
     // --- REAL-TIME: Obra Listener ---
@@ -292,10 +293,24 @@ export default function Obra() {
                             {obra.categorias?.map((cat, i) => (<span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-xs text-gray-300 font-bold uppercase">{cat}</span>))}
                         </div>
 
-                        <div className="bg-[#1f1f1f]/80 backdrop-blur-sm border border-white/5 p-6 rounded-xl mb-6 relative overflow-hidden">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
-                            <h3 className="text-white font-bold mb-2 flex items-center gap-2"><MdInfoOutline /> Synopsis</h3>
-                            <div className="text-gray-300 leading-relaxed font-serif text-sm md:text-base reader-content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse) }} />
+                        <div className="bg-[#1f1f1f]/80 backdrop-blur-sm border border-white/5 rounded-xl mb-6 relative overflow-hidden flex flex-col">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-primary z-10"></div>
+                            
+                            <div className={`p-6 pb-2 transition-all duration-300 relative ${!showFullSynopsis ? 'max-h-[160px] overflow-hidden' : ''}`}>
+                                <h3 className="text-white font-bold mb-2 flex items-center gap-2"><MdInfoOutline /> Synopsis</h3>
+                                <div className="text-gray-300 leading-relaxed font-serif text-sm md:text-base reader-content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(obra.sinopse) }} />
+                                
+                                {!showFullSynopsis && (
+                                    <div className="absolute bottom-0 left-0 w-full h-20 bg-gradient-to-t from-[#1f1f1f] to-transparent pointer-events-none"></div>
+                                )}
+                            </div>
+                            
+                            <button 
+                                onClick={() => setShowFullSynopsis(!showFullSynopsis)}
+                                className="w-full py-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-primary/80 hover:text-primary font-bold text-xs uppercase tracking-wider transition-colors border-t border-white/5 flex items-center justify-center gap-1 z-10"
+                            >
+                                {showFullSynopsis ? 'Show Less' : 'Read More'}
+                            </button>
                         </div>
 
                         <div className="flex flex-wrap gap-4 items-center">
