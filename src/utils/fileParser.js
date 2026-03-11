@@ -1,65 +1,20 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 
-// Configure the worker for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
 /**
- * Parses a file (PDF or DOCX) and extracts chapters.
+ * Parses a file (DOCX only) and extracts chapters.
  * @param {File} file - The file object from the input.
  * @returns {Promise<Array<{title: string, content: string}>>} - Array of chapters.
  */
 export async function parseFile(file) {
     const fileType = file.name.split('.').pop().toLowerCase();
 
-    if (fileType === 'pdf') {
-        return await parsePdf(file);
-    } else if (fileType === 'docx') {
+    if (fileType === 'docx' || fileType === 'doc') {
         return await parseDocx(file);
     } else {
-        throw new Error("Unsupported file type. Please use .pdf or .docx");
+        throw new Error("Formato não suportado. Por favor, faça o upload de arquivos Word (.docx)");
     }
 }
 
-/**
- * Parses a PDF file with better layout preservation.
- */
-async function parsePdf(file) {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    let fullText = "";
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-
-        let lastY, text = '';
-        // Sort items by Y (descending) then X (ascending) to handle multi-column or out-of-order text
-        // textContent.items.sort((a, b) => b.transform[5] - a.transform[5] || a.transform[4] - b.transform[4]); 
-        // Note: Standard PDF text is usually in order, sorting might break sentences if not careful with columns.
-        // Let's stick to the default order which is usually reading order, but check Y for newlines.
-
-        for (const item of textContent.items) {
-            if (lastY == item.transform[5] || !lastY) {
-                text += item.str;
-            }
-            else {
-                // If Y difference is significant, it's a new line. 
-                // We use a small threshold because sometimes Y varies slightly on the same line.
-                if (Math.abs(item.transform[5] - lastY) > 5) {
-                    text += '\n' + item.str;
-                } else {
-                    text += item.str;
-                }
-            }
-            lastY = item.transform[5];
-        }
-
-        fullText += text + "\n\n";
-    }
-
-    return extractChapters(fullText);
-}
 
 /**
  * Parses a DOCX file using Mammoth.

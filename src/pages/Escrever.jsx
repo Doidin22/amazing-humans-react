@@ -62,6 +62,10 @@ export default function Escrever() {
     const [dataAgendada, setDataAgendada] = useState('');
     const [importFile, setImportFile] = useState(null);
     const [isImporting, setIsImporting] = useState(false);
+    
+    // NOVO: Estados para Preview de Bulk Import
+    const [extractedChapters, setExtractedChapters] = useState([]);
+    const [editingChapterIndex, setEditingChapterIndex] = useState(null);
 
     const [loadingPost, setLoadingPost] = useState(false);
 
@@ -128,6 +132,31 @@ export default function Escrever() {
         console.log("Notification logic moved to backend.");
     }
 
+    const handleScanFile = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        setImportFile(file);
+        setIsImporting(true);
+        const scanToast = toast.loading("Scanning document...");
+        
+        try {
+            const chapters = await parseFile(file);
+            if (!chapters || chapters.length === 0) {
+                throw new Error("No chapters found. Please check formatting.");
+            }
+            setExtractedChapters(chapters);
+            toast.success(`Found ${chapters.length} chapters!`, { id: scanToast });
+        } catch (error) {
+            console.error(error);
+            toast.error(error.message, { id: scanToast });
+            setImportFile(null);
+            setExtractedChapters([]);
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
 
 
 
@@ -143,18 +172,15 @@ export default function Escrever() {
         }
 
         // --- BULK IMPORT LOGIC ---
-        if (importFile) {
+        if (importFile && extractedChapters.length > 0) {
             if (status === 'draft') return toast.error("Bulk import currently only supports immediate publishing.");
 
             setLoadingPost(true);
             const toastId = toast.loading("Processing file & publishing...");
 
             try {
-                // 1. Parse File
-                const chapters = await parseFile(importFile);
-                if (!chapters || chapters.length === 0) {
-                    throw new Error("No chapters found in file. Please check formatting.");
-                }
+                // Chapters already parsed and edited from state
+                const chapters = extractedChapters;
 
                 // 2. Create Book (if new)
                 let idFinalObra = obraSelecionada;
@@ -428,11 +454,9 @@ export default function Escrever() {
                                     <div>
                                         <h4 className="text-purple-400 text-sm font-bold mb-1">Bulk Import Chapters</h4>
                                         <p className="text-gray-400 text-xs mb-2">
-                                            Upload a <b>.docx (Word)</b> or <b>.pdf</b> file containing multiple chapters.
+                                            Upload a <b>.docx (Word)</b> file containing multiple chapters.
                                             The system will automatically detect chapters like "Chapter 1", "Capítulo 5", etc.
-                                        </p>
-                                        <p className="text-[10px] text-gray-500 italic">
-                                            Warning: PDF parsing is experimental. For best results, use Word documents or ensure clear headings.
+                                            You will be able to review and edit them before publishing.
                                         </p>
                                     </div>
                                 </div>
@@ -440,11 +464,14 @@ export default function Escrever() {
                                     <label htmlFor="bulk-import" className="cursor-pointer bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-lg flex items-center gap-2">
                                         <MdFileUpload /> {importFile ? "Change File" : "Select File"}
                                     </label>
-                                    <input id="bulk-import" type="file" onChange={(e) => setImportFile(e.target.files[0])} className="hidden" accept=".pdf,.docx,.doc" />
+                                    <input id="bulk-import" type="file" onChange={handleScanFile} className="hidden" accept=".docx,.doc" />
                                     {importFile && (
                                         <div className="flex items-center gap-2 bg-purple-500/20 px-2 py-1 rounded text-[10px] text-purple-200">
                                             <span>{importFile.name}</span>
-                                            <button onClick={() => setImportFile(null)} className="hover:text-white"><MdClose /></button>
+                                            <button onClick={() => {
+                                                setImportFile(null);
+                                                setExtractedChapters([]);
+                                            }} className="hover:text-white"><MdClose /></button>
                                         </div>
                                     )}
                                 </div>
@@ -452,16 +479,76 @@ export default function Escrever() {
                         </div>
 
                         {importFile ? (
-                            <div className="p-8 text-center border-2 border-dashed border-purple-500/30 rounded-lg bg-[#151515]">
-                                <MdBook size={48} className="mx-auto text-purple-500 mb-4 opacity-50" />
-                                <h3 className="text-xl font-bold text-white mb-2">Ready to Import</h3>
-                                <p className="text-gray-400 text-sm mb-6">
-                                    We will scan <b>{importFile.name}</b> and create chapters automatically.<br />
-                                    Existing content in the editor below will be ignored.
-                                </p>
-                                <button onClick={() => handlePublicar('public')} disabled={loadingPost} className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg inline-flex items-center gap-2 text-lg disabled:opacity-50">
-                                    {loadingPost ? "Importing & Publishing..." : "Import & Publish All"}
-                                </button>
+                            <div className="p-6 border-2 border-dashed border-purple-500/30 rounded-lg bg-[#151515]">
+                                <div className="text-center mb-6">
+                                    <MdBook size={48} className="mx-auto text-purple-500 mb-2 opacity-50" />
+                                    <h3 className="text-xl font-bold text-white mb-2">Ready to Publish</h3>
+                                    <p className="text-gray-400 text-sm">
+                                        We scanned <b>{importFile.name}</b> and found <b>{extractedChapters.length}</b> chapters.<br />
+                                        Review and edit them below before publishing.
+                                    </p>
+                                </div>
+
+                                {isImporting ? (
+                                    <div className="text-center text-purple-400 py-8 font-bold animate-pulse flex flex-col items-center gap-2">
+                                        <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                        Scanning document...
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 mb-8 text-left">
+                                        {extractedChapters.map((cap, index) => (
+                                            <div key={index} className="border border-[#333] rounded-lg overflow-hidden relative">
+                                                <div 
+                                                    className={`p-4 flex items-center justify-between cursor-pointer hover:bg-[#2a2a2a] transition-colors ${editingChapterIndex === index ? 'bg-[#2a2a2a] border-b border-[#333]' : 'bg-[#1f1f1f]'}`}
+                                                    onClick={() => setEditingChapterIndex(editingChapterIndex === index ? null : index)}
+                                                >
+                                                    <span className="text-white font-bold flex items-center gap-2"><span className="text-purple-400 text-xs bg-purple-500/10 px-2 py-0.5 rounded-full">{index + 1}</span> {cap.title}</span>
+                                                    <span className="text-xs text-purple-400 flex items-center gap-1">
+                                                        <MdEdit /> {editingChapterIndex === index ? 'Close' : 'Edit'}
+                                                    </span>
+                                                </div>
+                                                
+                                                {editingChapterIndex === index && (
+                                                    <div className="p-4 bg-black/40 space-y-4">
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Title</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={cap.title} 
+                                                                onChange={(e) => {
+                                                                    const newChapters = [...extractedChapters];
+                                                                    newChapters[index].title = e.target.value;
+                                                                    setExtractedChapters(newChapters);
+                                                                }}
+                                                                className="w-full bg-[#151515] border border-[#333] rounded-lg p-3 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-bold text-sm transition-all" 
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex justify-between mb-1">
+                                                                <label className="block text-xs font-bold text-gray-500 uppercase">Content (HTML)</label>
+                                                            </div>
+                                                            <textarea 
+                                                                value={cap.content}
+                                                                onChange={(e) => {
+                                                                    const newChapters = [...extractedChapters];
+                                                                    newChapters[index].content = e.target.value;
+                                                                    setExtractedChapters(newChapters);
+                                                                }}
+                                                                className="w-full h-80 bg-[#151515] border border-[#333] rounded-lg p-3 text-gray-300 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none font-mono text-xs leading-relaxed resize-y transition-all"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div className="text-center pt-6 border-t border-white/5">
+                                    <button onClick={() => handlePublicar('public')} disabled={loadingPost || extractedChapters.length === 0 || isImporting} className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-8 rounded-lg shadow-lg inline-flex items-center gap-2 text-base transition-all disabled:opacity-50">
+                                        {loadingPost ? "Publishing..." : `Publish All ${extractedChapters.length} Chapters`}
+                                    </button>
+                                </div>
                             </div>
                         ) : (
                             <>
