@@ -10,6 +10,7 @@ import {
     MdEdit, MdMenuBook, MdPerson, MdStar, MdBookmarkAdded, MdBookmarkBorder,
     MdInfoOutline, MdVisibility, MdList, MdFlag, MdVerified, MdNavigateNext, MdNavigateBefore
 } from 'react-icons/md';
+import { FaPatreon } from 'react-icons/fa';
 import Recomendacoes from '../components/Recomendacoes';
 import SkeletonObra from '../components/SkeletonObra';
 import Reviews from '../components/Reviews';
@@ -110,7 +111,11 @@ export default function Obra() {
         const unsubscribe = onSnapshot(userRef, (docSnap) => {
             if (docSnap.exists()) {
                 const uData = docSnap.data();
-                setAuthorData({ nome: uData.nome, badges: uData.badges || [] });
+                setAuthorData({ 
+                    nome: uData.nome, 
+                    badges: uData.badges || [],
+                    patreon: uData.patreon || null
+                });
             }
         }, (error) => {
             console.error("Erro ao monitorar autor:", error);
@@ -324,6 +329,18 @@ export default function Obra() {
                             <button onClick={toggleBiblioteca} className={`px-6 py-2.5 rounded-full font-bold flex items-center gap-2 border-2 transition ${estaNaBiblioteca ? 'border-red-500 text-red-500' : 'border-gray-600 text-gray-300'}`}>
                                 {estaNaBiblioteca ? <><MdBookmarkAdded /> Library</> : <><MdBookmarkBorder /> Add</>}
                             </button>
+
+                            {authorData?.patreon && authorData.patreon.includes('patreon.com') && (
+                                <a 
+                                    href={authorData.patreon.startsWith('http') ? authorData.patreon : `https://${authorData.patreon}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="px-6 py-2.5 rounded-full font-bold flex items-center gap-2 border border-[#FF424D] text-[#FF424D] hover:bg-[#FF424D] hover:text-white transition shadow-[0_0_10px_-2px_rgba(255,66,77,0.3)]"
+                                >
+                                    <FaPatreon /> Support
+                                </a>
+                            )}
+
                             {isAuthor && <Link to={`/editar-obra/${obra.id}`} className="ml-auto hidden md:flex items-center gap-2 text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition"><MdEdit /> Edit</Link>}
                         </div>
                     </div>
