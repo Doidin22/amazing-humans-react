@@ -407,3 +407,71 @@ exports.onUserUpdate = onDocumentUpdated("usuarios/{userId}", async (event) => {
     }
 });
 
+// ======================================================
+// 6. EXCLUSÃO DE CONTA DO USUÁRIO
+// ======================================================
+
+exports.deleteUserAccount = onCall({ cors: true }, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
+    
+    const uid = request.auth.uid;
+    const { getAuth } = require("firebase-admin/auth");
+
+    const batchDelete = async (query) => {
+        const snap = await query.get();
+        if (snap.empty) return;
+        
+        const batches = [];
+        let batch = db.batch();
+        let count = 0;
+        
+        snap.forEach(doc => {
+            batch.delete(doc.ref);
+            count++;
+            if (count === 500) {
+                batches.push(batch.commit());
+                batch = db.batch();
+                count = 0;
+            }
+        });
+        if (count > 0) batches.push(batch.commit());
+        await Promise.all(batches);
+    };
+
+    try {
+        logger.log(`Starting account deletion for user: ${uid}`);
+
+        // 1. Deletar as obras do usuário e tudo dentro delas (capítulos, avaliações, visualizações)
+        const obrasSnap = await db.collection('obras').where('autorId', '==', uid).get();
+        for (const doc of obrasSnap.docs) {
+            await batchDelete(db.collection('capitulos').where('obraId', '==', doc.id));
+            await batchDelete(db.collection('avaliacoes').where('obraId', '==', doc.id));
+            await batchDelete(db.collection('visualizacoes_capitulos').where('obraId', '==', doc.id));
+            await doc.ref.delete();
+        }
+
+        // 2. Deletar interações do usuário no site
+        await batchDelete(db.collection('comentarios').where('autorId', '==', uid));
+        await batchDelete(db.collection('avaliacoes').where('userId', '==', uid));
+        await batchDelete(db.collection('biblioteca').where('userId', '==', uid));
+        await batchDelete(db.collection('historico').where('userId', '==', uid));
+        await batchDelete(db.collection('notificacoes').where('paraId', '==', uid));
+        
+        // Seguidores
+        await batchDelete(db.collection('seguidores').where('followerId', '==', uid));
+        await batchDelete(db.collection('seguidores').where('followedId', '==', uid));
+        
+        // 3. Deletar documento na coleção 'usuarios'
+        await db.collection('usuarios').doc(uid).delete();
+
+        // 4. Deletar usuário do Firebase Auth
+        await getAuth().deleteUser(uid);
+        
+        logger.log(`Account ${uid} deleted successfully.`);
+        return { success: true };
+    } catch (error) {
+        logger.error(`Error deleting user ${uid}:`, error);
+        throw new HttpsError('internal', 'Error deleting user account.', error.message);
+    }
+});
+

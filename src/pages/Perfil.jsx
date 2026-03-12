@@ -98,6 +98,39 @@ export default function Perfil() {
         toast.success("Code copied!");
     }
 
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    async function handleDeleteAccount() {
+        if (!window.confirm("WARNING: This action is permanent and cannot be undone. All your books, chapters, comments, and profile data will be permanently deleted. Are you sure you want to delete your account?")) {
+            return;
+        }
+
+        const confirmText = window.prompt('Type "DELETE" to confirm account deletion:');
+        if (confirmText !== 'DELETE') {
+            toast('Account deletion cancelled.', { icon: 'ℹ️' });
+            return;
+        }
+
+        setIsDeleting(true);
+        const toastId = toast.loading("Deleting your account and all associated data...");
+        try {
+            const functions = getFunctions();
+            const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
+            await deleteUserAccount();
+            toast.success("Account deleted successfully.", { id: toastId });
+            // The Firebase Auth listener will auto-logout and redirect.
+        } catch (error) {
+            console.error("Deletion error:", error);
+            // If the user's auth token is invalidated mid-flight, it might throw an auth error, which is effectively a success.
+            if (error?.code === 'functions/unauthenticated' || error?.message?.includes('unauthenticated')) {
+                toast.success("Account deleted successfully.", { id: toastId });
+            } else {
+                toast.error("Failed to delete account: " + error.message, { id: toastId });
+                setIsDeleting(false);
+            }
+        }
+    }
+
     function handleCoverFile(e) {
         const file = e.target.files[0];
         if (file) {
@@ -225,6 +258,23 @@ export default function Perfil() {
                             <span className="text-white font-bold">{leituras}</span>
                         </div>
                     </div>
+                </div>
+
+                {/* DANGER ZONE */}
+                <div className="bg-[#1a1a1a] border border-red-900/50 p-6 rounded-2xl w-full mt-6">
+                    <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">Danger Zone</h3>
+                    <p className="text-xs text-gray-400 mb-4">
+                        Deleting your account is permanent. All your books, chapters, comments, and data will be wiped immediately.
+                    </p>
+                    <button
+                        onClick={handleDeleteAccount}
+                        disabled={isDeleting}
+                        className="w-full py-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 rounded-lg font-bold transition-all disabled:opacity-50 flex justify-center items-center"
+                    >
+                        {isDeleting ? (
+                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : 'Deactivate & Delete Account'}
+                    </button>
                 </div>
             </div>
 
