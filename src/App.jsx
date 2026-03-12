@@ -29,6 +29,7 @@ const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Manutencao = lazy(() => import('./pages/Manutencao'));
 const Subscription = lazy(() => import('./pages/Subscription'));
+const Settings = lazy(() => import('./pages/Settings'));
 const EscreverHistoriaInterativa = lazy(() => import('./pages/EscreverHistoriaInterativa'));
 const LerHistoriaInterativa = lazy(() => import('./pages/LerHistoriaInterativa'));
 
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/subscription" element={<Subscription />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/escrever-historia-interativa" element={<EscreverHistoriaInterativa />} />
                 <Route path="/escrever-historia-interativa/:id" element={<EscreverHistoriaInterativa />} />
                 <Route path="/historia-interativa/:id" element={<LerHistoriaInterativa />} />

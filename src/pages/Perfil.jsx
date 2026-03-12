@@ -5,12 +5,12 @@ import { doc, updateDoc, collection, query, where, getDocs, getCountFromServer }
 import {
     MdEdit, MdPerson, MdLink, MdClose, MdImage,
     MdVerified, MdPeople, MdPersonAdd, MdLibraryBooks, MdTimeline, MdAutoStories,
-    MdDiamond, MdContentCopy, MdCardGiftcard
+    MdDiamond, MdContentCopy, MdCardGiftcard, MdSettings
 } from 'react-icons/md';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FaInstagram, FaTwitter, FaGlobe, FaPatreon, FaPaypal } from 'react-icons/fa';
 import StoryCard from '../components/StoryCard';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
 // Função auxiliar para evitar links quebrados
 const formatUrl = (url) => {
@@ -23,7 +23,8 @@ export default function Perfil() {
     const { user } = useContext(AuthContext);
 
     const [isEditing, setIsEditing] = useState(false);
-    const [name, setName] = useState('');
+    const [name, setName] = useState(user?.name || '');
+    const navigate = useNavigate();
     const [avatarUrl, setAvatarUrl] = useState('');
     const [coverUrl, setCoverUrl] = useState('');
     const [social, setSocial] = useState({ website: '', twitter: '', instagram: '', patreon: '', paypal: '' });
@@ -98,39 +99,6 @@ export default function Perfil() {
         toast.success("Code copied!");
     }
 
-    const [isDeleting, setIsDeleting] = useState(false);
-
-    async function handleDeleteAccount() {
-        if (!window.confirm("WARNING: This action is permanent and cannot be undone. All your books, chapters, comments, and profile data will be permanently deleted. Are you sure you want to delete your account?")) {
-            return;
-        }
-
-        const confirmText = window.prompt('Type "DELETE" to confirm account deletion:');
-        if (confirmText !== 'DELETE') {
-            toast('Account deletion cancelled.', { icon: 'ℹ️' });
-            return;
-        }
-
-        setIsDeleting(true);
-        const toastId = toast.loading("Deleting your account and all associated data...");
-        try {
-            const functions = getFunctions();
-            const deleteUserAccount = httpsCallable(functions, 'deleteUserAccount');
-            await deleteUserAccount();
-            toast.success("Account deleted successfully.", { id: toastId });
-            // The Firebase Auth listener will auto-logout and redirect.
-        } catch (error) {
-            console.error("Deletion error:", error);
-            // If the user's auth token is invalidated mid-flight, it might throw an auth error, which is effectively a success.
-            if (error?.code === 'functions/unauthenticated' || error?.message?.includes('unauthenticated')) {
-                toast.success("Account deleted successfully.", { id: toastId });
-            } else {
-                toast.error("Failed to delete account: " + error.message, { id: toastId });
-                setIsDeleting(false);
-            }
-        }
-    }
-
     function handleCoverFile(e) {
         const file = e.target.files[0];
         if (file) {
@@ -161,9 +129,17 @@ export default function Perfil() {
 
                         <div className="relative mb-4">
                             <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-tr from-primary to-purple-500 shadow-xl relative">
-                                <img src={avatarUrl || user?.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover bg-[#222]" onError={(e) => { e.target.src = "https://ui-avatars.com/api/?name=User"; }} />
+                                <div className="w-full h-full rounded-full overflow-hidden border-2 border-[#121212] bg-[#222]">
+                                    <img src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=" + user?.uid} alt="Avatar" className="w-full h-full object-cover" />
+                                </div>
                                 {!isEditing && <button onClick={() => setIsEditing(true)} className="absolute bottom-0 right-0 bg-[#222] text-white p-2 rounded-full border border-gray-600 hover:bg-primary transition-all shadow-lg"><MdEdit size={16} /></button>}
                             </div>
+                            
+                            {!isEditing && (
+                                <button onClick={() => navigate('/settings')} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-black/30 p-2 rounded-full backdrop-blur-md transition-colors z-20" title="Account Settings">
+                                    <MdSettings size={20} />
+                                </button>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-center w-full mb-4">
@@ -241,61 +217,41 @@ export default function Perfil() {
                             </div>
                         </div>
                     </div>
-
-
-                </div>
-
-
-                <div className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl w-full">
-                    <h3 className="text-white font-bold mb-4 flex items-center gap-2"><MdTimeline className="text-green-500" /> Reader Stats</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
-                            <div className="flex items-center gap-3"><div className="p-2 bg-zinc-500/20 text-zinc-400 rounded-lg"><MdLibraryBooks size={20} /></div><span className="text-sm text-gray-300">In Library</span></div>
-                            <span className="text-white font-bold">{libraryCount} Books</span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
-                            <div className="flex items-center gap-3"><div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg"><MdAutoStories size={20} /></div><span className="text-sm text-gray-300">Chapters Read</span></div>
-                            <span className="text-white font-bold">{leituras}</span>
+                    
+                    {/* Reader Stats moved up slightly */}
+                    <div className="bg-[#1a1a1a] border border-white/5 p-6 rounded-2xl w-full">
+                        <h3 className="text-white font-bold mb-4 flex items-center gap-2"><MdTimeline className="text-green-500" /> Reader Stats</h3>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
+                                <div className="flex items-center gap-3"><div className="p-2 bg-zinc-500/20 text-zinc-400 rounded-lg"><MdLibraryBooks size={20} /></div><span className="text-sm text-gray-300">In Library</span></div>
+                                <span className="text-white font-bold">{libraryCount} Books</span>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-[#111] rounded-lg border border-[#333]">
+                                <div className="flex items-center gap-3"><div className="p-2 bg-purple-500/20 text-purple-400 rounded-lg"><MdAutoStories size={20} /></div><span className="text-sm text-gray-300">Chapters Read</span></div>
+                                <span className="text-white font-bold">{leituras}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* DANGER ZONE */}
-                <div className="bg-[#1a1a1a] border border-red-900/50 p-6 rounded-2xl w-full mt-6">
-                    <h3 className="text-red-500 font-bold mb-4 flex items-center gap-2">Danger Zone</h3>
-                    <p className="text-xs text-gray-400 mb-4">
-                        Deleting your account is permanent. All your books, chapters, comments, and data will be wiped immediately.
-                    </p>
-                    <button
-                        onClick={handleDeleteAccount}
-                        disabled={isDeleting}
-                        className="w-full py-3 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-600/50 rounded-lg font-bold transition-all disabled:opacity-50 flex justify-center items-center"
-                    >
-                        {isDeleting ? (
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        ) : 'Deactivate & Delete Account'}
-                    </button>
-                </div>
-            </div>
-
-            {/* COLUNA DA DIREITA (Obras) */}
-            <div className="w-full md:w-2/3">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2"><MdPerson className="text-primary" /> My Works</h2>
-                    {minhasObras.length > 0 && <span className="text-xs bg-white/10 text-gray-300 px-3 py-1 rounded-full">{minhasObras.length} Stories</span>}
-                </div>
-                {loadingObras ? <div className="loading-spinner"></div> : minhasObras.length === 0 ? (
-                    <div className="text-center py-16 bg-white/5 rounded-2xl border border-dashed border-white/10">
-                        <h3 className="text-lg font-bold text-gray-300">No stories yet</h3>
-                        <p className="text-gray-500 text-sm max-w-xs mx-auto mt-2">Start writing your first masterpiece!</p>
+                {/* COLUNA DA DIREITA (Obras) */}
+                <div className="w-full md:w-2/3">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2"><MdPerson className="text-primary" /> My Works</h2>
+                        {minhasObras.length > 0 && <span className="text-xs bg-white/10 text-gray-300 px-3 py-1 rounded-full">{minhasObras.length} Stories</span>}
                     </div>
-                ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-                        {minhasObras.map(obra => <StoryCard key={obra.id} data={obra} />)}
-                    </div>
-                )}
+                    {loadingObras ? <div className="loading-spinner"></div> : minhasObras.length === 0 ? (
+                        <div className="text-center py-16 bg-white/5 rounded-2xl border border-dashed border-white/10">
+                            <h3 className="text-lg font-bold text-gray-300">No stories yet</h3>
+                            <p className="text-gray-500 text-sm max-w-xs mx-auto mt-2">Start writing your first masterpiece!</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+                            {minhasObras.map(obra => <StoryCard key={obra.id} data={obra} />)}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
-
     );
 }

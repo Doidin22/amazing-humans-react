@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import {
   MdMenu, MdNotifications, MdPerson, MdEditNote,
   MdBookmarks, MdLogout, MdArrowDropDown,
-  MdHome, MdClose, MdInfoOutline, MdSecurity
+  MdHome, MdClose, MdInfoOutline, MdSecurity, MdSettings
 } from 'react-icons/md';
 import { FaCoffee } from 'react-icons/fa';
 
@@ -127,6 +127,7 @@ export default function Header() {
                 <span className="flex items-center gap-3"><MdNotifications size={20} /> <span>Notifications</span></span>
                 {notifCount > 0 && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{notifCount}</span>}
               </Link>
+              <Link to="/settings" onClick={() => setShowDrawer(false)} className="drawer-link"><MdSettings size={20} /> <span>Settings</span></Link>
               <button onClick={() => { logout(); setShowDrawer(false); }} className="drawer-link text-red-400 mt-4 border-t border-white/5 pt-4"><MdLogout size={20} /> <span>Logout</span></button>
             </>
           ) : (
@@ -189,6 +190,7 @@ export default function Header() {
                       <Link to="/dashboard" className="dropdown-item"><MdEditNote className="text-green-400" /> <span>Dashboard</span></Link>
                       <Link to="/perfil" className="dropdown-item"><MdPerson className="text-zinc-400" /> <span>Profile</span></Link>
                       <Link to="/biblioteca" className="dropdown-item"><MdBookmarks className="text-purple-400" /> <span>Library</span></Link>
+                      <Link to="/settings" className="dropdown-item"><MdSettings className="text-gray-400" /> <span>Settings</span></Link>
 
                       <div className="h-px bg-white/5 my-1"></div>
                       <button onClick={logout} className="dropdown-item text-red-400 hover:text-red-300"><MdLogout /> <span>Logout</span></button>
